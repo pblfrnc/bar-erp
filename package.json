@@ -29,7 +29,9 @@
       "client/dist/**/*",
       "server/dist/**/*",
       "server/prisma/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/**/*",
+      "node_modules/.prisma/**/*"
     ],
     "win": {
       "target": [
