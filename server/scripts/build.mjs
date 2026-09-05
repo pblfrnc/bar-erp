@@ -9,12 +9,29 @@ const outDir = join(serverRoot, 'dist');
 const prismaClientDir = join(serverRoot, 'node_modules', '.prisma', 'client');
 const prismaOutDir = join(outDir, 'prisma-engine');
 
+// 1. Build CommonJS bundle (index.cjs) para máxima compatibilidade no Electron Main
+await build({
+  entryPoints: [join(serverRoot, 'src', 'index.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'cjs',
+  outfile: join(outDir, 'index.cjs'),
+  external: ['*.node'],
+  define: { 'process.env.NODE_ENV': '"production"' },
+  logLevel: 'info',
+});
+
+// 2. Build ESM bundle (index.js) com banner de createRequire para evitar 'Dynamic require is not supported'
 await build({
   entryPoints: [join(serverRoot, 'src', 'index.ts')],
   bundle: true,
   platform: 'node',
   target: 'node20',
   format: 'esm',
+  banner: {
+    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
+  },
   outfile: join(outDir, 'index.js'),
   external: ['*.node'],
   define: { 'process.env.NODE_ENV': '"production"' },

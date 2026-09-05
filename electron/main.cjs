@@ -80,14 +80,20 @@ async function startServer() {
     process.env.PORT = '3001';
     process.env.NODE_ENV = 'production';
 
-    const serverEntry = path.join(__dirname, '..', 'server', 'dist', 'index.js');
-    if (fs.existsSync(serverEntry)) {
-      console.log('Iniciando servidor local via import direto:', serverEntry);
-      const fileUrl = pathToFileURL(serverEntry).href;
+    const serverEntryCjs = path.join(__dirname, '..', 'server', 'dist', 'index.cjs');
+    const serverEntryJs = path.join(__dirname, '..', 'server', 'dist', 'index.js');
+
+    if (fs.existsSync(serverEntryCjs)) {
+      console.log('Iniciando servidor local via require CJS direto:', serverEntryCjs);
+      require(serverEntryCjs);
+      console.log('✅ Servidor BarERP iniciado com sucesso no processo principal via CJS!');
+    } else if (fs.existsSync(serverEntryJs)) {
+      console.log('Iniciando servidor local via import direto:', serverEntryJs);
+      const fileUrl = pathToFileURL(serverEntryJs).href;
       await import(fileUrl);
-      console.log('✅ Servidor BarERP iniciado com sucesso no processo principal!');
+      console.log('✅ Servidor BarERP iniciado com sucesso no processo principal via ESM!');
     } else {
-      console.warn('Arquivo do servidor não encontrado em:', serverEntry);
+      console.warn('Arquivo do servidor não encontrado em:', serverEntryCjs, 'ou', serverEntryJs);
     }
   } catch (err) {
     console.error('Aviso ao iniciar servidor embutido:', err);
