@@ -27,16 +27,25 @@ jobs:
           npm --prefix client install
 
       - name: Preparar Banco e Gerar Prisma Client
+        working-directory: server
+        env:
+          DATABASE_URL: "file:./dev.db"
         run: |
-          npx --prefix server prisma generate
+          npx prisma generate
 
-      - name: Compilar Frontend e Backend
+      - name: Compilar Backend
+        working-directory: server
+        run: |
+          npm run build
+
+      - name: Compilar Frontend
+        working-directory: client
         run: |
           npm run build
 
       - name: Gerar Executável Windows (.EXE)
         run: |
-          npm run build:exe
+          npx electron-builder --win
 
       - name: Salvar Artefato Windows (.EXE)
         uses: actions/upload-artifact@v4
@@ -73,18 +82,24 @@ jobs:
           npm --prefix server install
           npm --prefix client install
 
-      - name: Compilar Frontend e Sincronizar com Capacitor
+      - name: Compilar Frontend
+        working-directory: client
         run: |
-          npm --prefix client run cap:build
+          npm run build
+
+      - name: Sincronizar com Capacitor Android
+        working-directory: client
+        run: |
+          npx cap sync android
 
       - name: Dar permissão ao Gradle Wrapper
         run: |
           chmod +x client/android/gradlew
 
-      - name: Compilar APK Android (Debug / Release)
+      - name: Compilar APK Android (Debug)
+        working-directory: client/android
         run: |
-          cd client/android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Salvar Artefato Android (APK)
         uses: actions/upload-artifact@v4

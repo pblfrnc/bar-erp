@@ -116,7 +116,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
   const [currentTime] = useState<number>(() => Date.now());
 
   // Tempo decorrido de mesa
-  const getElapsedMinutes = (openedAt?: string) => {
+  const getElapsedMinutes = (openedAt?: string | null) => {
     if (!openedAt) return null;
     const diffMs = currentTime - new Date(openedAt).getTime();
     const mins = Math.floor(diffMs / 60000);
@@ -583,7 +583,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
       {/* 6. Modal de Transferência de Mesa */}
       {tableForTransfer && (
         <TransferModal
-          currentTable={tableForTransfer}
+          sourceTable={tableForTransfer}
           tables={tables}
           onClose={() => setTableForTransfer(null)}
           onSuccess={() => {
