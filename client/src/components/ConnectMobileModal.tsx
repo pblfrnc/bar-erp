@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getServerBaseUrl } from "../services/socket";
+
 import { QrCodeSvg } from '../utils/qr';
 import {
   Smartphone,
@@ -27,7 +29,7 @@ export const ConnectMobileModal: React.FC<ConnectMobileModalProps> = ({ isOpen, 
   const fetchNetworkInfo = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/health');
+      const res = await fetch(`${getServerBaseUrl()}/api/health`);
       if (res.ok) {
         const data = await res.json();
         setIps(data.ips || []);
