@@ -22,7 +22,7 @@ export function createProductsRouter() {
 
       const products = await prisma.product.findMany({
         where: whereClause,
-        include: { category: true },
+        include: { category: true, components: { include: { component: true } } },
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }]
       });
 
@@ -36,7 +36,7 @@ export function createProductsRouter() {
   // Criar produto
   router.post('/', async (req, res) => {
     try {
-      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock } = req.body;
+      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock, components } = req.body;
 
       if (!name || price === undefined || !categoryId) {
         return res.status(400).json({ error: 'Nome, preço e categoria são obrigatórios' });
@@ -51,9 +51,17 @@ export function createProductsRouter() {
           categoryId,
           kdsStation: kdsStation || 'BAR',
           stock: stock !== undefined ? Number(stock) : 100,
-          minStock: minStock !== undefined ? Number(minStock) : 10
+          minStock: minStock !== undefined ? Number(minStock) : 10,
+          ...(components && Array.isArray(components) && components.length > 0 ? {
+            components: {
+              create: components.map((c: any) => ({
+                componentId: c.componentId,
+                quantity: Number(c.quantity)
+              }))
+            }
+          } : {})
         },
-        include: { category: true }
+        include: { category: true, components: { include: { component: true } } }
       });
 
       res.status(201).json(product);
@@ -67,7 +75,7 @@ export function createProductsRouter() {
   router.put('/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock, isActive } = req.body;
+      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock, isActive, components } = req.body;
 
       const dataToUpdate: any = {};
       if (name !== undefined) dataToUpdate.name = name;
@@ -80,10 +88,20 @@ export function createProductsRouter() {
       if (minStock !== undefined) dataToUpdate.minStock = Number(minStock);
       if (isActive !== undefined) dataToUpdate.isActive = Boolean(isActive);
 
+      if (components && Array.isArray(components)) {
+        dataToUpdate.components = {
+          deleteMany: {}, // Limpa os antigos
+          create: components.map((c: any) => ({
+            componentId: c.componentId,
+            quantity: Number(c.quantity)
+          }))
+        };
+      }
+
       const product = await prisma.product.update({
         where: { id },
         data: dataToUpdate,
-        include: { category: true }
+        include: { category: true, components: { include: { component: true } } }
       });
 
       res.json(product);

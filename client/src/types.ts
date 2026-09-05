@@ -12,6 +12,14 @@ export interface Category {
   _count?: { products: number };
 }
 
+export interface ProductComponent {
+  id?: string;
+  parentProductId?: string;
+  componentId: string;
+  component?: Product;
+  quantity: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -26,6 +34,8 @@ export interface Product {
   minStock: number;
   unit: string;
   isActive: boolean;
+  components?: ProductComponent[];
+
 }
 
 export interface OrderItem {

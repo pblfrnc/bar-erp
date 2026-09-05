@@ -74,6 +74,9 @@ model Category {
 }
 
 model Product {
+  components  ProductComponent[] @relation("ParentProduct")
+  usedIn      ProductComponent[] @relation("ComponentProduct")
+
   id          String      @id @default(cuid())
   name        String
   description String?
@@ -149,4 +152,17 @@ model SystemSettings {
   machineId      String?
   isLicensed     Boolean  @default(false)
   updatedAt      DateTime @updatedAt
+}
+
+model ProductComponent {
+  id             String   @id @default(cuid())
+  parentProductId String
+  parentProduct   Product  @relation("ParentProduct", fields: [parentProductId], references: [id], onDelete: Cascade)
+  componentId     String
+  component       Product  @relation("ComponentProduct", fields: [componentId], references: [id], onDelete: Restrict)
+  quantity        Float    // Quantidade descontada (ex: 3 para 3 litrões)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([parentProductId, componentId])
 }

@@ -61,7 +61,8 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       for (const item of items) {
         const product = await prisma.product.findUnique({
-          where: { id: item.productId }
+          where: { id: item.productId },
+          include: { components: true }
         });
 
         if (!product) continue;
@@ -85,8 +86,15 @@ export function createOrdersRouter(io: SocketIOServer) {
           include: { product: true }
         });
 
-        // Dar baixa no estoque se monitorado
-        if (product.trackStock) {
+        // Dar baixa no estoque (Verifica Ficha Técnica / Componentes)
+        if (product.components && product.components.length > 0) {
+          for (const comp of product.components) {
+            await prisma.product.update({
+              where: { id: comp.componentId },
+              data: { stock: { decrement: comp.quantity * qty } }
+            });
+          }
+        } else if (product.trackStock) {
           await prisma.product.update({
             where: { id: product.id },
             data: { stock: { decrement: qty } }
@@ -150,19 +158,28 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       const item = await prisma.orderItem.findUnique({
         where: { id: itemId },
-        include: { product: true }
+        include: { product: { include: { components: true } } }
       });
 
       if (!item || item.orderId !== id) {
         return res.status(404).json({ error: 'Item não encontrado no pedido' });
       }
 
-      // Devolver estoque se monitorado
-      if (item.product && item.product.trackStock) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } }
-        });
+      // Devolver estoque (Ficha Técnica ou Unidade)
+      if (item.product) {
+        if (item.product.components && item.product.components.length > 0) {
+          for (const comp of item.product.components) {
+            await prisma.product.update({
+              where: { id: comp.componentId },
+              data: { stock: { increment: comp.quantity * item.quantity } }
+            });
+          }
+        } else if (item.product.trackStock) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } }
+          });
+        }
       }
 
       // Deletar o item

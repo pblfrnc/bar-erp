@@ -12,7 +12,7 @@ import {
   Tag,
   Beer,
   ChefHat,
-  Trash2
+  Trash2, X
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -33,6 +33,9 @@ export const ProductsView: React.FC = () => {
   const [formKdsStation, setFormKdsStation] = useState<KdsStation>('BAR');
   const [formStock, setFormStock] = useState<string>('100');
   const [formMinStock, setFormMinStock] = useState<string>('10');
+  const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
+  const [isComposed, setIsComposed] = useState<boolean>(false);
+
 
   // Modal Categoria
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -71,6 +74,8 @@ export const ProductsView: React.FC = () => {
     setFormKdsStation('BAR');
     setFormStock('100');
     setFormMinStock('10');
+    setFormComponents([]);
+    setIsComposed(false);
     if (categories.length > 0) setFormCategoryId(categories[0].id);
     setShowProductModal(true);
   };
@@ -85,6 +90,13 @@ export const ProductsView: React.FC = () => {
     setFormKdsStation(p.kdsStation);
     setFormStock(p.stock.toString());
     setFormMinStock(p.minStock.toString());
+    if (p.components && p.components.length > 0) {
+      setIsComposed(true);
+      setFormComponents(p.components.map(c => ({ componentId: c.componentId, quantity: c.quantity.toString() })));
+    } else {
+      setIsComposed(false);
+      setFormComponents([]);
+    }
     setShowProductModal(true);
   };
 
@@ -97,7 +109,7 @@ export const ProductsView: React.FC = () => {
     }
 
     try {
-      const payload: Partial<Product> = {
+      const payload: any = {
         name: formName.trim(),
         description: formDescription.trim() || null,
         price,
@@ -105,7 +117,8 @@ export const ProductsView: React.FC = () => {
         categoryId: formCategoryId,
         kdsStation: formKdsStation,
         stock: parseInt(formStock) || 0,
-        minStock: parseInt(formMinStock) || 5
+        minStock: parseInt(formMinStock) || 5,
+        components: isComposed ? formComponents.filter(c => c.componentId && parseFloat(c.quantity) > 0) : []
       };
 
       if (editingProduct) {
@@ -346,34 +359,42 @@ export const ProductsView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                          isLowStock
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                            : 'bg-slate-800 text-slate-300'
-                        }`}
-                      >
-                        {isLowStock && <AlertTriangle className="w-3 h-3" />}
-                        {p.stock} {p.unit}
-                      </span>
+                      {p.components && p.components.length > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                          Composto (Ficha)
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                            isLowStock
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          {isLowStock && <AlertTriangle className="w-3 h-3" />}
+                          {p.stock} {p.unit}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleQuickStock(p.id, -1)}
-                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs"
-                          title="-1 unidade"
-                        >
-                          -1
-                        </button>
-                        <button
-                          onClick={() => handleQuickStock(p.id, 10)}
-                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 font-mono text-xs font-bold"
-                          title="+10 unidades"
-                        >
-                          +10
-                        </button>
-                      </div>
+                      {(!p.components || p.components.length === 0) && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleQuickStock(p.id, -1)}
+                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs"
+                            title="-1 unidade"
+                          >
+                            -1
+                          </button>
+                          <button
+                            onClick={() => handleQuickStock(p.id, 10)}
+                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 font-mono text-xs font-bold"
+                            title="+10 unidades"
+                          >
+                            +10
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
@@ -523,6 +544,78 @@ export const ProductsView: React.FC = () => {
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input
+                    type="checkbox"
+                    checked={isComposed}
+                    onChange={(e) => setIsComposed(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500 focus:ring-offset-slate-900"
+                  />
+                  <span className="text-sm font-bold text-slate-300">
+                    Produto Composto (Ficha Técnica)
+                  </span>
+                </label>
+
+                {isComposed && (
+                  <div className="space-y-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+                    <p className="text-xs text-slate-400">
+                      Quando este item for vendido, o estoque dos componentes abaixo será descontado em vez do estoque deste produto.
+                    </p>
+                    
+                    {formComponents.map((comp, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={comp.componentId}
+                          onChange={(e) => {
+                            const newComps = [...formComponents];
+                            newComps[idx].componentId = e.target.value;
+                            setFormComponents(newComps);
+                          }}
+                          className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
+                        >
+                          <option value="">Selecione um ingrediente...</option>
+                          {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
+                            <option key={p.id} value={p.id}>{p.name} (Estoque: {p.stock})</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Qtd"
+                          value={comp.quantity}
+                          onChange={(e) => {
+                            const newComps = [...formComponents];
+                            newComps[idx].quantity = e.target.value;
+                            setFormComponents(newComps);
+                          }}
+                          className="w-20 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newComps = [...formComponents];
+                            newComps.splice(idx, 1);
+                            setFormComponents(newComps);
+                          }}
+                          className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    <button
+                      type="button"
+                      onClick={() => setFormComponents([...formComponents, { componentId: '', quantity: '1' }])}
+                      className="w-full py-2 border border-dashed border-slate-700 text-slate-400 rounded-lg text-xs hover:bg-slate-800 hover:text-white transition"
+                    >
+                      + Adicionar Componente
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex gap-2">
