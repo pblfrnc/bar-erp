@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:waiter": "tsc -b && vite build --mode waiter",
     "lint": "oxlint",
     "preview": "vite preview",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "cap:build": "npm run build && npx cap sync android"
+    "cap:build": "npm run build && npx cap sync android",
+    "cap:build:waiter": "npm run build:waiter && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

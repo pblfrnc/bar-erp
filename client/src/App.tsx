@@ -163,7 +163,6 @@ export function App() {
           isConnected={isConnected}
           fontScale={fontScale}
           onChangeFontScale={handleFontScaleChange}
-          onSwitchToAdmin={() => handleSetAppMode('admin')}
         />
       </div>
     );

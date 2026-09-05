@@ -1,6 +1,6 @@
 {
   "appId": "com.barerp.app",
-  "appName": "BarERP Pro",
+  "appName": "BarERP Garçom",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

@@ -84,10 +84,10 @@ jobs:
           npm --prefix server install
           npm --prefix client install
 
-      - name: Compilar Frontend
+      - name: Compilar Frontend (App Exclusivo do Garçom)
         working-directory: client
         run: |
-          npm run build
+          npm run build:waiter
 
       - name: Sincronizar com Capacitor Android
         working-directory: client
@@ -106,5 +106,5 @@ jobs:
       - name: Salvar Artefato Android (APK)
         uses: actions/upload-artifact@v4
         with:
-          name: BarERP-Android-APK
+          name: BarERP-Garcom-APK
           path: client/android/app/build/outputs/apk/debug/*.apk

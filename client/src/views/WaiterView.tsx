@@ -17,7 +17,6 @@ import {
   Users,
   Clock,
   WifiOff,
-  Monitor,
   UserCheck,
   RefreshCw
 } from 'lucide-react';
@@ -29,7 +28,6 @@ interface WaiterViewProps {
   isConnected: boolean;
   fontScale: 'normal' | 'large' | 'xlarge';
   onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
-  onSwitchToAdmin: () => void;
 }
 
 export const WaiterView: React.FC<WaiterViewProps> = ({
@@ -38,8 +36,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
   loading,
   isConnected,
   fontScale,
-  onChangeFontScale,
-  onSwitchToAdmin
+  onChangeFontScale
 }) => {
   // Nome do garçom com persistência
   const [waiterName, setWaiterName] = useState<string>(() => {
@@ -205,16 +202,6 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
               <span className="text-[10px] uppercase font-bold text-slate-300">
                 {fontScale === 'normal' ? '1x' : fontScale === 'large' ? '1.25x' : '1.4x'}
               </span>
-            </button>
-
-            {/* Alternar para o Painel Completo do PC */}
-            <button
-              onClick={onSwitchToAdmin}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition active:scale-95"
-              title="Alternar para o Painel Completo do PC / Balcão"
-            >
-              <Monitor className="w-4 h-4 text-slate-400" />
-              <span className="hidden sm:inline">Painel PC</span>
             </button>
           </div>
         </div>
