@@ -26,19 +26,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  if (!table || !table.activeOrder) return null;
-
-  const order = table.activeOrder;
-  const remainingBalance = Math.max(0, order.total - order.paidAmount);
+  const order = table?.activeOrder;
+  const remainingBalance = Math.max(0, (order?.total || 0) - (order?.paidAmount || 0));
 
   // Estados de divisão
-  const [splitCount, setSplitCount] = useState<number>(table.customerCount || 2);
+  const [splitCount, setSplitCount] = useState<number>(table?.customerCount || 2);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [payAmount, setPayAmount] = useState<string>(remainingBalance.toFixed(2));
   const [cashTendered, setCashTendered] = useState<string>('');
   const [discountValue, setDiscountValue] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
+
+  if (!table || !order) return null;
 
   // Cálculo da divisão por pessoa
   const amountPerPerson = remainingBalance / Math.max(1, splitCount);

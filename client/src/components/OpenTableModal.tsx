@@ -13,11 +13,11 @@ export const OpenTableModal: React.FC<OpenTableModalProps> = ({
   onClose,
   onConfirm
 }) => {
-  if (!table) return null;
-
-  const [customerCount, setCustomerCount] = useState<number>(table.capacity || 2);
+  const [customerCount, setCustomerCount] = useState<number>(table?.capacity || 2);
   const [customerName, setCustomerName] = useState<string>('');
   const [waiterName, setWaiterName] = useState<string>('Garçom');
+
+  if (!table) return null;
 
   const presetCounts = [1, 2, 3, 4, 5, 6, 8, 10];
 

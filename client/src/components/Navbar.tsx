@@ -20,6 +20,7 @@ interface NavbarProps {
   isConnected: boolean;
   fontScale: 'normal' | 'large' | 'xlarge';
   onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
+  onSwitchToWaiter?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,7 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isCashOpen,
   isConnected,
   fontScale,
-  onChangeFontScale
+  onChangeFontScale,
+  onSwitchToWaiter
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -173,6 +175,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {fontScale === 'normal' ? 'Normal' : fontScale === 'large' ? 'Grande' : 'Extra'}
               </span>
             </button>
+
+            {/* Alternador para o Modo Garçom */}
+            {onSwitchToWaiter && (
+              <button
+                onClick={onSwitchToWaiter}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition active:scale-95"
+                title="Alternar para a Interface do Garçom (Celular / Tablet)"
+              >
+                <span>👔</span>
+                <span className="hidden sm:inline">Modo Garçom</span>
+              </button>
+            )}
 
             {/* Botão Tela Cheia (para tablets e celulares Android no balcão) */}
             <button

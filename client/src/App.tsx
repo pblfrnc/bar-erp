@@ -8,9 +8,26 @@ import { KdsView } from './views/KdsView';
 import { CashView } from './views/CashView';
 import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
+import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
 
 export function App() {
+  // Perfil do App: 'waiter' (Comanda do Garçom no Celular/Tablet) ou 'admin' (Painel do PC)
+  const [appMode, setAppMode] = useState<'waiter' | 'admin'>(() => {
+    const saved = localStorage.getItem('bar_app_mode');
+    if (saved === 'waiter' || saved === 'admin') return saved;
+    // Dispositivos móveis, tablets ou Capacitor iniciam no Modo Garçom por padrão
+    if (window.innerWidth <= 800 || (window as any).Capacitor?.isNativePlatform?.()) {
+      return 'waiter';
+    }
+    return 'admin';
+  });
+
+  const handleSetAppMode = (mode: 'waiter' | 'admin') => {
+    setAppMode(mode);
+    localStorage.setItem('bar_app_mode', mode);
+  };
+
   const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
@@ -132,12 +149,32 @@ export function App() {
     }
   }, [tables]);
 
+  if (appMode === 'waiter') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+        {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}
+        <ThermalReceipt order={printOrder} />
+
+        {/* Interface Exclusiva do Garçom (focada em tirar pedidos, juntar mesas, fechar comandas e cobrar conta) */}
+        <WaiterView
+          tables={tables}
+          onRefresh={loadTables}
+          loading={loadingTables}
+          isConnected={isConnected}
+          fontScale={fontScale}
+          onChangeFontScale={handleFontScaleChange}
+          onSwitchToAdmin={() => handleSetAppMode('admin')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}
       <ThermalReceipt order={printOrder} />
 
-      {/* Navbar Superior & Mobile Bottom Bar */}
+      {/* Navbar Superior & Mobile Bottom Bar do Painel do PC / Gestão */}
       <Navbar
         currentView={currentView}
         onSelectView={setCurrentView}
@@ -146,9 +183,10 @@ export function App() {
         isConnected={isConnected}
         fontScale={fontScale}
         onChangeFontScale={handleFontScaleChange}
+        onSwitchToWaiter={() => handleSetAppMode('waiter')}
       />
 
-      {/* Conteúdo da View Ativa */}
+      {/* Conteúdo da View Ativa no Painel do PC */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
         {currentView === 'tables' && (
           <TablesView

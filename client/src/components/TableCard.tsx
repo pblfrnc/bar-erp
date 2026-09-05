@@ -21,10 +21,12 @@ export const TableCard: React.FC<TableCardProps> = ({
   const isOccupied = table.status === 'OCCUPIED';
   const isClosing = table.status === 'CLOSING';
 
+  const [currentTime] = React.useState<number>(() => Date.now());
+
   // Calcular tempo decorrido
   const getElapsedMinutes = () => {
     if (!table.openedAt) return null;
-    const diffMs = Date.now() - new Date(table.openedAt).getTime();
+    const diffMs = currentTime - new Date(table.openedAt).getTime();
     const mins = Math.floor(diffMs / 60000);
     if (mins < 60) return `${mins}m`;
     const hrs = Math.floor(mins / 60);

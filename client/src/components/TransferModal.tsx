@@ -16,17 +16,17 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  if (!sourceTable) return null;
-
   // Mesas livres disponíveis para receber a transferência
   const availableTables = tables.filter(
-    (t) => t.id !== sourceTable.id && t.status === 'AVAILABLE'
+    (t) => t.id !== sourceTable?.id && t.status === 'AVAILABLE'
   );
 
   const [selectedTargetId, setSelectedTargetId] = useState<string>(
     availableTables[0]?.id || ''
   );
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  if (!sourceTable) return null;
 
   const handleTransfer = async () => {
     if (!selectedTargetId) return;

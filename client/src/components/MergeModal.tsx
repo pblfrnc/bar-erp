@@ -16,17 +16,17 @@ export const MergeModal: React.FC<MergeModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  if (!mainTable) return null;
-
   // Outras mesas que podem ser agrupadas (ocupadas ou com clientes)
   const otherTables = tables.filter(
-    (t) => t.id !== mainTable.id && (t.status === 'OCCUPIED' || t.status === 'CLOSING')
+    (t) => t.id !== mainTable?.id && (t.status === 'OCCUPIED' || t.status === 'CLOSING')
   );
 
   const [selectedSecondId, setSelectedSecondId] = useState<string>(
     otherTables[0]?.id || ''
   );
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  if (!mainTable) return null;
 
   const handleMerge = async () => {
     if (!selectedSecondId) return;

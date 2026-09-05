@@ -35,8 +35,6 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  if (!table || !table.activeOrder) return null;
-
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
@@ -57,10 +55,6 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
     'Molho à parte'
   ];
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -76,6 +70,12 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  if (!table || !table.activeOrder) return null;
 
   // Filtrar produtos
   const filteredProducts = products.filter((prod) => {
