@@ -9,7 +9,8 @@ import {
   Maximize2,
   Minimize2,
   Wifi,
-  WifiOff
+  WifiOff,
+  Printer
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -21,6 +22,8 @@ interface NavbarProps {
   fontScale: 'normal' | 'large' | 'xlarge';
   onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
   onSwitchToWaiter?: () => void;
+  autoPrintKitchen?: boolean;
+  onToggleAutoPrintKitchen?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -31,7 +34,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isConnected,
   fontScale,
   onChangeFontScale,
-  onSwitchToWaiter
+  onSwitchToWaiter,
+  autoPrintKitchen,
+  onToggleAutoPrintKitchen
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -175,6 +180,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {fontScale === 'normal' ? 'Normal' : fontScale === 'large' ? 'Grande' : 'Extra'}
               </span>
             </button>
+
+            {/* Auto-Impressão Térmica de Cozinha no PC */}
+            {onToggleAutoPrintKitchen && (
+              <button
+                onClick={onToggleAutoPrintKitchen}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition active:scale-95 ${
+                  autoPrintKitchen
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                }`}
+                title={
+                  autoPrintKitchen
+                    ? 'Impressão automática de pedidos da cozinha ATIVADA no PC'
+                    : 'Auto-impressão de pedidos da cozinha DESATIVADA'
+                }
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline text-[11px]">
+                  {autoPrintKitchen ? 'Auto-Imprimir: ON' : 'Auto-Imprimir: OFF'}
+                </span>
+              </button>
+            )}
 
             {/* Alternador para o Modo Garçom */}
             {onSwitchToWaiter && (

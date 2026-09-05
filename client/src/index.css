@@ -41,8 +41,9 @@ html.font-scale-xlarge .table-number {
   background: rgba(100, 116, 139, 0.8);
 }
 
-/* Thermal receipt printable style */
-#thermal-receipt {
+/* Thermal receipt & Kitchen ticket printable style */
+#thermal-receipt,
+#kitchen-ticket-receipt {
   display: none;
 }
 
@@ -50,11 +51,15 @@ html.font-scale-xlarge .table-number {
   body * {
     visibility: hidden;
   }
-  #thermal-receipt, #thermal-receipt * {
+  #thermal-receipt,
+  #thermal-receipt *,
+  #kitchen-ticket-receipt,
+  #kitchen-ticket-receipt * {
     visibility: visible;
     display: block !important;
   }
-  #thermal-receipt {
+  #thermal-receipt,
+  #kitchen-ticket-receipt {
     position: absolute;
     left: 0;
     top: 0;

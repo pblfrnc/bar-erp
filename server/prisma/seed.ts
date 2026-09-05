@@ -231,21 +231,63 @@ async function main() {
     }
   });
 
-  // 3. Criar Mesas
-  const tablesData = [
-    { number: 1, name: 'Mesa 01', capacity: 4, section: 'Salão Principal' },
-    { number: 2, name: 'Mesa 02', capacity: 4, section: 'Salão Principal' },
-    { number: 3, name: 'Mesa 03', capacity: 6, section: 'Salão Principal' },
-    { number: 4, name: 'Mesa 04', capacity: 2, section: 'Salão Principal' },
-    { number: 5, name: 'Mesa 05', capacity: 4, section: 'Salão Principal' },
-    { number: 6, name: 'Mesa 06', capacity: 8, section: 'Salão Principal' },
-    { number: 7, name: 'Mesa 07 (Deck)', capacity: 4, section: 'Deck Externo' },
-    { number: 8, name: 'Mesa 08 (Deck)', capacity: 6, section: 'Deck Externo' },
-    { number: 9, name: 'Mesa 09 (Deck)', capacity: 4, section: 'Deck Externo' },
-    { number: 10, name: 'Mesa 10 (Deck)', capacity: 4, section: 'Deck Externo' },
-    { number: 11, name: 'Balcão 01', capacity: 2, section: 'Balcão' },
-    { number: 12, name: 'Balcão 02', capacity: 2, section: 'Balcão' }
-  ];
+  // 3. Criar 50 Mesas organizadas por Ambientes/Locais
+  const tablesData: { number: number; name: string; capacity: number; section: string }[] = [];
+
+  // Salão Principal (1 a 15)
+  for (let n = 1; n <= 15; n++) {
+    const pad = n.toString().padStart(2, '0');
+    tablesData.push({
+      number: n,
+      name: `Mesa ${pad}`,
+      capacity: n % 5 === 0 ? 8 : n % 3 === 0 ? 6 : 4,
+      section: 'Salão Principal'
+    });
+  }
+
+  // Deck Externo (16 a 25)
+  for (let n = 16; n <= 25; n++) {
+    const pad = n.toString().padStart(2, '0');
+    tablesData.push({
+      number: n,
+      name: `Mesa ${pad} (Deck)`,
+      capacity: n % 2 === 0 ? 6 : 4,
+      section: 'Deck Externo'
+    });
+  }
+
+  // Varanda (26 a 35)
+  for (let n = 26; n <= 35; n++) {
+    const pad = n.toString().padStart(2, '0');
+    tablesData.push({
+      number: n,
+      name: `Mesa ${pad} (Varanda)`,
+      capacity: 4,
+      section: 'Varanda'
+    });
+  }
+
+  // Balcão (36 a 42)
+  for (let n = 36; n <= 42; n++) {
+    const pad = n.toString().padStart(2, '0');
+    tablesData.push({
+      number: n,
+      name: `Balcão ${pad}`,
+      capacity: 2,
+      section: 'Balcão'
+    });
+  }
+
+  // Lounge & Mezanino (43 a 50)
+  for (let n = 43; n <= 50; n++) {
+    const pad = n.toString().padStart(2, '0');
+    tablesData.push({
+      number: n,
+      name: `Lounge ${pad}`,
+      capacity: 8,
+      section: 'Lounge & Mezanino'
+    });
+  }
 
   const createdTables: Record<number, any> = {};
   for (const t of tablesData) {
@@ -271,17 +313,18 @@ async function main() {
     }
   });
 
-  // 5. Simular 2 Mesas Ativas com Consumo
+  // 5. Simular 2 Mesas Ativas com Consumo (com 10% desabilitado por padrão)
   // Mesa 2: 2 Chopes Pilsen + Dadinho de Tapioca
   const orderMesa2 = await prisma.order.create({
     data: {
       tableId: createdTables[2].id,
       customerName: 'Lucas & Amigos',
-      customerName: 'Lucas',
       waiterName: 'Rafael Garçom',
       subtotal: 66.0, // 2x 14 + 38 = 66
-      serviceFee: 6.6,
-      total: 72.6,
+      serviceFee: 0.0,
+      serviceFeeRate: 0.10,
+      isServiceFeeActive: false,
+      total: 66.0,
       status: 'OPEN',
       createdAt: new Date(Date.now() - 45 * 60000) // 45 min atrás
     }
@@ -331,8 +374,10 @@ async function main() {
       customerName: 'Mariana Silva',
       waiterName: 'Juliana Garçonete',
       subtotal: 155.0, // 32 + 34 + 89 = 155
-      serviceFee: 15.5,
-      total: 170.5,
+      serviceFee: 0.0,
+      serviceFeeRate: 0.10,
+      isServiceFeeActive: false,
+      total: 155.0,
       status: 'OPEN',
       createdAt: new Date(Date.now() - 25 * 60000) // 25 min atrás
     }

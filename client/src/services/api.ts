@@ -7,7 +7,8 @@ import {
   CashShift,
   CashSummary,
   DashboardData,
-  KdsStatus
+  KdsStatus,
+  KdsItem
 } from '../types';
 
 import { getServerBaseUrl } from './socket';
@@ -61,6 +62,32 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(handleResponse<Table>),
+
+  updateTable: (id: string, data: { number?: number; name?: string; capacity?: number; section?: string }): Promise<Table> =>
+    fetchWithRetry(`${getApiUrl()}/tables/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Table>),
+
+  deleteTable: (id: string): Promise<{ success: boolean; message: string }> =>
+    fetchWithRetry(`${getApiUrl()}/tables/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message: string }>),
+
+  batchUpdateSection: (tableIds: string[], section: string): Promise<{ success: boolean; count: number }> =>
+    fetchWithRetry(`${getApiUrl()}/tables/batch/section`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableIds, section })
+    }).then(handleResponse<{ success: boolean; count: number }>),
+
+  renameSection: (oldSection: string, newSection: string): Promise<{ success: boolean; count: number }> =>
+    fetchWithRetry(`${getApiUrl()}/tables/sections/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldSection, newSection })
+    }).then(handleResponse<{ success: boolean; count: number }>),
 
   openTable: (id: string, data: { customerName?: string; waiterName?: string; customerCount: number }): Promise<{ table: Table; order: Order }> =>
     fetchWithRetry(`${getApiUrl()}/tables/${id}/open`, {
@@ -131,9 +158,9 @@ export const api = {
     }).then(handleResponse<{ success: boolean; order: Order; isFullyPaid: boolean }>),
 
   // KDS
-  getKdsItems: (station?: string): Promise<OrderItem[]> => {
+  getKdsItems: (station?: string): Promise<KdsItem[]> => {
     const query = station && station !== 'ALL' ? `?station=${station}` : '';
-    return fetchWithRetry(`${getApiUrl()}/kds${query}`).then(handleResponse<OrderItem[]>);
+    return fetchWithRetry(`${getApiUrl()}/kds${query}`).then(handleResponse<KdsItem[]>);
   },
 
   updateKdsItemStatus: (itemId: string, status: KdsStatus): Promise<OrderItem> =>
@@ -148,6 +175,13 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ station })
+    }).then(handleResponse<{ success: boolean }>),
+
+  batchUpdateKdsStatus: (orderId: string, status: KdsStatus, station?: string): Promise<{ success: boolean }> =>
+    fetchWithRetry(`${getApiUrl()}/kds/orders/${orderId}/batch-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, station })
     }).then(handleResponse<{ success: boolean }>),
 
   // Produtos & Cardápio (com cache em memória para abertura instantânea do cardápio)

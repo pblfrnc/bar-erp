@@ -38,7 +38,7 @@ model Order {
   discount           Float       @default(0)
   total              Float       @default(0)
   paidAmount         Float       @default(0)
-  isServiceFeeActive Boolean     @default(true)
+  isServiceFeeActive Boolean     @default(false)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
   closedAt           DateTime?

@@ -69,19 +69,27 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
     else onChangeFontScale('normal');
   };
 
+  const [selectedSection, setSelectedSection] = useState<string>('ALL');
+
+  // Seções/locais disponíveis
+  const sections = useMemo(() => {
+    return Array.from(new Set(tables.map((t) => t.section))).filter(Boolean);
+  }, [tables]);
+
   // Filtragem de mesas
   const filteredTables = useMemo(() => {
     return tables.filter((t) => {
       const matchStatus = filterStatus === 'ALL' || t.status === filterStatus;
+      const matchSection = selectedSection === 'ALL' || t.section === selectedSection;
       const matchSearch =
         searchQuery.trim() === '' ||
         t.number.toString().includes(searchQuery) ||
         (t.name && t.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (t.customerName && t.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      return matchStatus && matchSearch;
+      return matchStatus && matchSection && matchSearch;
     });
-  }, [tables, filterStatus, searchQuery]);
+  }, [tables, filterStatus, selectedSection, searchQuery]);
 
   // Contadores rápidos para o garçom
   const counts = useMemo(() => {
@@ -318,6 +326,35 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
               </span>
             </button>
           </div>
+
+          {/* Chips de Locais / Setores */}
+          {sections.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1.5 border-t border-slate-800/60 scrollbar-none">
+              <button
+                onClick={() => setSelectedSection('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+                  selectedSection === 'ALL'
+                    ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50'
+                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Todos os Locais
+              </button>
+              {sections.map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => setSelectedSection(sec)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+                    selectedSection === sec
+                      ? 'bg-amber-400/25 text-amber-300 border border-amber-400/50'
+                      : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {sec}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Grade de Mesas do Salão */}

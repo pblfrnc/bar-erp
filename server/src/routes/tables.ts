@@ -67,6 +67,106 @@ export function createTablesRouter(io: SocketIOServer) {
     }
   });
 
+  // Atualizar mesa (número, nome, capacidade, local/setor)
+  router.put('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { number, name, capacity, section } = req.body;
+
+      const existing = await prisma.table.findUnique({ where: { id } });
+      if (!existing) {
+        return res.status(404).json({ error: 'Mesa não encontrada' });
+      }
+
+      if (number && Number(number) !== existing.number) {
+        const duplicate = await prisma.table.findUnique({ where: { number: Number(number) } });
+        if (duplicate && duplicate.id !== id) {
+          return res.status(400).json({ error: `Já existe uma mesa cadastrada com o número ${number}` });
+        }
+      }
+
+      const updated = await prisma.table.update({
+        where: { id },
+        data: {
+          number: number !== undefined ? Number(number) : existing.number,
+          name: name !== undefined ? name : existing.name,
+          capacity: capacity !== undefined ? Number(capacity) : existing.capacity,
+          section: section !== undefined ? String(section).trim() : existing.section
+        }
+      });
+
+      io.emit('table:updated', { tableId: updated.id, action: 'edited' });
+      res.json(updated);
+    } catch (error) {
+      console.error('Erro ao atualizar mesa:', error);
+      res.status(500).json({ error: 'Erro ao atualizar mesa' });
+    }
+  });
+
+  // Mover mesas em lote para outro local/setor
+  router.put('/batch/section', async (req, res) => {
+    try {
+      const { tableIds, section } = req.body;
+      if (!Array.isArray(tableIds) || !section) {
+        return res.status(400).json({ error: 'tableIds e section são obrigatórios' });
+      }
+
+      await prisma.table.updateMany({
+        where: { id: { in: tableIds } },
+        data: { section: String(section).trim() }
+      });
+
+      io.emit('table:updated', { action: 'batch_section_updated' });
+      res.json({ success: true, count: tableIds.length });
+    } catch (error) {
+      console.error('Erro ao mover mesas de local:', error);
+      res.status(500).json({ error: 'Erro ao mover mesas de local' });
+    }
+  });
+
+  // Renomear um local/setor para todas as mesas
+  router.post('/sections/rename', async (req, res) => {
+    try {
+      const { oldSection, newSection } = req.body;
+      if (!oldSection || !newSection) {
+        return res.status(400).json({ error: 'Local antigo e novo são obrigatórios' });
+      }
+
+      const result = await prisma.table.updateMany({
+        where: { section: String(oldSection).trim() },
+        data: { section: String(newSection).trim() }
+      });
+
+      io.emit('table:updated', { action: 'section_renamed', oldSection, newSection });
+      res.json({ success: true, count: result.count });
+    } catch (error) {
+      console.error('Erro ao renomear local:', error);
+      res.status(500).json({ error: 'Erro ao renomear local' });
+    }
+  });
+
+  // Excluir mesa (apenas se estiver livre)
+  router.delete('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const table = await prisma.table.findUnique({ where: { id } });
+      if (!table) {
+        return res.status(404).json({ error: 'Mesa não encontrada' });
+      }
+
+      if (table.status !== 'AVAILABLE') {
+        return res.status(400).json({ error: 'Apenas mesas livres podem ser excluídas' });
+      }
+
+      await prisma.table.delete({ where: { id } });
+      io.emit('table:updated', { tableId: id, action: 'deleted' });
+      res.json({ success: true, message: `Mesa ${table.number} excluída com sucesso` });
+    } catch (error) {
+      console.error('Erro ao excluir mesa:', error);
+      res.status(500).json({ error: 'Erro ao excluir mesa' });
+    }
+  });
+
   // Abrir mesa (iniciar atendimento)
   router.post('/:id/open', async (req, res) => {
     try {
@@ -86,7 +186,7 @@ export function createTablesRouter(io: SocketIOServer) {
       const lastOrder = await prisma.order.findFirst({ orderBy: { orderNumber: 'desc' } });
       const orderNumber = (lastOrder?.orderNumber || 100) + 1;
 
-      // Criar nova comanda / pedido aberto
+      // Criar nova comanda / pedido aberto (10% desabilitado por padrão)
       const order = await prisma.order.create({
         data: {
           tableId: table.id,
@@ -94,7 +194,9 @@ export function createTablesRouter(io: SocketIOServer) {
           customerName: customerName || null,
           waiterName: waiterName || 'Garçom',
           subtotal: 0,
+          serviceFeeRate: 0.10,
           serviceFee: 0,
+          isServiceFeeActive: false,
           total: 0,
           status: 'OPEN'
         }

@@ -110,5 +110,36 @@ export function createKdsRouter(io: SocketIOServer) {
     }
   });
 
+  // Atualizar status em lote de um pedido (ex: PREPARING ou READY)
+  router.post('/orders/:orderId/batch-status', async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const { status, station } = req.body;
+
+      const validStatuses = ['PENDING', 'PREPARING', 'READY', 'DELIVERED'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Status KDS inválido' });
+      }
+
+      const whereClause: any = { orderId };
+      if (station && station !== 'ALL') {
+        whereClause.kdsStation = station;
+      }
+
+      await prisma.orderItem.updateMany({
+        where: whereClause,
+        data: { kdsStatus: status }
+      });
+
+      io.emit('kds:batch_updated', { orderId, station, status });
+      io.emit('order:updated', { orderId });
+
+      res.json({ success: true, message: `Itens atualizados para ${status}` });
+    } catch (error) {
+      console.error('Erro ao atualizar lote de pedido KDS:', error);
+      res.status(500).json({ error: 'Erro ao atualizar lote KDS' });
+    }
+  });
+
   return router;
 }

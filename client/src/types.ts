@@ -42,6 +42,21 @@ export interface OrderItem {
   addedAt: string;
 }
 
+export interface KdsItem extends OrderItem {
+  order: {
+    id: string;
+    orderNumber: number;
+    tableId?: string | null;
+    waiterName?: string | null;
+    table?: {
+      id: string;
+      number: number;
+      name?: string | null;
+      section: string;
+    } | null;
+  };
+}
+
 export interface Payment {
   id: string;
   orderId: string;

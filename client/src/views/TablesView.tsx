@@ -7,6 +7,7 @@ import { AddOrderModal } from '../components/AddOrderModal';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { TransferModal } from '../components/TransferModal';
 import { MergeModal } from '../components/MergeModal';
+import { ManageTablesModal } from '../components/ManageTablesModal';
 import { api } from '../services/api';
 import {
   LayoutGrid,
@@ -16,7 +17,8 @@ import {
   Clock,
   Plus,
   RefreshCw,
-  Search
+  Search,
+  MapPin
 } from 'lucide-react';
 
 interface TablesViewProps {
@@ -44,6 +46,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
   // Modal para criar nova mesa
   const [showNewTableModal, setShowNewTableModal] = useState<boolean>(false);
+  const [isManageTablesOpen, setIsManageTablesOpen] = useState<boolean>(false);
   const [newTableNumber, setNewTableNumber] = useState<string>('');
   const [newTableName, setNewTableName] = useState<string>('');
   const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
@@ -211,6 +214,15 @@ export const TablesView: React.FC<TablesViewProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Atualizar</span>
+            </button>
+
+            <button
+              onClick={() => setIsManageTablesOpen(true)}
+              className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+              title="Gerenciar e editar locais e mesas do bar"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Editar Locais</span>
             </button>
 
             <button
@@ -460,6 +472,17 @@ export const TablesView: React.FC<TablesViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal de Gestão e Edição de Locais e Mesas */}
+      {isManageTablesOpen && (
+        <ManageTablesModal
+          tables={tables}
+          onClose={() => setIsManageTablesOpen(false)}
+          onSuccess={() => {
+            onRefresh();
+          }}
+        />
       )}
     </div>
   );

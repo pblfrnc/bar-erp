@@ -125,7 +125,13 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       // Emitir eventos em tempo real
       io.emit('order:updated', { orderId: updatedOrder.id, itemsCount: createdItems.length });
-      io.emit('kds:new_order', { items: createdItems, orderNumber: order.orderNumber, tableName: order.table?.name });
+      io.emit('kds:new_order', {
+        items: createdItems,
+        orderNumber: order.orderNumber,
+        tableName: order.table?.name || (order.table ? `Mesa ${order.table.number}` : 'Balcão'),
+        tableNumber: order.table?.number,
+        waiterName: order.waiterName || 'Garçom'
+      });
       if (order.tableId) {
         io.emit('table:updated', { tableId: order.tableId, action: 'items_added' });
       }

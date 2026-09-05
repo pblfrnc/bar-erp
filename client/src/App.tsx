@@ -10,6 +10,8 @@ import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
+import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
+import { playKitchenChime } from './utils/sound';
 
 export function App() {
   // Perfil do App: 'waiter' (Comanda do Garçom no Celular/Tablet) ou 'admin' (Painel do PC)
@@ -35,6 +37,35 @@ export function App() {
   const [isCashOpen, setIsCashOpen] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
+
+  // Auto-impressão de pedidos da cozinha no computador
+  const [autoPrintKitchen, setAutoPrintKitchen] = useState<boolean>(() => {
+    return localStorage.getItem('bar_autoprint_kitchen') === 'true';
+  });
+  const autoPrintKitchenRef = React.useRef(autoPrintKitchen);
+  useEffect(() => {
+    autoPrintKitchenRef.current = autoPrintKitchen;
+  }, [autoPrintKitchen]);
+
+  const handleToggleAutoPrintKitchen = () => {
+    setAutoPrintKitchen((prev) => {
+      const next = !prev;
+      localStorage.setItem('bar_autoprint_kitchen', String(next));
+      return next;
+    });
+  };
+
+  // Estado da comanda de produção da cozinha para impressão
+  const [kitchenTicket, setKitchenTicket] = useState<KitchenTicketData | null>(null);
+  const [activePrintType, setActivePrintType] = useState<'bill' | 'kitchen' | null>(null);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setActivePrintType(null);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // Escala de Acessibilidade para Baixa Visão
   const [fontScale, setFontScale] = useState<'normal' | 'large' | 'xlarge'>(() => {
@@ -116,6 +147,42 @@ export function App() {
       loadTables();
     };
 
+    const onKdsNewOrder = (payload: any) => {
+      loadKdsCount();
+      loadTables();
+
+      // Se auto-impressão de cozinha estiver ativada no computador
+      if (autoPrintKitchenRef.current && payload?.items?.length) {
+        try {
+          playKitchenChime();
+        } catch (e) {
+          console.warn('Alerta sonoro bloqueado pelo navegador:', e);
+        }
+
+        const ticketData: KitchenTicketData = {
+          orderNumber: payload.orderNumber || 0,
+          tableName: payload.tableName || (payload.tableNumber ? `Mesa ${payload.tableNumber}` : 'Balcão'),
+          tableNumber: payload.tableNumber,
+          waiterName: payload.waiterName || 'Garçom',
+          createdAt: new Date(),
+          station: 'COZINHA',
+          items: payload.items.map((item: any) => ({
+            id: item.id,
+            name: item.product?.name || item.name || 'Item',
+            quantity: Number(item.quantity) || 1,
+            notes: item.notes || null,
+            kdsStation: item.kdsStation || item.product?.kdsStation
+          }))
+        };
+
+        setKitchenTicket(ticketData);
+        setActivePrintType('kitchen');
+        setTimeout(() => {
+          window.print();
+        }, 300);
+      }
+    };
+
     const onCashUpdated = () => {
       loadCashStatus();
     };
@@ -124,7 +191,7 @@ export function App() {
     socket.on('disconnect', onDisconnect);
     socket.on('table:updated', onTableUpdated);
     socket.on('order:updated', onOrderUpdated);
-    socket.on('kds:new_order', onKdsUpdated);
+    socket.on('kds:new_order', onKdsNewOrder);
     socket.on('kds:item_updated', onKdsUpdated);
     socket.on('kds:batch_updated', onKdsUpdated);
     socket.on('cash:updated', onCashUpdated);
@@ -134,7 +201,7 @@ export function App() {
       socket.off('disconnect', onDisconnect);
       socket.off('table:updated', onTableUpdated);
       socket.off('order:updated', onOrderUpdated);
-      socket.off('kds:new_order', onKdsUpdated);
+      socket.off('kds:new_order', onKdsNewOrder);
       socket.off('kds:item_updated', onKdsUpdated);
       socket.off('kds:batch_updated', onKdsUpdated);
       socket.off('cash:updated', onCashUpdated);
@@ -171,7 +238,11 @@ export function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}
-      <ThermalReceipt order={printOrder} />
+      {activePrintType === 'kitchen' ? (
+        <KitchenTicketReceipt ticket={kitchenTicket} />
+      ) : (
+        <ThermalReceipt order={printOrder} />
+      )}
 
       {/* Navbar Superior & Mobile Bottom Bar do Painel do PC / Gestão */}
       <Navbar
@@ -183,6 +254,8 @@ export function App() {
         fontScale={fontScale}
         onChangeFontScale={handleFontScaleChange}
         onSwitchToWaiter={() => handleSetAppMode('waiter')}
+        autoPrintKitchen={autoPrintKitchen}
+        onToggleAutoPrintKitchen={handleToggleAutoPrintKitchen}
       />
 
       {/* Conteúdo da View Ativa no Painel do PC */}
