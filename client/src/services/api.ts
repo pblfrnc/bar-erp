@@ -10,7 +10,37 @@ import {
   KdsStatus
 } from '../types';
 
-const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001/api' : '/api';
+import { getServerBaseUrl } from './socket';
+
+function getApiUrl(): string {
+  return `${getServerBaseUrl()}/api`;
+}
+
+// Cache local em memória para resposta instantânea (0ms) no tablet/celular do garçom
+let cachedCategories: Category[] | null = null;
+let cachedProducts: Product[] | null = null;
+
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (retries > 0) {
+      console.warn(`[Wi-Fi Resiliência] Falha de requisição em ${url}. Tentando novamente (${retries} restantes)...`);
+      await new Promise((r) => setTimeout(r, 600));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw new Error('Falha de conexão com o servidor do bar. Verifique o sinal do Wi-Fi.');
+  }
+}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -23,37 +53,37 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export const api = {
   // Mesas
   getTables: (): Promise<Table[]> =>
-    fetch(`${API_URL}/tables`).then(handleResponse<Table[]>),
+    fetchWithRetry(`${getApiUrl()}/tables`).then(handleResponse<Table[]>),
 
   createTable: (data: { number: number; name?: string; capacity: number; section: string }): Promise<Table> =>
-    fetch(`${API_URL}/tables`, {
+    fetchWithRetry(`${getApiUrl()}/tables`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(handleResponse<Table>),
 
   openTable: (id: string, data: { customerName?: string; waiterName?: string; customerCount: number }): Promise<{ table: Table; order: Order }> =>
-    fetch(`${API_URL}/tables/${id}/open`, {
+    fetchWithRetry(`${getApiUrl()}/tables/${id}/open`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(handleResponse<{ table: Table; order: Order }>),
 
   requestTableClosing: (id: string): Promise<Table> =>
-    fetch(`${API_URL}/tables/${id}/request-closing`, { method: 'POST' }).then(handleResponse<Table>),
+    fetchWithRetry(`${getApiUrl()}/tables/${id}/request-closing`, { method: 'POST' }).then(handleResponse<Table>),
 
   reopenTable: (id: string): Promise<Table> =>
-    fetch(`${API_URL}/tables/${id}/reopen`, { method: 'POST' }).then(handleResponse<Table>),
+    fetchWithRetry(`${getApiUrl()}/tables/${id}/reopen`, { method: 'POST' }).then(handleResponse<Table>),
 
   transferTable: (id: string, targetTableId: string): Promise<{ success: boolean; message: string }> =>
-    fetch(`${API_URL}/tables/${id}/transfer`, {
+    fetchWithRetry(`${getApiUrl()}/tables/${id}/transfer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targetTableId })
     }).then(handleResponse<{ success: boolean; message: string }>),
 
   mergeTables: (id: string, secondTableId: string): Promise<{ success: boolean; message: string }> =>
-    fetch(`${API_URL}/tables/${id}/merge`, {
+    fetchWithRetry(`${getApiUrl()}/tables/${id}/merge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secondTableId })
@@ -61,30 +91,30 @@ export const api = {
 
   // Comandas / Pedidos
   getOrder: (id: string): Promise<Order> =>
-    fetch(`${API_URL}/orders/${id}`).then(handleResponse<Order>),
+    fetchWithRetry(`${getApiUrl()}/orders/${id}`).then(handleResponse<Order>),
 
   addOrderItems: (
     orderId: string,
     items: { productId: string; quantity: number; notes?: string }[]
   ): Promise<{ order: Order; addedItems: OrderItem[] }> =>
-    fetch(`${API_URL}/orders/${orderId}/items`, {
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items })
     }).then(handleResponse<{ order: Order; addedItems: OrderItem[] }>),
 
   removeOrderItem: (orderId: string, itemId: string): Promise<Order> =>
-    fetch(`${API_URL}/orders/${orderId}/items/${itemId}`, { method: 'DELETE' }).then(handleResponse<Order>),
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/items/${itemId}`, { method: 'DELETE' }).then(handleResponse<Order>),
 
   toggleServiceFee: (orderId: string, active?: boolean, rate?: number): Promise<Order> =>
-    fetch(`${API_URL}/orders/${orderId}/service-fee`, {
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/service-fee`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active, rate })
     }).then(handleResponse<Order>),
 
   applyDiscount: (orderId: string, discount: number): Promise<Order> =>
-    fetch(`${API_URL}/orders/${orderId}/discount`, {
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/discount`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ discount })
@@ -94,7 +124,7 @@ export const api = {
     orderId: string,
     data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean }
   ): Promise<{ success: boolean; order: Order; isFullyPaid: boolean }> =>
-    fetch(`${API_URL}/orders/${orderId}/pay`, {
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/pay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -103,75 +133,103 @@ export const api = {
   // KDS
   getKdsItems: (station?: string): Promise<OrderItem[]> => {
     const query = station && station !== 'ALL' ? `?station=${station}` : '';
-    return fetch(`${API_URL}/kds${query}`).then(handleResponse<OrderItem[]>);
+    return fetchWithRetry(`${getApiUrl()}/kds${query}`).then(handleResponse<OrderItem[]>);
   },
 
   updateKdsItemStatus: (itemId: string, status: KdsStatus): Promise<OrderItem> =>
-    fetch(`${API_URL}/kds/items/${itemId}/status`, {
+    fetchWithRetry(`${getApiUrl()}/kds/items/${itemId}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status })
     }).then(handleResponse<OrderItem>),
 
   markAllReady: (orderId: string, station?: string): Promise<{ success: boolean }> =>
-    fetch(`${API_URL}/kds/orders/${orderId}/ready-all`, {
+    fetchWithRetry(`${getApiUrl()}/kds/orders/${orderId}/ready-all`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ station })
     }).then(handleResponse<{ success: boolean }>),
 
-  // Produtos & Cardápio
-  getProducts: (categoryId?: string, search?: string): Promise<Product[]> => {
+  // Produtos & Cardápio (com cache em memória para abertura instantânea do cardápio)
+  getProducts: async (categoryId?: string, search?: string, forceRefresh = false): Promise<Product[]> => {
+    if (!categoryId && !search && cachedProducts && !forceRefresh) {
+      // Revalida em background sem travar a UI
+      fetchWithRetry(`${getApiUrl()}/products`)
+        .then(handleResponse<Product[]>)
+        .then((p) => { cachedProducts = p; })
+        .catch(() => {});
+      return cachedProducts;
+    }
+
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (search) params.append('search', search);
-    return fetch(`${API_URL}/products?${params.toString()}`).then(handleResponse<Product[]>);
+    const data = await fetchWithRetry(`${getApiUrl()}/products?${params.toString()}`).then(handleResponse<Product[]>);
+    if (!categoryId && !search) cachedProducts = data;
+    return data;
   },
 
-  createProduct: (data: Partial<Product>): Promise<Product> =>
-    fetch(`${API_URL}/products`, {
+  createProduct: async (data: Partial<Product>): Promise<Product> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
-    }).then(handleResponse<Product>),
+    }).then(handleResponse<Product>);
+  },
 
-  updateProduct: (id: string, data: Partial<Product>): Promise<Product> =>
-    fetch(`${API_URL}/products/${id}`, {
+  updateProduct: async (id: string, data: Partial<Product>): Promise<Product> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
-    }).then(handleResponse<Product>),
+    }).then(handleResponse<Product>);
+  },
 
-  adjustStock: (id: string, adjustment?: number, newStock?: number): Promise<Product> =>
-    fetch(`${API_URL}/products/${id}/stock`, {
+  adjustStock: async (id: string, adjustment?: number, newStock?: number): Promise<Product> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/${id}/stock`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adjustment, newStock })
-    }).then(handleResponse<Product>),
+    }).then(handleResponse<Product>);
+  },
 
-  getCategories: (): Promise<Category[]> =>
-    fetch(`${API_URL}/products/categories/all`).then(handleResponse<Category[]>),
+  getCategories: async (forceRefresh = false): Promise<Category[]> => {
+    if (cachedCategories && !forceRefresh) {
+      // Revalida em background
+      fetchWithRetry(`${getApiUrl()}/products/categories/all`)
+        .then(handleResponse<Category[]>)
+        .then((c) => { cachedCategories = c; })
+        .catch(() => {});
+      return cachedCategories;
+    }
+    const cats = await fetchWithRetry(`${getApiUrl()}/products/categories/all`).then(handleResponse<Category[]>);
+    cachedCategories = cats;
+    return cats;
+  },
 
   // Caixa & PDV
   getCurrentCashShift: (): Promise<{ isOpen: boolean; shift: CashShift | null; summary?: CashSummary }> =>
-    fetch(`${API_URL}/cash/current`).then(handleResponse<{ isOpen: boolean; shift: CashShift | null; summary?: CashSummary }>),
+    fetchWithRetry(`${getApiUrl()}/cash/current`).then(handleResponse<{ isOpen: boolean; shift: CashShift | null; summary?: CashSummary }>),
 
   openCashShift: (initialBalance: number, openedBy: string, notes?: string): Promise<CashShift> =>
-    fetch(`${API_URL}/cash/open`, {
+    fetchWithRetry(`${getApiUrl()}/cash/open`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initialBalance, openedBy, notes })
     }).then(handleResponse<CashShift>),
 
   addCashTransaction: (type: 'SUPPLY' | 'WITHDRAWAL', amount: number, reason: string): Promise<any> =>
-    fetch(`${API_URL}/cash/transaction`, {
+    fetchWithRetry(`${getApiUrl()}/cash/transaction`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, amount, reason })
     }).then(handleResponse<any>),
 
   closeCashShift: (finalCashCount: number, closedBy: string, notes?: string): Promise<any> =>
-    fetch(`${API_URL}/cash/close`, {
+    fetchWithRetry(`${getApiUrl()}/cash/close`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ finalCashCount, closedBy, notes })
@@ -179,5 +237,5 @@ export const api = {
 
   // Dashboard
   getDashboardData: (): Promise<DashboardData> =>
-    fetch(`${API_URL}/dashboard`).then(handleResponse<DashboardData>)
+    fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>)
 };

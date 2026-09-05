@@ -139,7 +139,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   );
 
   const handleSendOrder = async () => {
-    if (cart.length === 0 || !table.activeOrder) return;
+    if (cart.length === 0 || !table.activeOrder || submitting) return;
 
     try {
       setSubmitting(true);
