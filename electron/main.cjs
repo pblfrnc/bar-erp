@@ -136,6 +136,13 @@ function createWindow() {
     }
   });
 
+  // Atalho F12 para abrir DevTools caso necessário
+  globalShortcut.register('F12', () => {
+    if (mainWindow) {
+      mainWindow.webContents.toggleDevTools();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
