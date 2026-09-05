@@ -159,5 +159,97 @@ export function createProductsRouter() {
     }
   });
 
+  // Excluir Produto
+  router.delete('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const product = await prisma.product.findUnique({
+        where: { id }
+      });
+
+      if (!product) {
+        return res.status(404).json({ error: 'Produto não encontrado' });
+      }
+
+      // Verificar se há itens em comandas abertas no momento
+      const openItemsCount = await prisma.orderItem.count({
+        where: {
+          productId: id,
+          order: { status: 'OPEN' }
+        }
+      });
+
+      if (openItemsCount > 0) {
+        return res.status(400).json({
+          error: `Não é possível excluir o produto "${product.name}" pois ele está em ${openItemsCount} comanda(s) aberta(s) no momento. Feche o atendimento das mesas antes de excluir.`
+        });
+      }
+
+      // Excluir pedidos históricos com este produto e o produto em si
+      await prisma.orderItem.deleteMany({
+        where: { productId: id }
+      });
+
+      await prisma.product.delete({
+        where: { id }
+      });
+
+      res.json({ success: true, message: `Produto "${product.name}" excluído com sucesso!` });
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+      res.status(500).json({ error: 'Erro ao excluir produto' });
+    }
+  });
+
+  // Excluir Categoria
+  router.delete('/categories/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { force } = req.query;
+
+      const category = await prisma.category.findUnique({
+        where: { id }
+      });
+
+      if (!category) {
+        return res.status(404).json({ error: 'Categoria não encontrada' });
+      }
+
+      const productsCount = await prisma.product.count({
+        where: { categoryId: id }
+      });
+
+      if (productsCount > 0 && force !== 'true') {
+        return res.status(400).json({
+          error: `Esta categoria possui ${productsCount} produto(s) associado(s). Exclua ou mova os produtos primeiro.`
+        });
+      }
+
+      if (productsCount > 0 && force === 'true') {
+        const prods = await prisma.product.findMany({
+          where: { categoryId: id },
+          select: { id: true }
+        });
+        const prodIds = prods.map((p) => p.id);
+        await prisma.orderItem.deleteMany({
+          where: { productId: { in: prodIds } }
+        });
+        await prisma.product.deleteMany({
+          where: { categoryId: id }
+        });
+      }
+
+      await prisma.category.delete({
+        where: { id }
+      });
+
+      res.json({ success: true, message: `Categoria "${category.name}" excluída com sucesso!` });
+    } catch (error) {
+      console.error('Erro ao excluir categoria:', error);
+      res.status(500).json({ error: 'Erro ao excluir categoria' });
+    }
+  });
+
   return router;
 }

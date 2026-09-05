@@ -230,6 +230,21 @@ export const api = {
     }).then(handleResponse<Product>);
   },
 
+  deleteProduct: async (id: string, force = true): Promise<{ success: boolean; message: string }> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message: string }>);
+  },
+
+  deleteCategory: async (id: string, force = false): Promise<{ success: boolean; message: string }> => {
+    cachedCategories = null;
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/categories/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message: string }>);
+  },
+
   getCategories: async (forceRefresh = false): Promise<Category[]> => {
     if (cachedCategories && !forceRefresh) {
       // Revalida em background

@@ -88,27 +88,41 @@ jobs:
           npm --prefix server install
           npm --prefix client install
 
-      - name: Compilar Frontend (App Exclusivo do Garçom)
-        working-directory: client
-        run: |
-          npm run build:waiter
-
-      - name: Sincronizar com Capacitor Android
-        working-directory: client
-        run: |
-          npx cap sync android
-
       - name: Dar permissão ao Gradle Wrapper
         run: |
           chmod +x client/android/gradlew
 
-      - name: Compilar APK Android (Debug)
-        working-directory: client/android
+      - name: Compilar APK do Garçom (Android)
+        working-directory: client
         run: |
+          npm run build:waiter
+          npx cap sync android
+          cd android
           ./gradlew assembleDebug --no-daemon
+          cd ../..
+          mkdir -p output-apk/waiter
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk output-apk/waiter/BarERP-Garcom.apk
 
-      - name: Salvar Artefato Android (APK)
+      - name: Compilar APK da Cozinha / KDS (Android)
+        working-directory: client
+        run: |
+          npm run build:kds
+          npx cap sync android
+          sed -i 's/BarERP Garçom/BarERP Cozinha/g' android/app/src/main/res/values/strings.xml
+          cd android
+          ./gradlew assembleDebug --no-daemon
+          cd ../..
+          mkdir -p output-apk/kitchen
+          cp client/android/app/build/outputs/apk/debug/app-debug.apk output-apk/kitchen/BarERP-Cozinha.apk
+
+      - name: Salvar Artefato APK do Garçom
         uses: actions/upload-artifact@v4
         with:
           name: BarERP-Garcom-APK
-          path: client/android/app/build/outputs/apk/debug/*.apk
+          path: output-apk/waiter/BarERP-Garcom.apk
+
+      - name: Salvar Artefato APK da Cozinha
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarERP-Cozinha-APK
+          path: output-apk/kitchen/BarERP-Cozinha.apk

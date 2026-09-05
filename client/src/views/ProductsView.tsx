@@ -11,7 +11,8 @@ import {
   CheckCircle,
   Tag,
   Beer,
-  ChefHat
+  ChefHat,
+  Trash2
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -147,6 +148,41 @@ export const ProductsView: React.FC = () => {
     }
   };
 
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    if (!window.confirm(`Deseja realmente EXCLUIR o produto "${productName}" do cardápio? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.deleteProduct(productId, true);
+      setShowProductModal(false);
+      setEditingProduct(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir produto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+    if (!window.confirm(`Deseja realmente EXCLUIR a categoria "${categoryName}"? Se houver produtos nesta categoria, confirme apenas se desejar apagá-los também.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.deleteCategory(categoryId, true);
+      if (selectedCategory === categoryId) setSelectedCategory('ALL');
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir categoria');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredProducts = products.filter((p) => {
     const matchCat = selectedCategory === 'ALL' || p.categoryId === selectedCategory;
     const matchSearch =
@@ -216,17 +252,34 @@ export const ProductsView: React.FC = () => {
             Todas ({products.length})
           </button>
           {categories.map((cat) => (
-            <button
+            <div
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              className={`inline-flex items-center gap-1 rounded-xl text-xs font-bold transition whitespace-nowrap pl-3 pr-1 py-1 ${
                 selectedCategory === cat.id
                   ? 'bg-amber-500 text-slate-950'
                   : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
               }`}
             >
-              {cat.name}
-            </button>
+              <button
+                onClick={() => setSelectedCategory(cat.id)}
+                className="flex-1 text-left py-0.5"
+              >
+                {cat.name}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteCategory(cat.id, cat.name);
+                }}
+                className={`p-1 rounded-lg transition hover:bg-rose-600 hover:text-white ${
+                  selectedCategory === cat.id ? 'text-slate-900/60 hover:text-white' : 'text-slate-400'
+                }`}
+                title={`Excluir categoria "${cat.name}"`}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -323,12 +376,22 @@ export const ProductsView: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => openEditModal(p)}
-                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => openEditModal(p)}
+                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                          title="Editar Produto"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(p.id, p.name)}
+                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
+                          title="Excluir Produto do Cardápio"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -463,16 +526,27 @@ export const ProductsView: React.FC = () => {
               </div>
 
               <div className="pt-3 flex gap-2">
+                {editingProduct && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
+                    className="py-3 px-4 rounded-xl font-bold text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1.5 active:scale-95"
+                    title="Excluir este produto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowProductModal(false)}
-                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-300"
+                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition"
+                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition font-black active:scale-95"
                 >
                   Salvar Produto
                 </button>
