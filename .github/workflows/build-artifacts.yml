@@ -44,8 +44,10 @@ jobs:
           npm run build
 
       - name: Gerar Executável Windows (.EXE)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx electron-builder --win
+          npx electron-builder --win --publish never
 
       - name: Salvar Artefato Windows (.EXE)
         uses: actions/upload-artifact@v4
