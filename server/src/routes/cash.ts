@@ -85,6 +85,10 @@ export function createCashRouter(io: SocketIOServer) {
 
       const waiterCommissions = Array.from(waiterMap.values()).sort((a, b) => b.serviceFeeTotal - a.serviceFeeTotal);
 
+
+
+      const expectedCashInDrawer = shift.initialBalance + (paymentsByMethod["CASH"] || 0) + totalSupplies - totalWithdrawals;
+
       res.json({
         isOpen: true,
         shift,
@@ -244,6 +248,8 @@ export function createCashRouter(io: SocketIOServer) {
       });
 
       const waiterCommissions = Array.from(waiterMap.values()).sort((a, b) => b.serviceFeeTotal - a.serviceFeeTotal);
+
+
 
       const closedShift = await prisma.cashShift.update({
         where: { id: shift.id },
