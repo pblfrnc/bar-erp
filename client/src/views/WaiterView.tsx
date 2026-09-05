@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Table } from '../types';
 import { api } from '../services/api';
+import { socket } from '../services/socket';
+import { playOrderReadyChime } from '../utils/sound';
 import { OpenTableModal } from '../components/OpenTableModal';
 import { TableDetailsModal } from '../components/TableDetailsModal';
 import { AddOrderModal } from '../components/AddOrderModal';
@@ -21,7 +23,12 @@ import {
   WifiOff,
   UserCheck,
   RefreshCw,
-  LayoutDashboard
+  LayoutDashboard,
+  Bell,
+  BellRing,
+  CheckCircle2,
+  X,
+  Utensils
 } from 'lucide-react';
 
 interface WaiterViewProps {
@@ -61,6 +68,85 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
   const [tableForTransfer, setTableForTransfer] = useState<Table | null>(null);
   const [tableForMerge, setTableForMerge] = useState<Table | null>(null);
   const [isServerConfigOpen, setIsServerConfigOpen] = useState(false);
+
+  // Notificações de Pedidos Prontos na Cozinha / Bar
+  interface ReadyNotification {
+    id: string;
+    orderId: string;
+    orderNumber: number;
+    tableName: string;
+    waiterName?: string;
+    station?: string;
+    items: { name: string; quantity: number; notes?: string | null }[];
+    readyAt: string;
+  }
+
+  const [readyNotifications, setReadyNotifications] = useState<ReadyNotification[]>([]);
+  const [showReadyModal, setShowReadyModal] = useState(false);
+  const [activeToast, setActiveToast] = useState<ReadyNotification | null>(null);
+
+  // Escutar avisos de pratos/bebidas prontos vindos da cozinha em tempo real
+  useEffect(() => {
+    const handleOrderReady = (payload: any) => {
+      playOrderReadyChime();
+      const notif: ReadyNotification = {
+        id: `${payload.orderId}-${Date.now()}`,
+        orderId: payload.orderId,
+        orderNumber: payload.orderNumber,
+        tableName: payload.tableName || `Mesa ${payload.tableNumber || ''}`,
+        waiterName: payload.waiterName,
+        station: payload.station,
+        items: payload.items || [],
+        readyAt: payload.readyAt || new Date().toISOString()
+      };
+      setReadyNotifications((prev) => [notif, ...prev]);
+      setActiveToast(notif);
+      onRefresh();
+    };
+
+    const handleItemReady = (payload: any) => {
+      playOrderReadyChime();
+      const notif: ReadyNotification = {
+        id: `${payload.itemId}-${Date.now()}`,
+        orderId: payload.orderId,
+        orderNumber: payload.orderNumber,
+        tableName: payload.tableName || `Mesa ${payload.tableNumber || ''}`,
+        waiterName: payload.waiterName,
+        station: payload.station,
+        items: [
+          {
+            name: payload.productName,
+            quantity: payload.quantity,
+            notes: payload.notes
+          }
+        ],
+        readyAt: payload.readyAt || new Date().toISOString()
+      };
+      setReadyNotifications((prev) => [notif, ...prev]);
+      setActiveToast(notif);
+      onRefresh();
+    };
+
+    socket.on('kds:order_ready', handleOrderReady);
+    socket.on('kds:item_ready', handleItemReady);
+
+    return () => {
+      socket.off('kds:order_ready', handleOrderReady);
+      socket.off('kds:item_ready', handleItemReady);
+    };
+  }, [onRefresh]);
+
+  // Se o aplicativo Android estiver desconectado por mais de 1.2s ou sem IP salvo, abre a tela de IP automaticamente
+  useEffect(() => {
+    const hasConfiguredUrl = Boolean(localStorage.getItem('bar_server_url'));
+    const isMobileDevice = window.innerWidth <= 800 || (window as any).Capacitor?.isNativePlatform?.();
+    const timer = setTimeout(() => {
+      if (!isConnected && (!hasConfiguredUrl || isMobileDevice)) {
+        setIsServerConfigOpen(true);
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [isConnected]);
 
   const handleSaveWaiterName = (name: string) => {
     const trimmed = name.trim() || 'Garçom';
@@ -152,6 +238,59 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none">
+      {/* Alerta Flutuante de Pedido Pronto para Entrega */}
+      {activeToast && (
+        <div className="fixed top-3 left-3 right-3 z-50 max-w-md mx-auto bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 rounded-3xl shadow-2xl border-2 border-emerald-400 flex items-start gap-3 animate-in fade-in slide-in-from-top duration-300">
+          <div className="p-2.5 bg-emerald-800/90 rounded-2xl text-white shadow-inner flex items-center justify-center shrink-0">
+            <BellRing className="w-6 h-6 animate-pulse text-amber-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-[10px] uppercase tracking-wider bg-emerald-950/70 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/40">
+                🔔 Pedido Pronto!
+              </span>
+              <button
+                onClick={() => setActiveToast(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <h4 className="font-black text-base mt-1 text-white leading-tight">
+              {activeToast.tableName} {activeToast.orderNumber ? `• Comanda #${activeToast.orderNumber}` : ''}
+            </h4>
+            <div className="mt-1 space-y-0.5 text-xs text-emerald-100 font-medium max-h-24 overflow-y-auto">
+              {activeToast.items.map((it, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <span className="font-black text-amber-300">{it.quantity}x</span>
+                  <span>{it.name}</span>
+                  {it.notes && <span className="text-[10px] text-emerald-200 italic">({it.notes})</span>}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setReadyNotifications((prev) => prev.filter((n) => n.id !== activeToast.id));
+                  setActiveToast(null);
+                }}
+                className="flex-1 py-1.5 px-3 bg-white hover:bg-emerald-50 text-emerald-950 rounded-xl text-xs font-black shadow-md transition active:scale-95 cursor-pointer text-center"
+              >
+                Entregar à Mesa
+              </button>
+              <button
+                onClick={() => {
+                  setShowReadyModal(true);
+                  setActiveToast(null);
+                }}
+                className="py-1.5 px-2.5 bg-emerald-800/80 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+              >
+                Ver Todos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ========================================================================= */}
       {/* CABEÇALHO DEDICADO DO GARÇOM (COMPACTO, LIMPO E SEM ITENS ADMINISTRATIVOS) */}
       {/* ========================================================================= */}
@@ -198,6 +337,18 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
 
           {/* Status Wi-Fi, Acessibilidade e Alternador de Painel */}
           <div className="flex items-center gap-2">
+            {/* Botão de Pedidos Prontos para Entrega na Cozinha */}
+            {readyNotifications.length > 0 && (
+              <button
+                onClick={() => setShowReadyModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 animate-bounce shadow-lg shadow-emerald-500/30 cursor-pointer"
+                title="Ver pedidos prontos para entrega"
+              >
+                <BellRing className="w-4 h-4 animate-pulse text-slate-950" />
+                <span>{readyNotifications.length} Pronto{readyNotifications.length > 1 ? 's' : ''}!</span>
+              </button>
+            )}
+
             {/* Status Wi-Fi / Configuração de Servidor */}
             <button
               onClick={() => setIsServerConfigOpen(true)}
@@ -657,6 +808,100 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
         onClose={() => setIsServerConfigOpen(false)}
         isConnected={isConnected}
       />
+
+      {/* 8. Modal com Todos os Pedidos Prontos para Entrega */}
+      {showReadyModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 shadow-2xl space-y-4 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                  <BellRing className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Pedidos Prontos na Cozinha</h3>
+                  <p className="text-xs text-slate-400">Itens aguardando entrega aos clientes</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReadyModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {readyNotifications.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-xs">
+                Nenhum pedido aguardando entrega no momento.
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-96 overflow-y-auto">
+                {readyNotifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 flex flex-col justify-between gap-2.5 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-black text-white block">
+                          {notif.tableName} {notif.orderNumber ? `• Comanda #${notif.orderNumber}` : ''}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {notif.station ? `${notif.station} • ` : ''}{new Date(notif.readyAt).toLocaleTimeString().slice(0, 5)}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                        Pronto
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 py-1 border-t border-slate-800/80">
+                      {notif.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-200 font-medium">
+                            <strong className="text-amber-400 mr-1">{it.quantity}x</strong> {it.name}
+                          </span>
+                          {it.notes && (
+                            <span className="text-[10px] text-amber-300 italic">Obs: {it.notes}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setReadyNotifications((prev) => prev.filter((n) => n.id !== notif.id));
+                      }}
+                      className="w-full py-2 px-3 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-emerald-500/20 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Marcar como Entregue
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
+              {readyNotifications.length > 0 && (
+                <button
+                  onClick={() => setReadyNotifications([])}
+                  className="text-xs text-slate-400 hover:text-red-400 underline cursor-pointer"
+                >
+                  Limpar todos os alertas
+                </button>
+              )}
+              <button
+                onClick={() => setShowReadyModal(false)}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer ml-auto"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

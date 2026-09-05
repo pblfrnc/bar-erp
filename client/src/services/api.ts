@@ -8,7 +8,8 @@ import {
   CashSummary,
   DashboardData,
   KdsStatus,
-  KdsItem
+  KdsItem,
+  Waiter
 } from '../types';
 
 import { getServerBaseUrl } from './socket';
@@ -89,7 +90,7 @@ export const api = {
       body: JSON.stringify({ oldSection, newSection })
     }).then(handleResponse<{ success: boolean; count: number }>),
 
-  openTable: (id: string, data: { customerName?: string; waiterName?: string; customerCount: number }): Promise<{ table: Table; order: Order }> =>
+  openTable: (id: string, data: { customerName?: string; waiterName?: string; waiterId?: string; customerCount: number }): Promise<{ table: Table; order: Order }> =>
     fetchWithRetry(`${getApiUrl()}/tables/${id}/open`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -286,5 +287,28 @@ export const api = {
 
   // Dashboard
   getDashboardData: (): Promise<DashboardData> =>
-    fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>)
+    fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>),
+
+  // Garçons & Comissões
+  getWaiters: (all: boolean = false): Promise<Waiter[]> =>
+    fetchWithRetry(`${getApiUrl()}/waiters?all=${all}`).then(handleResponse<Waiter[]>),
+
+  createWaiter: (data: { name: string; code?: string; commissionRate?: number }): Promise<Waiter> =>
+    fetchWithRetry(`${getApiUrl()}/waiters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Waiter>),
+
+  updateWaiter: (id: string, data: Partial<Waiter>): Promise<Waiter> =>
+    fetchWithRetry(`${getApiUrl()}/waiters/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Waiter>),
+
+  deleteWaiter: (id: string): Promise<{ success: boolean; message?: string; waiter?: Waiter }> =>
+    fetchWithRetry(`${getApiUrl()}/waiters/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message?: string; waiter?: Waiter }>)
 };

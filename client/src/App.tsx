@@ -11,6 +11,8 @@ import { DashboardView } from './views/DashboardView';
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
+import { ManageWaitersModal } from './components/ManageWaitersModal';
+import { ConnectMobileModal } from './components/ConnectMobileModal';
 import { playKitchenChime } from './utils/sound';
 
 export function App() {
@@ -32,6 +34,12 @@ export function App() {
       window.history.pushState(null, '', '/');
     }
   };
+
+  // Gerenciamento de Garçons no Modal
+  const [showWaitersModal, setShowWaitersModal] = useState<boolean>(false);
+
+  // Modal para conectar celulares/tablets na rede local
+  const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
   const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
@@ -70,6 +78,24 @@ export function App() {
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
 
+  // Tema: Light ou Dark
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('bar_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+    return 'dark';
+  });
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('bar_theme', next);
+      return next;
+    });
+  };
+
   // Escala de Acessibilidade para Baixa Visão
   const [fontScale, setFontScale] = useState<'normal' | 'large' | 'xlarge'>(() => {
     return (localStorage.getItem('bar_font_scale') as any) || 'normal';
@@ -78,12 +104,11 @@ export function App() {
   const handleFontScaleChange = (scale: 'normal' | 'large' | 'xlarge') => {
     setFontScale(scale);
     localStorage.setItem('bar_font_scale', scale);
-    document.documentElement.className = `dark font-scale-${scale}`;
   };
 
   useEffect(() => {
-    document.documentElement.className = `dark font-scale-${fontScale}`;
-  }, [fontScale]);
+    document.documentElement.className = `${theme} font-scale-${fontScale}`;
+  }, [theme, fontScale]);
 
   // Carregar Mesas
   const loadTables = async () => {
@@ -221,7 +246,7 @@ export function App() {
 
   if (appMode === 'waiter') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-150">
         {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}
         <ThermalReceipt order={printOrder} />
 
@@ -240,7 +265,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-150">
       {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}
       {activePrintType === 'kitchen' ? (
         <KitchenTicketReceipt ticket={kitchenTicket} />
@@ -257,7 +282,10 @@ export function App() {
         isConnected={isConnected}
         fontScale={fontScale}
         onChangeFontScale={handleFontScaleChange}
-        onSwitchToWaiter={() => handleSetAppMode('waiter')}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onOpenWaitersModal={() => setShowWaitersModal(true)}
+        onOpenConnectMobile={() => setShowConnectMobileModal(true)}
         autoPrintKitchen={autoPrintKitchen}
         onToggleAutoPrintKitchen={handleToggleAutoPrintKitchen}
       />
@@ -288,6 +316,22 @@ export function App() {
           <DashboardView />
         )}
       </main>
+
+      {/* Modal de Gestão de Garçons */}
+      {showWaitersModal && (
+        <ManageWaitersModal
+          onClose={() => setShowWaitersModal(false)}
+          onWaitersChanged={loadTables}
+        />
+      )}
+
+      {/* Modal de Conexão com Dispositivos Móveis (IP & QR Code) */}
+      {showConnectMobileModal && (
+        <ConnectMobileModal
+          isOpen={showConnectMobileModal}
+          onClose={() => setShowConnectMobileModal(false)}
+        />
+      )}
     </div>
   );
 }

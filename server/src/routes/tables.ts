@@ -171,7 +171,7 @@ export function createTablesRouter(io: SocketIOServer) {
   router.post('/:id/open', async (req, res) => {
     try {
       const { id } = req.params;
-      const { customerName, waiterName, customerCount } = req.body;
+      const { customerName, waiterName, waiterId, customerCount } = req.body;
 
       const table = await prisma.table.findUnique({ where: { id } });
       if (!table) {
@@ -192,6 +192,7 @@ export function createTablesRouter(io: SocketIOServer) {
           tableId: table.id,
           orderNumber,
           customerName: customerName || null,
+          waiterId: waiterId || null,
           waiterName: waiterName || 'Garçom',
           subtotal: 0,
           serviceFeeRate: 0.10,

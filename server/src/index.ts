@@ -10,6 +10,7 @@ import { createProductsRouter } from './routes/products.js';
 import { createKdsRouter } from './routes/kds.js';
 import { createCashRouter } from './routes/cash.js';
 import { createDashboardRouter } from './routes/dashboard.js';
+import { createWaitersRouter } from './routes/waiters.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -46,6 +47,7 @@ app.use('/api/products', createProductsRouter());
 app.use('/api/kds', createKdsRouter(io));
 app.use('/api/cash', createCashRouter(io));
 app.use('/api/dashboard', createDashboardRouter());
+app.use('/api/waiters', createWaitersRouter());
 
 // Obter os endereços IP locais da rede Wi-Fi
 function getLocalIps(): string[] {

@@ -46,7 +46,44 @@ export function createCashRouter(io: SocketIOServer) {
         totalSales += p.amount;
       });
 
-      const expectedCashInDrawer = shift.initialBalance + totalSupplies - totalWithdrawals + (paymentsByMethod.CASH || 0);
+      // Calcular comissões / 10% dos garçons acumulados no turno
+      const ordersMap = new Map<string, any>();
+      shift.payments.forEach((p) => {
+        if (p.order && !ordersMap.has(p.order.id)) {
+          ordersMap.set(p.order.id, p.order);
+        }
+      });
+
+      const waiterMap = new Map<string, {
+        waiterId: string | null;
+        waiterName: string;
+        ordersCount: number;
+        totalSales: number;
+        serviceFeeTotal: number;
+      }>();
+
+      let totalServiceFeesShift = 0;
+
+      ordersMap.forEach((order) => {
+        const waiterKey = order.waiterName || 'Garçom Geral';
+        const existing = waiterMap.get(waiterKey) || {
+          waiterId: order.waiterId || null,
+          waiterName: waiterKey,
+          ordersCount: 0,
+          totalSales: 0,
+          serviceFeeTotal: 0
+        };
+
+        existing.ordersCount += 1;
+        existing.totalSales += order.total || 0;
+        const fee = order.isServiceFeeActive ? (order.serviceFee || 0) : 0;
+        existing.serviceFeeTotal += fee;
+        totalServiceFeesShift += fee;
+
+        waiterMap.set(waiterKey, existing);
+      });
+
+      const waiterCommissions = Array.from(waiterMap.values()).sort((a, b) => b.serviceFeeTotal - a.serviceFeeTotal);
 
       res.json({
         isOpen: true,
@@ -57,7 +94,9 @@ export function createCashRouter(io: SocketIOServer) {
           totalWithdrawals,
           totalSales,
           paymentsByMethod,
-          expectedCashInDrawer
+          expectedCashInDrawer,
+          totalServiceFeesShift,
+          waiterCommissions
         }
       });
     } catch (error) {
@@ -140,7 +179,9 @@ export function createCashRouter(io: SocketIOServer) {
         where: { status: 'OPEN' },
         include: {
           transactions: true,
-          payments: true
+          payments: {
+            include: { order: true }
+          }
         }
       });
 
@@ -165,6 +206,45 @@ export function createCashRouter(io: SocketIOServer) {
       const finalBalance = Number(finalCashCount) || 0;
       const difference = finalBalance - expectedCash;
 
+      // Calcular comissões / 10% dos garçons acumulados no turno
+      const ordersMap = new Map<string, any>();
+      shift.payments.forEach((p) => {
+        if (p.order && !ordersMap.has(p.order.id)) {
+          ordersMap.set(p.order.id, p.order);
+        }
+      });
+
+      const waiterMap = new Map<string, {
+        waiterId: string | null;
+        waiterName: string;
+        ordersCount: number;
+        totalSales: number;
+        serviceFeeTotal: number;
+      }>();
+
+      let totalServiceFeesShift = 0;
+
+      ordersMap.forEach((order) => {
+        const waiterKey = order.waiterName || 'Garçom Geral';
+        const existing = waiterMap.get(waiterKey) || {
+          waiterId: order.waiterId || null,
+          waiterName: waiterKey,
+          ordersCount: 0,
+          totalSales: 0,
+          serviceFeeTotal: 0
+        };
+
+        existing.ordersCount += 1;
+        existing.totalSales += order.total || 0;
+        const fee = order.isServiceFeeActive ? (order.serviceFee || 0) : 0;
+        existing.serviceFeeTotal += fee;
+        totalServiceFeesShift += fee;
+
+        waiterMap.set(waiterKey, existing);
+      });
+
+      const waiterCommissions = Array.from(waiterMap.values()).sort((a, b) => b.serviceFeeTotal - a.serviceFeeTotal);
+
       const closedShift = await prisma.cashShift.update({
         where: { id: shift.id },
         data: {
@@ -185,7 +265,9 @@ export function createCashRouter(io: SocketIOServer) {
         report: {
           expectedCash,
           countedCash: finalBalance,
-          difference
+          difference,
+          totalServiceFeesShift,
+          waiterCommissions
         }
       });
     } catch (error) {

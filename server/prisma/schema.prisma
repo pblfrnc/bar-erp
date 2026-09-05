@@ -5,7 +5,7 @@ datasource db {
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "windows"]
+  binaryTargets = ["native"]
 }
 
 model Table {
@@ -32,6 +32,8 @@ model Order {
   table              Table?      @relation(fields: [tableId], references: [id])
   status             String      @default("OPEN") // OPEN, PAID, CANCELLED
   customerName       String?
+  waiterId           String?
+  waiter             Waiter?     @relation(fields: [waiterId], references: [id])
   waiterName         String?     @default("Garçom")
   subtotal           Float       @default(0)
   serviceFeeRate     Float       @default(0.10) // 10%
@@ -126,4 +128,15 @@ model CashTransaction {
   amount      Float
   reason      String
   createdAt   DateTime  @default(now())
+}
+
+model Waiter {
+  id             String    @id @default(cuid())
+  name           String    @unique
+  code           String?   // Código de crachá ou identificação rápida (ex: "01", "10")
+  commissionRate Float     @default(0.10) // Taxa de comissão padrão (10%)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  orders         Order[]
 }

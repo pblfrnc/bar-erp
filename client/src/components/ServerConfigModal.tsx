@@ -100,38 +100,44 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     window.location.reload();
   };
 
-  // Varredura automática inteligente de IPs comuns da rede local
+  // Varredura automática inteligente e rápida de IPs comuns da rede local
   const handleAutoDiscover = async () => {
     setScanning(true);
-    setScanProgress('Iniciando busca do servidor na rede local...');
+    setScanProgress('Iniciando busca rápida do computador na rede local Wi-Fi...');
     setTestResult(null);
 
-    // Identifica faixas de IP prováveis
-    const baseSubnets = ['192.168.1.', '192.168.0.', '192.168.15.', '10.0.0.'];
+    // Sub-redes mais comuns em roteadores brasileiros (Claro, Vivo, Oi, TP-Link, Intelbras, D-Link)
+    const baseSubnets = [
+      '192.168.0.',
+      '192.168.1.',
+      '192.168.15.',
+      '192.168.18.',
+      '192.168.100.',
+      '10.0.0.'
+    ];
     let foundServerUrl: string | null = null;
 
     for (const subnet of baseSubnets) {
       if (foundServerUrl) break;
       setScanProgress(`Verificando faixa ${subnet}x ...`);
 
-      // Testa os IPs mais prováveis primeiro (.100 a .150, .2 a .30, .200 a .220)
+      // Testa os IPs mais prováveis (2 a 40, e 100 a 140)
       const testIps = [
         ...Array.from({ length: 30 }, (_, i) => `${subnet}${i + 2}`),
-        ...Array.from({ length: 40 }, (_, i) => `${subnet}${i + 100}`),
-        ...Array.from({ length: 20 }, (_, i) => `${subnet}${i + 200}`)
+        ...Array.from({ length: 30 }, (_, i) => `${subnet}${i + 100}`)
       ];
 
-      // Dispara em lotes concorrentes de 8 requisições rápidas (timeout 1200ms)
-      for (let i = 0; i < testIps.length; i += 8) {
+      // Dispara em lotes paralelos de 15 requisições com timeout rápido de 700ms
+      for (let i = 0; i < testIps.length; i += 15) {
         if (foundServerUrl) break;
-        const batch = testIps.slice(i, i + 8);
-        setScanProgress(`Verificando: ${batch[0]} até ${batch[batch.length - 1]}...`);
+        const batch = testIps.slice(i, i + 15);
+        setScanProgress(`Verificando: ${batch[0]} a ${batch[batch.length - 1]}...`);
 
         const promises = batch.map(async (ip) => {
           const candidate = `http://${ip}:3001`;
           try {
             const controller = new AbortController();
-            const tid = setTimeout(() => controller.abort(), 1200);
+            const tid = setTimeout(() => controller.abort(), 700);
             const r = await fetch(`${candidate}/api/health`, { signal: controller.signal });
             clearTimeout(tid);
             if (r.ok) return candidate;
@@ -161,7 +167,7 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
       setScanProgress('');
       setTestResult({
         success: false,
-        message: 'Nenhum servidor encontrado na busca rápida. Digite o IP do PC do caixa manualmente abaixo.'
+        message: 'Não localizou automaticamente. Olhe no computador do caixa: clique em "Conectar Celular" no topo para ver o IP exato.'
       });
     }
   };
@@ -289,16 +295,16 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
         )}
 
         {/* Como descobrir o IP no PC */}
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs text-slate-400">
-          <div className="font-bold text-slate-300 flex items-center gap-1.5">
-            <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-            <span>Como ver o IP no computador do caixa:</span>
+        <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2 text-xs text-slate-400">
+          <div className="font-bold text-slate-200 flex items-center gap-1.5">
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+            <span>Como conectar ao computador do caixa:</span>
           </div>
-          <ol className="list-decimal list-inside space-y-1 text-[11px] pl-1">
-            <li>No Windows, aperte <kbd className="bg-slate-800 px-1 py-0.5 rounded text-amber-300">Win + R</kbd>, digite <code className="text-amber-300">cmd</code> e tecle Enter.</li>
-            <li>No terminal preto, digite <code className="text-amber-300 font-bold">ipconfig</code> e tecle Enter.</li>
-            <li>Procure por <span className="text-slate-200 font-semibold">Endereço IPv4</span> (exemplo: <code className="text-amber-300">192.168.1.50</code>).</li>
-            <li>Certifique-se de que o celular e o computador estão conectados no <strong>mesmo Wi-Fi</strong>.</li>
+          <ol className="list-decimal list-inside space-y-1.5 text-[11px] pl-1 text-slate-300">
+            <li>No computador do caixa, clique no botão <strong>"Conectar Celular"</strong> no topo da tela.</li>
+            <li>O IP do computador aparecerá na tela (ex: <code className="text-amber-300 font-bold">192.168.0.8</code>).</li>
+            <li>Digite esse mesmo número no campo acima e toque em <strong>Salvar e Conectar</strong>.</li>
+            <li>Certifique-se de que o celular e o computador estão conectados na <strong>mesma rede Wi-Fi</strong>.</li>
           </ol>
         </div>
 

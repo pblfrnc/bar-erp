@@ -66,6 +66,16 @@ export interface Payment {
   receivedAt: string;
 }
 
+export interface Waiter {
+  id: string;
+  name: string;
+  code?: string | null;
+  commissionRate: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: number;
@@ -73,6 +83,7 @@ export interface Order {
   table?: Table | null;
   status: OrderStatus;
   customerName?: string | null;
+  waiterId?: string | null;
   waiterName?: string | null;
   subtotal: number;
   serviceFeeRate: number;
@@ -128,6 +139,14 @@ export interface CashShift {
   payments: (Payment & { order?: { table?: { number: number; name?: string } } })[];
 }
 
+export interface WaiterCommissionSummary {
+  waiterId: string | null;
+  waiterName: string;
+  ordersCount: number;
+  totalSales: number;
+  serviceFeeTotal: number;
+}
+
 export interface CashSummary {
   initialBalance: number;
   totalSupplies: number;
@@ -135,6 +154,8 @@ export interface CashSummary {
   totalSales: number;
   paymentsByMethod: Record<PaymentMethod, number>;
   expectedCashInDrawer: number;
+  totalServiceFeesShift?: number;
+  waiterCommissions?: WaiterCommissionSummary[];
 }
 
 export interface DashboardData {
