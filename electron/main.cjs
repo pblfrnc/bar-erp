@@ -16,23 +16,52 @@ function setupDatabase() {
     }
 
     const dbPath = path.join(userDataPath, 'bar.db');
-    const defaultDbPath = path.join(__dirname, '..', 'server', 'prisma', 'dev.db');
+    
+    // Procura o banco pré-semeado inicial em múltiplas localizações possíveis
+    const candidateDefaultDbPaths = [
+      path.join(__dirname, '..', 'server', 'prisma', 'dev.db'),
+      path.join(process.resourcesPath || '', 'server', 'prisma', 'dev.db'),
+      path.join(process.resourcesPath || '', 'app', 'server', 'prisma', 'dev.db')
+    ];
+
+    let defaultDbPath = candidateDefaultDbPaths.find(p => fs.existsSync(p));
 
     // Se o banco ainda não existir no AppData do usuário, copia o banco inicial pré-populado
-    if (!fs.existsSync(dbPath) && fs.existsSync(defaultDbPath)) {
+    if (!fs.existsSync(dbPath) && defaultDbPath) {
       fs.copyFileSync(defaultDbPath, dbPath);
-      console.log('✅ Banco de dados inicial copiado com sucesso para:', dbPath);
+      console.log('✅ Banco de dados inicial copiado com sucesso de:', defaultDbPath, 'para:', dbPath);
     }
 
-    // Configurar variável de ambiente para o Prisma usar o banco do AppData
-    process.env.DATABASE_URL = `file:${dbPath}`;
+    // Configurar variável de ambiente para o Prisma usar o banco do AppData (usando forward slashes para Windows)
+    const normalizedDbPath = dbPath.replace(/\\/g, '/');
+    process.env.DATABASE_URL = `file:${normalizedDbPath}`;
     console.log('DATABASE_URL configurada:', process.env.DATABASE_URL);
 
     // Apontar o Prisma para o engine nativo embutido junto com o bundle do servidor
-    const engineDir = path.join(__dirname, '..', 'server', 'dist', '.prisma', 'client');
-    if (fs.existsSync(engineDir)) {
-      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(engineDir, 'query_engine-windows.dll.node');
-      console.log('PRISMA_QUERY_ENGINE_LIBRARY:', process.env.PRISMA_QUERY_ENGINE_LIBRARY);
+    const engineFilename = process.platform === 'win32'
+      ? 'query_engine-windows.dll.node'
+      : process.platform === 'darwin'
+        ? 'libquery_engine-darwin.dylib.node'
+        : 'libquery_engine-debian-openssl-3.0.x.so.node';
+
+    const candidateEnginePaths = [
+      path.join(__dirname, '..', 'server', 'dist', 'prisma-engine', engineFilename),
+      path.join(__dirname, '..', 'server', 'dist', engineFilename),
+      path.join(process.resourcesPath || '', 'server', 'dist', 'prisma-engine', engineFilename),
+      path.join(process.resourcesPath || '', 'server', 'dist', engineFilename),
+      path.join(process.resourcesPath || '', engineFilename),
+      path.join(__dirname, '..', 'server', 'dist', '.prisma', 'client', engineFilename)
+    ];
+
+    for (const p of candidateEnginePaths) {
+      if (fs.existsSync(p)) {
+        process.env.PRISMA_QUERY_ENGINE_LIBRARY = p;
+        console.log('✅ PRISMA_QUERY_ENGINE_LIBRARY configurada:', p);
+        break;
+      }
+    }
+    if (!process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
+      console.warn('⚠️ Engine do Prisma não encontrado nas rotas candidatas:', candidateEnginePaths);
     }
   } catch (err) {
     console.error('Erro ao configurar banco de dados no AppData:', err);
