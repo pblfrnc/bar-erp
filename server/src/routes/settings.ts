@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../prisma.js';
 import { createHmac } from 'crypto';
 import { machineIdSync } from 'node-machine-id';
 
-const prisma = new PrismaClient();
 const router = Router();
 const SECRET_KEY = process.env.LICENSE_SECRET_KEY || 'BAR_ERP_SUPER_SECRET_KEY_2026';
 
