@@ -27,6 +27,13 @@ function setupDatabase() {
     // Configurar variável de ambiente para o Prisma usar o banco do AppData
     process.env.DATABASE_URL = `file:${dbPath}`;
     console.log('DATABASE_URL configurada:', process.env.DATABASE_URL);
+
+    // Apontar o Prisma para o engine nativo embutido junto com o bundle do servidor
+    const engineDir = path.join(__dirname, '..', 'server', 'dist', '.prisma', 'client');
+    if (fs.existsSync(engineDir)) {
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = path.join(engineDir, 'query_engine-windows.dll.node');
+      console.log('PRISMA_QUERY_ENGINE_LIBRARY:', process.env.PRISMA_QUERY_ENGINE_LIBRARY);
+    }
   } catch (err) {
     console.error('Erro ao configurar banco de dados no AppData:', err);
   }

@@ -47,17 +47,6 @@ app.use('/api/kds', createKdsRouter(io));
 app.use('/api/cash', createCashRouter(io));
 app.use('/api/dashboard', createDashboardRouter());
 
-// Rota de Healthcheck e identificação de rede
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    time: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
-const PORT = Number(process.env.PORT) || 3001;
-
 // Obter os endereços IP locais da rede Wi-Fi
 function getLocalIps(): string[] {
   const interfaces = os.networkInterfaces();
@@ -71,6 +60,19 @@ function getLocalIps(): string[] {
   }
   return ips;
 }
+
+const PORT = Number(process.env.PORT) || 3001;
+
+// Rota de Healthcheck e identificação de rede
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+    uptime: process.uptime(),
+    ips: getLocalIps(),
+    port: PORT
+  });
+});
 
 // Tratamento de erros de inicialização (ex: porta 3001 já ocupada)
 httpServer.on('error', (err: any) => {

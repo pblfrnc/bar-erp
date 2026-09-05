@@ -29,10 +29,6 @@
       "client/dist/**/*",
       "server/dist/**/*",
       "server/prisma/**/*",
-      "server/node_modules/.prisma/**/*",
-      "server/node_modules/@prisma/client/**/*",
-      "node_modules/.prisma/**/*",
-      "node_modules/@prisma/client/**/*",
       "package.json"
     ],
     "win": {
@@ -54,15 +50,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "BarERP Pro"
     }
-  },
-  "dependencies": {
-    "@prisma/client": "^6.4.1",
-    "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1",
-    "zod": "^3.24.2"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -26,18 +26,16 @@ jobs:
           npm --prefix server install
           npm --prefix client install
 
-      - name: Preparar Banco e Gerar Prisma Client
+      - name: Preparar Banco de Dados (seed inicial)
         env:
           DATABASE_URL: "file:./server/prisma/dev.db"
+        working-directory: server
         run: |
-          npx prisma generate --schema=server/prisma/schema.prisma
-          cd server
           npx prisma generate
           npx prisma db push --accept-data-loss
           npm run seed
-          cd ..
 
-      - name: Compilar Backend
+      - name: Compilar Backend (esbuild bundle + copia engine Prisma)
         working-directory: server
         run: |
           npm run build

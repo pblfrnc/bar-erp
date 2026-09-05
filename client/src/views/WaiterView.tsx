@@ -7,6 +7,7 @@ import { AddOrderModal } from '../components/AddOrderModal';
 import { CheckoutModal } from '../components/CheckoutModal';
 import { TransferModal } from '../components/TransferModal';
 import { MergeModal } from '../components/MergeModal';
+import { ServerConfigModal } from '../components/ServerConfigModal';
 import {
   Beer,
   Search,
@@ -16,6 +17,7 @@ import {
   Merge,
   Users,
   Clock,
+  Wifi,
   WifiOff,
   UserCheck,
   RefreshCw,
@@ -58,6 +60,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
   const [tableForCheckout, setTableForCheckout] = useState<Table | null>(null);
   const [tableForTransfer, setTableForTransfer] = useState<Table | null>(null);
   const [tableForMerge, setTableForMerge] = useState<Table | null>(null);
+  const [isServerConfigOpen, setIsServerConfigOpen] = useState(false);
 
   const handleSaveWaiterName = (name: string) => {
     const trimmed = name.trim() || 'Garçom';
@@ -195,13 +198,15 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
 
           {/* Status Wi-Fi, Acessibilidade e Alternador de Painel */}
           <div className="flex items-center gap-2">
-            {/* Status Wi-Fi */}
-            <div
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+            {/* Status Wi-Fi / Configuração de Servidor */}
+            <button
+              onClick={() => setIsServerConfigOpen(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
                 isConnected
-                  ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60'
-                  : 'bg-red-950/60 text-red-400 border-red-800/60 animate-pulse'
+                  ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/60'
+                  : 'bg-red-950/80 text-red-300 border-red-700 animate-pulse hover:bg-red-900/80'
               }`}
+              title="Clique para ver ou configurar o IP do servidor do bar"
             >
               {isConnected ? (
                 <>
@@ -211,10 +216,10 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
               ) : (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-red-400" />
-                  <span className="text-[11px]">Reconectando...</span>
+                  <span className="text-[11px] font-extrabold">Configurar IP</span>
                 </>
               )}
-            </div>
+            </button>
 
             {/* Acessibilidade de Fontes A+ */}
             <button
@@ -645,6 +650,13 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
           }}
         />
       )}
+
+      {/* 7. Modal de Configuração de IP do Servidor (Android Wi-Fi) */}
+      <ServerConfigModal
+        isOpen={isServerConfigOpen}
+        onClose={() => setIsServerConfigOpen(false)}
+        isConnected={isConnected}
+      />
     </div>
   );
 };
