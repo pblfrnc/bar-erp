@@ -11,6 +11,10 @@ import { createKdsRouter } from './routes/kds.js';
 import { createCashRouter } from './routes/cash.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createWaitersRouter } from './routes/waiters.js';
+import { createSettingsRouter } from './routes/settings.js';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -19,6 +23,23 @@ const httpServer = createServer(app);
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+// Segurança e Defesa na Rede Local
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false
+})); // Previne ataques de injeção e cabeçalhos HTTP maliciosos, ajustado para rodar em Electron/Localhost
+
+// Proteção contra ataques de negação de serviço (Rate Limiting)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 500, // Limite de 500 requests por IP a cada 15 min
+  message: { error: "Muitas requisições deste IP, tente novamente mais tarde." }
+});
+app.use("/api", limiter);
+
+app.use("/api/settings", createSettingsRouter());
+
 
 // Configuração robusta do WebSocket para resistir a oscilações de Wi-Fi e economia de bateria
 const io = new SocketIOServer(httpServer, {

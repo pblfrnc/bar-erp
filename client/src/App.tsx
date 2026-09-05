@@ -1,3 +1,4 @@
+import { LicenseModal } from './components/LicenseModal';
 import React, { useState, useEffect } from 'react';
 import { Table, Order } from './types';
 import { api } from './services/api';
@@ -46,6 +47,9 @@ export function App() {
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
   const [isCashOpen, setIsCashOpen] = useState<boolean>(false);
+  const [isLicensed, setIsLicensed] = useState<boolean | null>(null);
+  const [machineId, setMachineId] = useState<string>("");
+
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
 
@@ -111,6 +115,19 @@ export function App() {
   }, [theme, fontScale]);
 
   // Carregar Mesas
+  // Carregar Configurações (Licença)
+  const loadSettings = async () => {
+    try {
+      const res = await fetch(`${getServerBaseUrl()}/api/settings`);
+      const data = await res.json();
+      setMachineId(data.machineId || "");
+      setIsLicensed(data.isLicensed);
+    } catch (err) {
+      console.error("Erro ao verificar licença:", err);
+      // Em modo offline restrito de rede local, vamos tolerar se falhar e tentar novamente
+    }
+  };
+
   const loadTables = async () => {
     try {
       setLoadingTables(true);
@@ -152,6 +169,8 @@ export function App() {
   };
 
   useEffect(() => {
+    loadSettings();
+
     loadTables();
     loadKdsCount();
     loadCashStatus();
@@ -162,21 +181,29 @@ export function App() {
 
     // Eventos de Atualização em Tempo Real
     const onTableUpdated = () => {
+    loadSettings();
+
       loadTables();
     };
 
     const onOrderUpdated = () => {
+    loadSettings();
+
       loadTables();
       loadKdsCount();
     };
 
     const onKdsUpdated = () => {
       loadKdsCount();
+    loadSettings();
+
       loadTables();
     };
 
     const onKdsNewOrder = (payload: any) => {
       loadKdsCount();
+    loadSettings();
+
       loadTables();
 
       // Se auto-impressão de cozinha estiver ativada no computador
@@ -244,7 +271,13 @@ export function App() {
     }
   }, [tables]);
 
+  
+  if (isLicensed === false) {
+    return <LicenseModal machineId={machineId} onSuccess={loadSettings} />;
+  }
+
   if (appMode === 'waiter') {
+
     return (
       <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-150">
         {/* Componente para Impressão Térmica (visível apenas ao acionar window.print()) */}

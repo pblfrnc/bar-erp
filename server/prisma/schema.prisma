@@ -140,3 +140,13 @@ model Waiter {
   updatedAt      DateTime  @updatedAt
   orders         Order[]
 }
+
+model SystemSettings {
+  id             String   @id @default("default")
+  restaurantName String   @default("Meu Bar")
+  licenseEmail   String?
+  licenseKey     String?
+  machineId      String?
+  isLicensed     Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+}
