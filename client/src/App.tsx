@@ -2,7 +2,7 @@ import { LicenseModal } from './components/LicenseModal';
 import React, { useState, useEffect } from 'react';
 import { Table, Order } from './types';
 import { api } from './services/api';
-import { socket } from './services/socket';
+import { socket, getServerBaseUrl } from './services/socket';
 import { Navbar } from './components/Navbar';
 import { TablesView } from './views/TablesView';
 import { KdsView } from './views/KdsView';
