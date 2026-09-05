@@ -72,6 +72,15 @@ function getLocalIps(): string[] {
   return ips;
 }
 
+// Tratamento de erros de inicialização (ex: porta 3001 já ocupada)
+httpServer.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`\n⚠️  [AVISO]: A porta ${PORT} já está em uso por outro processo do BarERP. Conectando à instância existente.`);
+  } else {
+    console.error('❌ [ERRO NO SERVIDOR HTTP]:', err);
+  }
+});
+
 // Vincula a 0.0.0.0 para que qualquer celular ou tablet no Wi-Fi do bar consiga conectar
 httpServer.listen(PORT, '0.0.0.0', () => {
   const localIps = getLocalIps();

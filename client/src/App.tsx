@@ -28,6 +28,9 @@ export function App() {
   const handleSetAppMode = (mode: 'waiter' | 'admin') => {
     setAppMode(mode);
     localStorage.setItem('bar_app_mode', mode);
+    if (mode === 'admin' && (window.location.pathname.startsWith('/garcom') || window.location.pathname.startsWith('/waiter'))) {
+      window.history.pushState(null, '', '/');
+    }
   };
 
   const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard'>('tables');
@@ -230,6 +233,7 @@ export function App() {
           isConnected={isConnected}
           fontScale={fontScale}
           onChangeFontScale={handleFontScaleChange}
+          onSwitchToAdmin={() => handleSetAppMode('admin')}
         />
       </div>
     );

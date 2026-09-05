@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 
-export const prisma = new PrismaClient();
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || 'file:./dev.db'
+    }
+  }
+});
 
 // Otimizações de alta concorrência para SQLite no ambiente de Bar/Restaurante
 async function configureSqlite() {

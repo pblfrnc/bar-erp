@@ -18,7 +18,8 @@ import {
   Clock,
   WifiOff,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface WaiterViewProps {
@@ -28,6 +29,7 @@ interface WaiterViewProps {
   isConnected: boolean;
   fontScale: 'normal' | 'large' | 'xlarge';
   onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
+  onSwitchToAdmin?: () => void;
 }
 
 export const WaiterView: React.FC<WaiterViewProps> = ({
@@ -36,7 +38,8 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
   loading,
   isConnected,
   fontScale,
-  onChangeFontScale
+  onChangeFontScale,
+  onSwitchToAdmin
 }) => {
   // Nome do garçom com persistência
   const [waiterName, setWaiterName] = useState<string>(() => {
@@ -67,6 +70,19 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
     if (fontScale === 'normal') onChangeFontScale('large');
     else if (fontScale === 'large') onChangeFontScale('xlarge');
     else onChangeFontScale('normal');
+  };
+
+  const handleAdminSwitch = () => {
+    if (onSwitchToAdmin) {
+      onSwitchToAdmin();
+    } else {
+      localStorage.setItem('bar_app_mode', 'admin');
+      if (window.location.pathname.startsWith('/garcom') || window.location.pathname.startsWith('/waiter')) {
+        window.location.href = '/';
+      } else {
+        window.location.reload();
+      }
+    }
   };
 
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
@@ -211,6 +227,19 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
                 {fontScale === 'normal' ? '1x' : fontScale === 'large' ? '1.25x' : '1.4x'}
               </span>
             </button>
+
+            {/* Alternador para Modo Administrativo / Gestão (apenas se fornecido pelo painel do PC) */}
+            {onSwitchToAdmin && (
+              <button
+                onClick={handleAdminSwitch}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 border border-amber-500/30 transition active:scale-95 shadow-sm"
+                title="Voltar para o Modo Administrativo (Painel / Caixa / Mesas)"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden sm:inline font-bold">Modo Administrativo</span>
+                <span className="sm:hidden font-bold">Admin</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

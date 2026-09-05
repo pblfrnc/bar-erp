@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Wine,
   Maximize2,
-  Minimize2
+  Minimize2,
+  LayoutDashboard
 } from 'lucide-react';
 
 export function KdsApp() {
@@ -268,6 +269,19 @@ export function KdsApp() {
               title={isFullscreen ? 'Sair da tela cheia' : 'Modo Monitor de Cozinha'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+
+            {/* Voltar ao Painel Administrativo */}
+            <button
+              onClick={() => {
+                localStorage.setItem('bar_app_mode', 'admin');
+                window.location.href = '/';
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 hover:text-white border border-orange-500/30 transition active:scale-95"
+              title="Voltar ao Painel Administrativo / Caixa"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden md:inline">Painel Admin</span>
             </button>
           </div>
         </div>

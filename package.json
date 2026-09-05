@@ -20,6 +20,7 @@
   "build": {
     "appId": "com.barerp.desktop",
     "productName": "BarERP Pro",
+    "asar": false,
     "directories": {
       "output": "dist-electron"
     },
@@ -27,7 +28,8 @@
       "electron/**/*",
       "client/dist/**/*",
       "server/dist/**/*",
-      "server/prisma/**/*"
+      "server/prisma/**/*",
+      "package.json"
     ],
     "win": {
       "target": [
@@ -49,9 +51,19 @@
       "shortcutName": "BarERP Pro"
     }
   },
+  "dependencies": {
+    "@prisma/client": "^6.4.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.2"
+  },
   "devDependencies": {
     "concurrently": "^9.1.2",
     "electron": "^41.0.1",
-    "electron-builder": "^26.7.0"
+    "electron-builder": "^26.7.0",
+    "prisma": "^6.4.1"
   }
 }

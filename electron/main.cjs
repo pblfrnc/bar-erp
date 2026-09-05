@@ -1,33 +1,65 @@
-const { app, BrowserWindow, globalShortcut } = require('electron');
+const { app, BrowserWindow, globalShortcut, dialog } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 let mainWindow = null;
-let serverProcess = null;
 
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 
-function startServer() {
-  const serverDir = path.join(__dirname, '..', 'server');
-  // In development, server is usually run via npm run dev:server
-  // In production / exe, we can run node server
-  if (!isDev) {
-    try {
-      const serverEntry = path.join(serverDir, 'dist', 'index.js');
-      serverProcess = spawn(process.execPath, [serverEntry], {
-        cwd: serverDir,
-        env: { ...process.env, PORT: '3001', NODE_ENV: 'production' }
-      });
+// Inicializar banco de dados persistente no AppData do usuário no Windows
+function setupDatabase() {
+  try {
+    const userDataPath = app.getPath('userData');
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
 
-      serverProcess.stdout.on('data', (data) => {
-        console.log(`[SERVER]: ${data}`);
-      });
+    const dbPath = path.join(userDataPath, 'bar.db');
+    const defaultDbPath = path.join(__dirname, '..', 'server', 'prisma', 'dev.db');
 
-      serverProcess.stderr.on('data', (data) => {
-        console.error(`[SERVER ERROR]: ${data}`);
-      });
-    } catch (err) {
-      console.error('Falha ao iniciar servidor embutido:', err);
+    // Se o banco ainda não existir no AppData do usuário, copia o banco inicial pré-populado
+    if (!fs.existsSync(dbPath) && fs.existsSync(defaultDbPath)) {
+      fs.copyFileSync(defaultDbPath, dbPath);
+      console.log('✅ Banco de dados inicial copiado com sucesso para:', dbPath);
+    }
+
+    // Configurar variável de ambiente para o Prisma usar o banco do AppData
+    process.env.DATABASE_URL = `file:${dbPath}`;
+    console.log('DATABASE_URL configurada:', process.env.DATABASE_URL);
+  } catch (err) {
+    console.error('Erro ao configurar banco de dados no AppData:', err);
+  }
+}
+
+// Iniciar o servidor Express + WebSocket diretamente no processo principal
+async function startServer() {
+  if (isDev) {
+    console.log('[DEV] Servidor externo esperado na porta 3001');
+    return;
+  }
+
+  try {
+    setupDatabase();
+    process.env.PORT = '3001';
+    process.env.NODE_ENV = 'production';
+
+    const serverEntry = path.join(__dirname, '..', 'server', 'dist', 'index.js');
+    if (fs.existsSync(serverEntry)) {
+      console.log('Iniciando servidor local via import direto:', serverEntry);
+      const fileUrl = pathToFileURL(serverEntry).href;
+      await import(fileUrl);
+      console.log('✅ Servidor BarERP iniciado com sucesso no processo principal!');
+    } else {
+      console.warn('Arquivo do servidor não encontrado em:', serverEntry);
+    }
+  } catch (err) {
+    console.error('Aviso ao iniciar servidor embutido:', err);
+    if (err && err.code !== 'EADDRINUSE') {
+      dialog.showErrorBox(
+        'Aviso do Servidor',
+        `O servidor encontrou um aviso ao inicializar: ${err.message || err}`
+      );
     }
   }
 }
@@ -67,8 +99,8 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  startServer();
+app.whenReady().then(async () => {
+  await startServer();
   createWindow();
 
   app.on('activate', () => {
@@ -78,9 +110,6 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  if (serverProcess) {
-    serverProcess.kill();
-  }
 });
 
 app.on('window-all-closed', () => {
