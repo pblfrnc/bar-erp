@@ -1,6 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import { createRequire } from 'node:module';
+import type { PrismaClient as PrismaClientType } from '@prisma/client';
 
-export const prisma = new PrismaClient({
+const require = createRequire(import.meta.url);
+const prismaModule = require('@prisma/client');
+const PrismaClientConstructor = (prismaModule.PrismaClient || prismaModule.default?.PrismaClient || prismaModule) as typeof PrismaClientType;
+
+export const prisma = new PrismaClientConstructor({
   datasources: {
     db: {
       url: process.env.DATABASE_URL || 'file:./dev.db'

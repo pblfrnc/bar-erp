@@ -9,7 +9,7 @@
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
-    "build": "npm --prefix server run build && npm --prefix client run build",
+    "build": "npm --prefix server run prisma:generate && npm --prefix server run build && npm --prefix client run build",
     "seed": "npm --prefix server run seed",
     "electron:dev": "electron .",
     "build:exe": "npm run build && electron-builder --win",
@@ -29,9 +29,11 @@
       "client/dist/**/*",
       "server/dist/**/*",
       "server/prisma/**/*",
-      "package.json",
-      "node_modules/**/*",
-      "node_modules/.prisma/**/*"
+      "server/node_modules/.prisma/**/*",
+      "server/node_modules/@prisma/client/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*",
+      "package.json"
     ],
     "win": {
       "target": [
