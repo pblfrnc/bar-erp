@@ -1,0 +1,128 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Table {
+  id            String    @id @default(cuid())
+  number        Int       @unique
+  name          String?
+  capacity      Int       @default(4)
+  status        String    @default("AVAILABLE") // AVAILABLE, OCCUPIED, CLOSING, RESERVED
+  section       String    @default("Salão Principal") // Salão Principal, Deck Externo, Balcão, VIP
+  currentOrderId String?
+  customerCount Int       @default(1)
+  customerName  String?
+  openedAt      DateTime?
+  mergedIntoTableId String? // Caso esteja agrupada com outra mesa
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        Int         @default(1)
+  tableId            String?
+  table              Table?      @relation(fields: [tableId], references: [id])
+  status             String      @default("OPEN") // OPEN, PAID, CANCELLED
+  customerName       String?
+  waiterName         String?     @default("Garçom")
+  subtotal           Float       @default(0)
+  serviceFeeRate     Float       @default(0.10) // 10%
+  serviceFee         Float       @default(0)
+  discount           Float       @default(0)
+  total              Float       @default(0)
+  paidAmount         Float       @default(0)
+  isServiceFeeActive Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  closedAt           DateTime?
+  items              OrderItem[]
+  payments           Payment[]
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int      @default(1)
+  unitPrice  Float
+  totalPrice Float
+  notes      String?  // Ex: "Sem gelo", "Com limão espremido"
+  kdsStatus  String   @default("PENDING") // PENDING, PREPARING, READY, DELIVERED
+  kdsStation String   @default("BAR") // BAR, KITCHEN, NONE
+  addedAt    DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  icon      String?   @default("Beer")
+  sortOrder Int       @default(0)
+  products  Product[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  costPrice   Float?
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  kdsStation  String      @default("BAR") // BAR, KITCHEN, NONE
+  stock       Int         @default(100)
+  trackStock  Boolean     @default(true)
+  minStock    Int         @default(10)
+  unit        String      @default("un")
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Payment {
+  id          String     @id @default(cuid())
+  orderId     String
+  order       Order      @relation(fields: [orderId], references: [id])
+  amount      Float
+  method      String     // CASH, CREDIT_CARD, DEBIT_CARD, PIX, VOUCHER
+  cashShiftId String?
+  cashShift   CashShift? @relation(fields: [cashShiftId], references: [id])
+  notes       String?    // Ex: "Pessoa 1/2", "PIX mesa 3"
+  receivedAt  DateTime   @default(now())
+}
+
+model CashShift {
+  id             String            @id @default(cuid())
+  openedAt       DateTime          @default(now())
+  closedAt       DateTime?
+  openedBy       String            @default("Operador de Caixa")
+  closedBy       String?
+  initialBalance Float             @default(0) // Fundo de troco
+  finalBalance   Float?
+  expectedBalance Float?
+  difference     Float?
+  status         String            @default("OPEN") // OPEN, CLOSED
+  notes          String?
+  payments       Payment[]
+  transactions   CashTransaction[]
+}
+
+model CashTransaction {
+  id          String    @id @default(cuid())
+  cashShiftId String
+  cashShift   CashShift @relation(fields: [cashShiftId], references: [id])
+  type        String    // SUPPLY (suprimento), WITHDRAWAL (sangria)
+  amount      Float
+  reason      String
+  createdAt   DateTime  @default(now())
+}

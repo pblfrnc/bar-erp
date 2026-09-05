@@ -1,0 +1,57 @@
+{
+  "name": "bar-erp",
+  "version": "1.0.0",
+  "description": "Sistema completo para operação de bares com controle de mesa, KDS e PDV",
+  "main": "electron/main.cjs",
+  "author": "BarERP Pro",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "seed": "npm --prefix server run seed",
+    "electron:dev": "electron .",
+    "build:exe": "npm run build && electron-builder --win",
+    "build:portable": "npm run build && electron-builder --win portable",
+    "build:apk": "npm --prefix client run cap:build",
+    "cap:open": "npm --prefix client run cap:open"
+  },
+  "build": {
+    "appId": "com.barerp.desktop",
+    "productName": "BarERP Pro",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "client/dist/**/*",
+      "server/dist/**/*",
+      "server/prisma/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BarERP Pro"
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^41.0.1",
+    "electron-builder": "^26.7.0"
+  }
+}

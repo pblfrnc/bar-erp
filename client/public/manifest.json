@@ -1,0 +1,17 @@
+{
+  "short_name": "BarERP",
+  "name": "BarERP Pro - Controle de Mesas & PDV",
+  "description": "Sistema completo para operação de bares, controle de mesas, garçom e KDS em Android e Web",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#f59e0b",
+  "display": "standalone",
+  "orientation": "any"
+}

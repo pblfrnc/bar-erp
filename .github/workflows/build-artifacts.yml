@@ -1,0 +1,93 @@
+name: Build Android APK & Windows EXE
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Compilar Executável Windows (.EXE)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar Dependências Gerais
+        run: |
+          npm install
+          npm --prefix server install
+          npm --prefix client install
+
+      - name: Preparar Banco e Gerar Prisma Client
+        run: |
+          npx --prefix server prisma generate
+
+      - name: Compilar Frontend e Backend
+        run: |
+          npm run build
+
+      - name: Gerar Executável Windows (.EXE)
+        run: |
+          npm run build:exe
+
+      - name: Salvar Artefato Windows (.EXE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarERP-Windows-Executavel
+          path: dist-electron/*.exe
+
+  build-android:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: |
+          npm install
+          npm --prefix server install
+          npm --prefix client install
+
+      - name: Compilar Frontend e Sincronizar com Capacitor
+        run: |
+          npm --prefix client run cap:build
+
+      - name: Dar permissão ao Gradle Wrapper
+        run: |
+          chmod +x client/android/gradlew
+
+      - name: Compilar APK Android (Debug / Release)
+        run: |
+          cd client/android
+          ./gradlew assembleDebug
+
+      - name: Salvar Artefato Android (APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarERP-Android-APK
+          path: client/android/app/build/outputs/apk/debug/*.apk

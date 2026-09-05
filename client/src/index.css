@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-200;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+}
+
+/* Escalas de acessibilidade para Baixa Visão */
+html.font-scale-normal {
+  font-size: 16px;
+}
+html.font-scale-large {
+  font-size: 19px;
+}
+html.font-scale-xlarge {
+  font-size: 23px;
+}
+
+html.font-scale-large .table-number,
+html.font-scale-xlarge .table-number {
+  font-size: 2.2em;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+/* Custom scrollbars for POS & KDS */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.6);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+/* Thermal receipt printable style */
+#thermal-receipt {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #thermal-receipt, #thermal-receipt * {
+    visibility: visible;
+    display: block !important;
+  }
+  #thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 10px;
+    background: white;
+    color: black;
+  }
+}
