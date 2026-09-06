@@ -64,6 +64,14 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
 
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "environment" TEXT DEFAULT 'homologacao';`); } catch (e) {}
 
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "cep" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "logradouro" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "numero" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "bairro" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "municipio" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "uf" TEXT;`); } catch (e) {}
+
+
 
 
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin } from 'lucide-react';
 import api from '../services/api';
 
@@ -290,3 +292,6 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
     </div>
   );
 };
+`;
+
+fs.writeFileSync('client/src/views/FiscalSettingsView.tsx', code);
