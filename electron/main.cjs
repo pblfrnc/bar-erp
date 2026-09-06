@@ -155,6 +155,14 @@ function createWindow() {
     }
   });
 
+  ipcMain.on('print-silent', (event) => {
+    if (mainWindow) {
+      mainWindow.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+        if (!success) console.error('Print failed:', failureReason);
+      });
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

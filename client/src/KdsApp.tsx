@@ -79,7 +79,7 @@ export function KdsApp() {
     setPrintTicket(ticket);
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
     printTimeoutRef.current = setTimeout(() => {
-      window.print();
+      if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); }
     }, 200);
   };
 

@@ -116,7 +116,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Imprimir conferência (80mm/58mm)
   const handlePrint = () => {
-    window.print();
+    if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); }
   };
 
   // Compartilhar conta no WhatsApp

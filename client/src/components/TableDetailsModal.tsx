@@ -202,7 +202,7 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
           )}
 
           <button
-            onClick={() => window.print()}
+            onClick={() => { if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); } }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap active:scale-95"
           >
             <Printer className="w-4 h-4 text-slate-400" />

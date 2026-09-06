@@ -239,7 +239,7 @@ export function App() {
         setKitchenTicket(ticketData);
         setActivePrintType('kitchen');
         setTimeout(() => {
-          window.print();
+          if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); }
         }, 300);
       }
     };
