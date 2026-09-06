@@ -269,6 +269,60 @@ export function createFiscalRouter() {
     }
   });
 
+  // ============================================================
+  // Cancelar NFC-e (Prazo de 30 minutos)
+  // ============================================================
+  router.post('/cancel-nfce', async (req, res) => {
+    try {
+      const { referencia, justificativa } = req.body;
+      
+      if (!referencia) {
+        return res.status(400).json({ error: 'Referência (ID do Pedido) não informada.' });
+      }
+      
+      if (!justificativa || justificativa.length < 15) {
+        return res.status(400).json({ error: 'A justificativa deve ter no mínimo 15 caracteres (Regra da SEFAZ).' });
+      }
+
+      const settings = await (prisma as any).fiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token da API não configurado.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      const focusUrl = `${baseURL}/v2/nfce/${encodeURIComponent(referencia)}?justificativa=${encodeURIComponent(justificativa)}`;
+      
+      const focusRes = await fetch(focusUrl, {
+        method: 'DELETE',
+        headers: { 'Authorization': authHeader }
+      });
+
+      const data = await focusRes.json().catch(() => ({}));
+
+      if (!focusRes.ok) {
+        console.error('[FocusNFe Cancel Error]', focusRes.status, data);
+        const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
+        return res.status(focusRes.status).json({ 
+          error: `Erro ao cancelar nota: ${erroMsg}`,
+          details: data 
+        });
+      }
+
+      return res.json({
+        ok: true,
+        mensagem: 'Nota fiscal cancelada com sucesso!',
+        data
+      });
+
+    } catch (err: any) {
+      console.error('[FocusNFe Cancel Exception]', err);
+      return res.status(500).json({ error: 'Erro interno ao comunicar com a Focus NFe.', detail: err.message });
+    }
+  });
+
 
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {

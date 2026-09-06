@@ -6,8 +6,10 @@ import { FiscalSettingsView } from './FiscalSettingsView';
 import { NfReceivingView } from './NfReceivingView';
 import { api } from '../services/api';
 
+import { NfceCancelView } from './NfceCancelView';
+
 export const FiscalHubView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings'>('hub');
+  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings' | 'cancel'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
 
   // Ao clicar em "Importar Itens" na lista de recebidos, abre import com XML já baixado
@@ -26,7 +28,6 @@ export const FiscalHubView: React.FC = () => {
   }
 
   if (activeTab === 'import') {
-    // Se veio via bip, passamos a chave para o FiscalImportView baixar o XML automaticamente
     return (
       <FiscalImportView
         onBack={() => { setChaveParaImportar(null); setActiveTab('hub'); }}
@@ -37,6 +38,10 @@ export const FiscalHubView: React.FC = () => {
 
   if (activeTab === 'emit') {
     return <ManualNfceView onBack={() => setActiveTab('hub')} />;
+  }
+
+  if (activeTab === 'cancel') {
+    return <NfceCancelView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'settings') {
@@ -88,6 +93,21 @@ export const FiscalHubView: React.FC = () => {
           <h3 className="text-xl font-bold text-white mb-2">Emitir NFC-e (Saída)</h3>
           <p className="text-slate-400 text-sm leading-relaxed">
             Emissão avulsa de cupons fiscais para vendas rápidas ou retroativas usando a integração Focus NFe.
+          </p>
+        </button>
+
+        {/* Card: Cancelar NFC-e */}
+        <button
+          onClick={() => setActiveTab('cancel')}
+          className="bg-slate-900 border border-slate-800 hover:border-rose-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-3xl group-hover:bg-rose-500/20 transition"></div>
+          <div className="w-10 h-10 text-rose-500 mb-6 flex items-center justify-center bg-rose-500/10 rounded-xl border border-rose-500/20">
+             <span className="font-bold text-xl">X</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Cancelar Nota</h3>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Cancele cupons fiscais recém-emitidos na SEFAZ (dentro do prazo legal de 30 minutos) de forma rápida.
           </p>
         </button>
 
