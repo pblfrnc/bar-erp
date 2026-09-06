@@ -67,12 +67,40 @@ const io = new SocketIOServer(httpServer, {
   transports: ['websocket', 'polling']
 });
 
+export interface ConnectedDevice {
+  socketId: string;
+  ip: string;
+  userAgent: string;
+  connectedAt: Date;
+  clientType: string;
+  waiterName?: string;
+}
+
+export const activeDevices = new Map<string, ConnectedDevice>();
+
 // Gerenciamento de conexões Socket.IO
 io.on('connection', (socket) => {
-  console.log(`⚡ Dispositivo conectado (Wi-Fi/Web): ${socket.id}`);
+  const ip = socket.handshake.address;
+  const userAgent = socket.handshake.headers['user-agent'] || 'Desconhecido';
+  const clientType = (socket.handshake.query.clientType as string) || 'Desconhecido';
+  const waiterName = socket.handshake.query.waiterName as string;
+
+  activeDevices.set(socket.id, {
+    socketId: socket.id,
+    ip: ip.replace('::ffff:', ''), // Limpar IPv4 em IPv6
+    userAgent,
+    connectedAt: new Date(),
+    clientType,
+    waiterName
+  });
+
+  console.log(`⚡ Dispositivo conectado (${clientType}): ${socket.id} (IP: ${ip})`);
+  io.emit('devices_updated', Array.from(activeDevices.values()));
 
   socket.on('disconnect', (reason) => {
+    activeDevices.delete(socket.id);
     console.log(`🔌 Dispositivo desconectado (${reason}): ${socket.id}`);
+    io.emit('devices_updated', Array.from(activeDevices.values()));
   });
 });
 
@@ -84,6 +112,10 @@ app.use('/api/kds', createKdsRouter(io));
 app.use('/api/cash', createCashRouter(io));
 app.use('/api/dashboard', createDashboardRouter());
 app.use('/api/waiters', createWaitersRouter());
+
+app.get('/api/network/devices', (req, res) => {
+  res.json(Array.from(activeDevices.values()));
+});
 
 // Obter os endereços IP locais da rede Wi-Fi
 function getLocalIps(): string[] {

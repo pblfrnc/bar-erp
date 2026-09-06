@@ -23,6 +23,15 @@ export function setServerBaseUrl(newUrl: string): void {
 
 const SERVER_URL = getServerBaseUrl();
 
+// Determinar tipo de cliente
+let clientType = 'CAIXA_PC';
+const appMode = localStorage.getItem('appMode');
+if (appMode === 'KDS') clientType = 'COZINHA_KDS';
+if (appMode === 'WAITER') clientType = 'GARCOM_MOBILE';
+
+// Obter nome do garçom se existir
+let waiterName = localStorage.getItem('bar_waiter_name') || undefined;
+
 export const socket: Socket = io(SERVER_URL, {
   transports: ['websocket', 'polling'],
   autoConnect: true,
@@ -31,7 +40,11 @@ export const socket: Socket = io(SERVER_URL, {
   reconnectionDelay: 500,
   reconnectionDelayMax: 2500,
   randomizationFactor: 0.2,
-  timeout: 6000
+  timeout: 6000,
+  query: {
+    clientType,
+    waiterName
+  }
 });
 
 // Otimização para Android: reconectar instantaneamente quando a tela do garçom despertar
