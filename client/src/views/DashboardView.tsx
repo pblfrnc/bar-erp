@@ -212,7 +212,7 @@ export const DashboardView: React.FC = () => {
                   <div className="w-full bg-slate-950 rounded-t-lg relative flex-1 flex items-end justify-center">
                     <div
                       className="w-full bg-indigo-500 rounded-t-sm transition-all group-hover:bg-indigo-400"
-                      style={{ height: \`\${heightPct}%\` }}
+                      style={{ height: `\${heightPct}%` }}
                     />
                     {/* Tooltip rudimentar */}
                     <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
@@ -234,7 +234,7 @@ export const DashboardView: React.FC = () => {
               data.waiterPerformance.map((w, idx) => (
                 <div key={w.name} className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/50 border border-slate-800/60">
                   <div className="flex items-center gap-3">
-                    <div className={\`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm \${idx === 0 ? 'bg-amber-500/20 text-amber-500' : idx === 1 ? 'bg-slate-300/20 text-slate-300' : idx === 2 ? 'bg-orange-600/20 text-orange-500' : 'bg-slate-800 text-slate-500'}\`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm \${idx === 0 ? 'bg-amber-500/20 text-amber-500' : idx === 1 ? 'bg-slate-300/20 text-slate-300' : idx === 2 ? 'bg-orange-600/20 text-orange-500' : 'bg-slate-800 text-slate-500'}`}>
                       {idx + 1}º
                     </div>
                     <div>

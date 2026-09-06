@@ -10,6 +10,8 @@ import { CashView } from './views/CashView';
 import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
+import { SettingsView } from './views/SettingsView';
+
 
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
@@ -44,7 +46,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -319,10 +321,6 @@ export function App() {
         onChangeFontScale={handleFontScaleChange}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        onOpenWaitersModal={() => setShowWaitersModal(true)}
-        onOpenConnectMobile={() => setShowConnectMobileModal(true)}
-        autoPrintKitchen={autoPrintKitchen}
-        onToggleAutoPrintKitchen={handleToggleAutoPrintKitchen}
       />
 
       {/* Conteúdo da View Ativa no Painel do PC */}
@@ -345,6 +343,19 @@ export function App() {
 
         {currentView === 'products' && (
           <ProductsView />
+        )}
+
+        {currentView === 'audit' && (
+          <AuditView />
+        )}
+
+        {currentView === 'settings' && (
+          <SettingsView 
+            onOpenWaitersModal={() => setShowWaitersModal(true)}
+            onOpenConnectMobile={() => setShowConnectMobileModal(true)}
+            autoPrintKitchen={autoPrintKitchen}
+            onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
+          />
         )}
 
         {currentView === 'dashboard' && (
