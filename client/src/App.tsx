@@ -1,4 +1,3 @@
-import { LicenseModal } from './components/LicenseModal';
 import React, { useState, useEffect } from 'react';
 import { Table, Order } from './types';
 import { api } from './services/api';
@@ -56,7 +55,7 @@ export function App() {
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
   const [isCashOpen, setIsCashOpen] = useState<boolean>(false);
-  const [isLicensed, setIsLicensed] = useState<boolean | null>(null);
+  
   const [machineId, setMachineId] = useState<string>("");
 
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
@@ -130,7 +129,7 @@ export function App() {
       const res = await fetch(`${getServerBaseUrl()}/api/settings`);
       const data = await res.json();
       setMachineId(data.machineId || "");
-      setIsLicensed(data.isLicensed);
+      
     } catch (err) {
       console.error("Erro ao verificar licença:", err);
       // Em modo offline restrito de rede local, vamos tolerar se falhar e tentar novamente
@@ -281,9 +280,6 @@ export function App() {
   }, [tables]);
 
   
-  if (isLicensed === false) {
-    return <LicenseModal machineId={machineId} onSuccess={loadSettings} />;
-  }
 
   if (appMode === 'waiter') {
 
