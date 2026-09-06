@@ -105,6 +105,10 @@ jobs:
         working-directory: client
         run: |
           npm run build:kds
+          sed -i 's/"appId": "com.barerp.app"/"appId": "com.barerp.kds"/g' capacitor.config.json
+
+          sed -i 's/applicationId "com.barerp.app"/applicationId "com.barerp.kds"/g' android/app/build.gradle
+
           npx cap sync android
           sed -i 's/BarERP Garçom/BarERP Cozinha/g' android/app/src/main/res/values/strings.xml
           cd android
