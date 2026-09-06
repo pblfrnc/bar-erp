@@ -126,3 +126,40 @@ jobs:
         with:
           name: BarERP-Cozinha-APK
           path: output-apk/kitchen/BarERP-Cozinha.apk
+
+  publish-release:
+    name: Publicar Release Automática (latest)
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar Executável Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: BarERP-Windows-Executavel
+          path: release-files/
+
+      - name: Baixar APK Garçom
+        uses: actions/download-artifact@v4
+        with:
+          name: BarERP-Garcom-APK
+          path: release-files/
+
+      - name: Baixar APK Cozinha
+        uses: actions/download-artifact@v4
+        with:
+          name: BarERP-Cozinha-APK
+          path: release-files/
+
+      - name: Criar/Atualizar Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "release-files/*"
+          tag: "latest"
+          name: "BarERP - Versão de Produção"
+          body: "Baixe aqui os instaladores da última versão do BarERP.\n\n- **.EXE**: Instalador para o computador (Caixa/Servidor)\n- **Garcom.apk**: App Android para os garçons tirarem pedidos\n- **Cozinha.apk**: App Android para exibir a fila de pratos na cozinha"
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
