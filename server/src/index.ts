@@ -12,6 +12,8 @@ import { createCashRouter } from './routes/cash.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createWaitersRouter } from './routes/waiters.js';
 import { createSettingsRouter } from './routes/settings.js';
+import { createAuditLogsRouter } from './routes/auditLogs.js';
+
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
@@ -39,6 +41,8 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 app.use("/api/settings", createSettingsRouter());
+app.use("/api/audit-logs", createAuditLogsRouter());
+
 
 
 // Configuração robusta do WebSocket para resistir a oscilações de Wi-Fi e economia de bateria

@@ -166,3 +166,11 @@ model ProductComponent {
 
   @@unique([parentProductId, componentId])
 }
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // e.g. "CANCEL_ITEM", "APPLY_DISCOUNT"
+  description String
+  userId      String?
+  createdAt   DateTime @default(now())
+}

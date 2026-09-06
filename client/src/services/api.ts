@@ -286,6 +286,8 @@ export const api = {
     }).then(handleResponse<any>),
 
   // Dashboard
+  getAuditLogs: () => fetchWithRetry(`${getApiUrl()}/audit-logs`).then(handleResponse<any[]>),
+
   getDashboardData: (): Promise<DashboardData> =>
     fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>),
 

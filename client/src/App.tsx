@@ -9,6 +9,8 @@ import { KdsView } from './views/KdsView';
 import { CashView } from './views/CashView';
 import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
+import { AuditView } from './views/AuditView';
+
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
@@ -42,7 +44,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);

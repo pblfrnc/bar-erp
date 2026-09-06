@@ -177,4 +177,8 @@ export interface DashboardData {
   averageTicket: number;
   topProducts: { name: string; quantity: number; total: number; station: string }[];
   paymentMethodsBreakdown: Record<string, number>;
+  salesByHour: { hour: string; total: number }[];
+  waiterPerformance: { name: string; total: number; count: number }[];
+  lowMarginProducts: { id: string; name: string; margin: number; price: number; cost: number }[];
+
 }

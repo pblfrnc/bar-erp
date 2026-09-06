@@ -5,7 +5,7 @@ import {
   ChefHat,
   Receipt,
   UtensilsCrossed,
-  BarChart3,
+  BarChart3, ShieldAlert,
   Maximize2,
   Minimize2,
   WifiOff,
@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard';
-  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard') => void;
+  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit';
+  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit') => void;
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;
@@ -92,6 +92,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'products' as const,
       label: 'Cardápio & Estoque',
       icon: UtensilsCrossed,
+      badge: null
+    },
+    {
+      id: 'audit' as const,
+      label: 'Auditoria Cega',
+      icon: ShieldAlert,
       badge: null
     },
     {

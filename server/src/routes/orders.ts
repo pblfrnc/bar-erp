@@ -185,6 +185,13 @@ export function createOrdersRouter(io: SocketIOServer) {
       // Deletar o item
       await prisma.orderItem.delete({ where: { id: itemId } });
 
+      // Registrar Auditoria
+      const auditId = 'al_' + Math.random().toString(36).substr(2, 9);
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO AuditLog (id, action, description, createdAt) 
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      `, auditId, 'CANCEL_ITEM', `Cancelado ${item.quantity}x ${item.product.name} (Pedido #${id.slice(-4)})`);
+
       // Recalcular totais
       const order = await prisma.order.findUnique({ where: { id } });
       if (!order) return res.status(404).json({ error: 'Pedido não encontrado' });
@@ -262,6 +269,15 @@ export function createOrdersRouter(io: SocketIOServer) {
         data: { discount: discountAmount, total },
         include: { items: { include: { product: true } }, payments: true, table: true }
       });
+
+      // Registrar Auditoria
+      if (discountAmount > 0) {
+        const auditId = 'al_' + Math.random().toString(36).substr(2, 9);
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO AuditLog (id, action, description, createdAt) 
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `, auditId, 'APPLY_DISCOUNT', \`Desconto de R$ \${discountAmount.toFixed(2)} na Comanda #\${id.slice(-4)}\`);
+      }
 
       io.emit('order:updated', { orderId: id });
       res.json(updated);
