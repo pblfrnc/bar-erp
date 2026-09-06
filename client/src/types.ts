@@ -29,6 +29,8 @@ export interface Product {
   price: number;
   costPrice?: number | null;
   categoryId: string;
+  ncm?: string;
+  cfop?: string;
   category?: Category;
   kdsStation: KdsStation;
   stock: number;

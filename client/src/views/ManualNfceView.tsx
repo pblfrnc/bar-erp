@@ -58,7 +58,10 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
         items: items.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
-          price: i.product.price
+          price: i.product.price,
+          name: i.product.name,
+          ncm: i.product.ncm,
+          cfop: i.product.cfop
         }))
       };
       const res = await fetch(api.getApiUrl() + '/fiscal/emit-nfce', {
