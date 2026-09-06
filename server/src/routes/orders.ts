@@ -331,7 +331,7 @@ export function createOrdersRouter(io: SocketIOServer) {
 
         // Atualizar saldo do fiado (usando query raw)
         if (p.method === 'CREDIT_TAB' && customerId) {
-          await prisma.$executeRawUnsafe(`UPDATE Customer SET creditTabBalance = creditTabBalance + ? WHERE id = ?`, amt, customerId);
+          await prisma.$executeRawUnsafe(`UPDATE "Customer" SET creditTabBalance = creditTabBalance + ? WHERE id = ?`, amt, customerId);
         }
 
         addedPaidAmount += amt;
@@ -384,7 +384,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       });
     } catch (error) {
       console.error('Erro ao processar pagamento:', error);
-      res.status(500).json({ error: 'Erro ao processar pagamento' });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao processar pagamento' });
     }
   });
 

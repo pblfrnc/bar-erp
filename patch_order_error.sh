@@ -1,0 +1,1 @@
+sed -i '' -e 's/res.status(500).json({ error: '"'"'Erro ao processar pagamento'"'"' });/res.status(500).json({ error: error instanceof Error ? error.message : '"'"'Erro ao processar pagamento'"'"' });/g' server/src/routes/orders.ts
