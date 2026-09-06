@@ -33,9 +33,10 @@ export const ProductsView: React.FC = () => {
   const [formKdsStation, setFormKdsStation] = useState<KdsStation>('BAR');
   const [formStock, setFormStock] = useState<string>('100');
   const [formMinStock, setFormMinStock] = useState<string>('10');
+  const [formNcm, setFormNcm] = useState<string>('');
+  const [formCfop, setFormCfop] = useState<string>('');
   const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
   const [isComposed, setIsComposed] = useState<boolean>(false);
-
 
   // Modal Categoria
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -74,6 +75,8 @@ export const ProductsView: React.FC = () => {
     setFormKdsStation('BAR');
     setFormStock('100');
     setFormMinStock('10');
+    setFormNcm('');
+    setFormCfop('');
     setFormComponents([]);
     setIsComposed(false);
     if (categories.length > 0) setFormCategoryId(categories[0].id);
@@ -90,6 +93,8 @@ export const ProductsView: React.FC = () => {
     setFormKdsStation(p.kdsStation);
     setFormStock(p.stock.toString());
     setFormMinStock(p.minStock.toString());
+    setFormNcm(p.ncm || '');
+    setFormCfop(p.cfop || '');
     if (p.components && p.components.length > 0) {
       setIsComposed(true);
       setFormComponents(p.components.map(c => ({ componentId: c.componentId, quantity: c.quantity.toString() })));
@@ -118,6 +123,8 @@ export const ProductsView: React.FC = () => {
         kdsStation: formKdsStation,
         stock: parseInt(formStock) || 0,
         minStock: parseInt(formMinStock) || 5,
+        ncm: formNcm.trim() || null,
+        cfop: formCfop.trim() || null,
         components: isComposed ? formComponents.filter(c => c.componentId && parseFloat(c.quantity) > 0) : []
       };
 
@@ -543,6 +550,34 @@ export const ProductsView: React.FC = () => {
                     type="number"
                     value={formMinStock}
                     onChange={(e) => setFormMinStock(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    NCM (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formNcm}
+                    onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
+                    placeholder="8 dígitos numéricos"
+                    maxLength={8}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    CFOP (Padrão 5102)
+                  </label>
+                  <input
+                    type="text"
+                    value={formCfop}
+                    onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ex: 5102 ou 5405"
+                    maxLength={4}
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
                   />
                 </div>
