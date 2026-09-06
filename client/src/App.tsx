@@ -12,6 +12,8 @@ import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
 import { SettingsView } from './views/SettingsView';
 import { FiscalImportView } from './views/FiscalImportView';
+import { FiscalSettingsView } from './views/FiscalSettingsView';
+import { ManualNfceView } from './views/ManualNfceView';
 import { CustomersView } from './views/CustomersView';
 
 
@@ -49,7 +51,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -353,6 +355,14 @@ export function App() {
         )}
 
         
+        
+        {currentView === 'fiscalSettings' && (
+          <FiscalSettingsView onBack={() => setCurrentView('settings')} />
+        )}
+        {currentView === 'manualNfce' && (
+          <ManualNfceView onBack={() => setCurrentView('settings')} />
+        )}
+
         {currentView === 'fiscal' && (
           <FiscalImportView onBack={() => setCurrentView('settings')} />
         )}
@@ -363,6 +373,8 @@ export function App() {
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
             onOpenFiscal={() => setCurrentView('fiscal')}
+            onOpenFiscalSettings={() => setCurrentView('fiscalSettings')}
+            onOpenManualNfce={() => setCurrentView('manualNfce')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
           />

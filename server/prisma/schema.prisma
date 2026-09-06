@@ -79,6 +79,9 @@ model Category {
 }
 
 model Product {
+  ncm         String?
+  cfop        String?
+
   components  ProductComponent[] @relation("ParentProduct")
   usedIn      ProductComponent[] @relation("ComponentProduct")
 
@@ -191,4 +194,16 @@ model Customer {
   
   creditTabBalance Float @default(0) // Quanto o cliente está devendo (Fiado)
   orders           Order[]
+}
+
+model FiscalSettings {
+  id          String   @id @default("default")
+  apiToken    String?
+  cnpj        String?
+  ie          String?
+  crt         String?
+  cscId       String?
+  cscSecret   String?
+  addressInfo String?
+  updatedAt   DateTime @updatedAt
 }

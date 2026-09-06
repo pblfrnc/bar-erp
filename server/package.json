@@ -12,7 +12,6 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -33,7 +32,6 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.13.5",
     "esbuild": "^0.28.2",
-    "prisma": "^6.4.1",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   }
