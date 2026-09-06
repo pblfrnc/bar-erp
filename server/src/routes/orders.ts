@@ -331,7 +331,7 @@ export function createOrdersRouter(io: SocketIOServer) {
 
         // Atualizar saldo do fiado (usando query raw)
         if (p.method === 'CREDIT_TAB' && customerId) {
-          await prisma.$executeRawUnsafe(`UPDATE "Customer" SET creditTabBalance = creditTabBalance + ? WHERE id = ?`, amt, customerId);
+          try { await prisma.$executeRawUnsafe(`UPDATE "Customer" SET creditTabBalance = creditTabBalance + ? WHERE id = ?`, amt, customerId); } catch(e:any) { console.error("FK error Customer:", e.message); }
         }
 
         addedPaidAmount += amt;
@@ -341,7 +341,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       const shouldClose = closeOrder !== undefined ? Boolean(closeOrder) : newPaidTotal >= order.total - 0.05;
 
       if (customerId) {
-        await prisma.$executeRawUnsafe(`UPDATE "Order" SET customerId = ? WHERE id = ?`, customerId, order.id);
+        try { await prisma.$executeRawUnsafe(`UPDATE "Order" SET customerId = ? WHERE id = ?`, customerId, order.id); } catch(e:any) { console.error("FK error Order:", e.message); }
       }
 
       const updatedOrder = await prisma.order.update({
