@@ -2,6 +2,8 @@ const { app, BrowserWindow, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
+const { setupDailyBackup } = require('./backup.js');
+
 
 
 // Habilitar impressão silenciosa (bypass janela de impressão do sistema)
@@ -40,6 +42,11 @@ function setupDatabase() {
     // Configurar variável de ambiente para o Prisma usar o banco do AppData (usando forward slashes para Windows)
     const normalizedDbPath = dbPath.replace(/\\/g, '/');
     process.env.DATABASE_URL = `file:${normalizedDbPath}`;
+    // Executa o backup diário logo após definir o banco
+    setupDailyBackup(userDataPath, 'bar.db');
+    // Verifica a cada 6 horas se o dia virou (caso o PC fique ligado 24/7)
+    setInterval(() => setupDailyBackup(userDataPath, 'bar.db'), 6 * 60 * 60 * 1000);
+
     console.log('DATABASE_URL configurada:', process.env.DATABASE_URL);
 
     // Apontar o Prisma para o engine nativo embutido junto com o bundle do servidor

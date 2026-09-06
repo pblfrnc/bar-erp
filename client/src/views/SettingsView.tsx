@@ -1,5 +1,6 @@
-import React from 'react';
-import { Settings, Users, Smartphone, Printer, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Users, Smartphone, Printer, ChevronRight, ShieldCheck } from 'lucide-react';
+import { api } from '../services/api';
 
 interface SettingsViewProps {
   onOpenWaitersModal: () => void;
@@ -16,6 +17,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   autoPrintKitchen,
   onToggleAutoPrintKitchen
 }) => {
+  const [backupInfo, setBackupInfo] = useState<any>(null);
+  
+  useEffect(() => {
+    api.getBackupStatus().then(setBackupInfo).catch(() => {});
+  }, []);
+
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto">
       {/* Cabeçalho */}
@@ -34,6 +41,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {/* Grid de Opções */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">Backup Automático do Banco</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {backupInfo?.totalBackups 
+                ? `${backupInfo.totalBackups} backups salvos. Último: ${backupInfo.lastBackup}` 
+                : "Ativado. Backups são salvos no AppData todos os dias."}
+            </p>
+          </div>
+        </div>
+        <span className="text-[10px] font-black uppercase text-indigo-400 bg-indigo-500/20 px-2 py-1 rounded">Protegido</span>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
         {/* Clientes Fiado */}

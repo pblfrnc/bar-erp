@@ -293,6 +293,8 @@ export const api = {
 
   // Garçons & Comissões
   getCustomers: () => fetchWithRetry(`${getApiUrl()}/customers`).then(handleResponse<any[]>),
+  getBackupStatus: () => fetchWithRetry(`${getApiUrl()}/system/backup-status`).then(handleResponse<any>),
+
   createCustomer: (data: any) => fetchWithRetry(`${getApiUrl()}/customers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse<any>),
 
   getWaiters: (all: boolean = false): Promise<Waiter[]> =>
