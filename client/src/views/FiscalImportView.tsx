@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileCode2, Upload, AlertCircle, CheckCircle2, PackagePlus, ArrowRight, ArrowLeft, Loader } from 'lucide-react';
+import { FileCode2, Upload, AlertCircle, CheckCircle2, PackagePlus, ArrowRight, ArrowLeft, Loader, Scan } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Category } from '../types';
 
@@ -31,6 +31,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
   const [isUploading, setIsUploading] = useState(false);
   const [xmlData, setXmlData] = useState<any>(null);
   const [matches, setMatches] = useState<MatchState[]>([]);
+  // Segundo bip: confirmação de chave antes de importar
+  const [confirmChave, setConfirmChave] = useState('');
+  const [confirmStatus, setConfirmStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const confirmInputRef = useRef<HTMLInputElement>(null);
   const [autoLoading, setAutoLoading] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -150,6 +154,35 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
     }
   };
 
+  // Validar o segundo bip de confirmação
+  const handleConfirmBip = (value: string) => {
+    const typed = value.replace(/\D/g, '');
+    setConfirmChave(value);
+    if (typed.length < 44) {
+      setConfirmStatus('idle');
+      return;
+    }
+    // Pega a chave da nota carregada (pode vir do xmlData ou do chaveAcesso prop)
+    const chaveNota = (chaveAcesso || xmlData?.chaveAcesso || '').replace(/\D/g, '');
+    if (!chaveNota) {
+      // Sem chave armazenada (upload manual): aceita qualquer bip de 44 dígitos como confirmação
+      setConfirmStatus('ok');
+      return;
+    }
+    if (typed === chaveNota) {
+      setConfirmStatus('ok');
+    } else {
+      setConfirmStatus('error');
+    }
+  };
+
+  // Auto-focar no segundo bip quando os dados do XML carregarem
+  useEffect(() => {
+    if (xmlData && confirmInputRef.current) {
+      setTimeout(() => confirmInputRef.current?.focus(), 200);
+    }
+  }, [xmlData]);
+
   if (autoLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 text-slate-400">
@@ -233,17 +266,67 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         </button>
         <button 
           onClick={handleApply}
-          disabled={isUploading}
-          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
+          disabled={isUploading || confirmStatus !== 'ok'}
+          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+          title={confirmStatus !== 'ok' ? 'Confirme a nota com o 2º bip antes de importar' : ''}
         >
           <PackagePlus className="w-5 h-5" />
           {isUploading ? 'Processando...' : 'Efetivar Importação'}
         </button>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
-        <h3 className="text-lg font-bold text-white">Fornecedor: {xmlData.vendor.name}</h3>
-        <p className="text-sm text-slate-400 font-mono">CNPJ: {xmlData.vendor.cnpj}</p>
+      {/* Cabeçalho da Nota */}
+      <div className={`border rounded-3xl p-5 transition ${
+        confirmStatus === 'ok'
+          ? 'bg-emerald-500/10 border-emerald-500/40'
+          : confirmStatus === 'error'
+          ? 'bg-red-500/10 border-red-500/40'
+          : 'bg-slate-900 border-slate-800'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-white">Fornecedor: {xmlData.vendor.name}</h3>
+            <p className="text-sm text-slate-400 font-mono">CNPJ: {xmlData.vendor.cnpj}</p>
+          </div>
+
+          {/* SEGUNDO BIP DE CONFIRMAÇÃO */}
+          <div className="flex flex-col gap-1 sm:w-72">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+              <Scan className="w-3 h-3" />
+              2º Bip de Confirmação
+            </label>
+            <div className="relative">
+              <input
+                ref={confirmInputRef}
+                type="text"
+                value={confirmChave}
+                onChange={e => handleConfirmBip(e.target.value)}
+                placeholder="Bipe a nota novamente para confirmar..."
+                className={`w-full bg-slate-950 border rounded-xl px-3 py-2.5 text-white font-mono text-xs outline-none transition pr-9 ${
+                  confirmStatus === 'ok'
+                    ? 'border-emerald-500 focus:border-emerald-400'
+                    : confirmStatus === 'error'
+                    ? 'border-red-500 focus:border-red-400'
+                    : 'border-slate-700 focus:border-amber-500'
+                }`}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {confirmStatus === 'ok' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                {confirmStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-400" />}
+                {confirmStatus === 'idle' && <Scan className="w-4 h-4 text-slate-600" />}
+              </div>
+            </div>
+            {confirmStatus === 'error' && (
+              <p className="text-xs text-red-400 font-bold">⚠️ Nota diferente! Verifique o documento.</p>
+            )}
+            {confirmStatus === 'ok' && (
+              <p className="text-xs text-emerald-400 font-bold">✓ Nota confirmada. Pode importar!</p>
+            )}
+            {confirmStatus === 'idle' && (
+              <p className="text-xs text-slate-500">Bipe ou cole a chave de acesso da nota para confirmar.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-3">
