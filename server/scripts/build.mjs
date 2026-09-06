@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import fs, { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -45,6 +45,7 @@ if (!existsSync(prismaClientDir)) {
 
 mkdirSync(prismaOutDir, { recursive: true });
 for (const file of readdirSync(prismaClientDir)) {
+  if (!fs.statSync(join(prismaClientDir, file)).isFile()) continue;
   const src = join(prismaClientDir, file);
   copyFileSync(src, join(prismaOutDir, file));
   // Copia também na raiz do dist para máxima compatibilidade
