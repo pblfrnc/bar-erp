@@ -211,8 +211,8 @@ export function createFiscalRouter() {
         }
 
         const empresaPayload = {
-          nome: "Empresa Cadastrada via ERP",
-          nome_fantasia: "Nome Fantasia (Puxar via CNPJ em prod)",
+          nome: data.razaoSocial || "Razao Social Nao Informada",
+          nome_fantasia: data.nomeFantasia || data.razaoSocial || "Nome Fantasia Nao Informado",
           cnpj: data.cnpj.replace(/\D/g, ''),
           inscricao_estadual: data.ie,
           regime_tributario: data.crt || '1',

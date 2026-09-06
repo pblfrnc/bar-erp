@@ -202,6 +202,29 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <h3 className="text-lg font-bold text-white">Dados da Empresa (Cliente)</h3>
           </div>
           
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Razão Social</label>
+              <input
+                type="text"
+                value={settings.razaoSocial || ''}
+                onChange={e => handleChange('razaoSocial', e.target.value)}
+                placeholder="Razão Social exata do CNPJ"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Nome Fantasia</label>
+              <input
+                type="text"
+                value={settings.nomeFantasia || ''}
+                onChange={e => handleChange('nomeFantasia', e.target.value)}
+                placeholder="Opcional"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center justify-between mb-2">
