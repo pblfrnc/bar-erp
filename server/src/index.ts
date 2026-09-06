@@ -9,6 +9,7 @@ import compression from 'compression';
 import os from 'os';
 import { createTablesRouter } from './routes/tables.js';
 import { createOrdersRouter } from './routes/orders.js';
+import { createFiscalRouter } from './routes/fiscal.js';
 import { createProductsRouter } from './routes/products.js';
 import { createKdsRouter } from './routes/kds.js';
 import { createCashRouter } from './routes/cash.js';
@@ -112,6 +113,7 @@ app.use('/api/kds', createKdsRouter(io));
 app.use('/api/cash', createCashRouter(io));
 app.use('/api/dashboard', createDashboardRouter());
 app.use('/api/waiters', createWaitersRouter());
+app.use('/api/fiscal', createFiscalRouter());
 
 app.get('/api/network/devices', (req, res) => {
   res.json(Array.from(activeDevices.values()));

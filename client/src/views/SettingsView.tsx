@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Smartphone, Printer, ChevronRight, ShieldCheck, MonitorSmartphone, Wifi } from 'lucide-react';
+import { Settings, Users, Smartphone, Printer, ChevronRight, ShieldCheck, MonitorSmartphone, Wifi, FileCode2 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
 
@@ -7,6 +7,7 @@ interface SettingsViewProps {
   onOpenWaitersModal: () => void;
   onOpenConnectMobile: () => void;
   onOpenCustomers: () => void;
+  onOpenFiscal: () => void;
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
 }
@@ -15,6 +16,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenWaitersModal,
   onOpenConnectMobile,
   onOpenCustomers,
+  onOpenFiscal,
   autoPrintKitchen,
   onToggleAutoPrintKitchen
 }) => {
@@ -78,6 +80,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        
+        {/* Importação XML */}
+        <button
+          onClick={onOpenFiscal}
+          className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <FileCode2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition">Entrada XML (NF-e)</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Importe XML de fornecedores p/ estoque</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition" />
+        </button>
 
         {/* Clientes Fiado */}
         <button

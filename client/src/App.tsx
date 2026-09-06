@@ -11,6 +11,7 @@ import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
 import { SettingsView } from './views/SettingsView';
+import { FiscalImportView } from './views/FiscalImportView';
 import { CustomersView } from './views/CustomersView';
 
 
@@ -48,7 +49,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -351,11 +352,17 @@ export function App() {
           <AuditView />
         )}
 
+        
+        {currentView === 'fiscal' && (
+          <FiscalImportView onBack={() => setCurrentView('settings')} />
+        )}
+
         {currentView === 'settings' && (
           <SettingsView 
             onOpenWaitersModal={() => setShowWaitersModal(true)}
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
+            onOpenFiscal={() => setCurrentView('fiscal')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
           />
