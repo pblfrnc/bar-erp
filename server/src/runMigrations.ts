@@ -42,6 +42,8 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       }
     }
 
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN "paidQuantity" INTEGER NOT NULL DEFAULT 0;`); } catch (e) {}
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
   } catch (error) {
     console.error('[Migrations] Erro crítico ao rodar migrações em tempo de execução:', error);
