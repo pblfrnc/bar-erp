@@ -55,6 +55,82 @@ export function createFiscalRouter() {
     }
   });
 
+  // ============================================================
+  // Validar API Fiscal (Testar Token da Focus NFe)
+  // ============================================================
+  router.get('/validate-api', async (req, res) => {
+    try {
+      const settings = await (prisma as any).fiscalSettings.findUnique({ where: { id: 'default' } });
+
+      if (!settings?.apiToken) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Token da API não configurado. Preencha o Token nas Configurações Fiscais.'
+        });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      // Testa o token tentando listar as empresas vinculadas à conta
+      const focusRes = await fetch(`${baseURL}/v2/empresas`, {
+        headers: { 'Authorization': authHeader }
+      });
+
+      if (focusRes.status === 401) {
+        return res.json({
+          ok: false,
+          error: 'Token inválido ou sem permissão. Verifique se o Token está correto e é de produção/homologação conforme o ambiente configurado.',
+          status: 401,
+          ambiente: isProducao ? 'Produção' : 'Homologação'
+        });
+      }
+
+      if (!focusRes.ok) {
+        const errData = await focusRes.json().catch(() => ({}));
+        return res.json({
+          ok: false,
+          error: `Focus NFe retornou erro ${focusRes.status}: ${JSON.stringify(errData)}`,
+          status: focusRes.status,
+          ambiente: isProducao ? 'Produção' : 'Homologação'
+        });
+      }
+
+      const empresas = await focusRes.json();
+      const total = Array.isArray(empresas) ? empresas.length : 0;
+
+      // Verificar se o CNPJ configurado já está cadastrado
+      const cnpjLimpo = (settings.cnpj || '').replace(/\D/g, '');
+      const empresaCadastrada = Array.isArray(empresas) && cnpjLimpo
+        ? empresas.find((e: any) => (e.cnpj || '').replace(/\D/g, '') === cnpjLimpo)
+        : null;
+
+      return res.json({
+        ok: true,
+        ambiente: isProducao ? '🟢 Produção (Notas Válidas)' : '🟡 Homologação (Testes)',
+        totalEmpresas: total,
+        cnpjConfigurado: settings.cnpj || null,
+        empresaCadastrada: empresaCadastrada
+          ? `✓ CNPJ encontrado na Focus NFe: ${empresaCadastrada.nome_fantasia || empresaCadastrada.nome || settings.cnpj}`
+          : cnpjLimpo
+          ? '⚠️ CNPJ configurado ainda não registrado na Focus NFe. Salve as configurações para cadastrar.'
+          : 'ℹ️ Nenhum CNPJ configurado ainda.',
+        mensagem: `Conexão com a Focus NFe estabelecida. ${total} empresa(s) vinculada(s) nesta conta.`
+      });
+
+    } catch (err: any) {
+      return res.json({
+        ok: false,
+        error: 'Não foi possível conectar à Focus NFe. Verifique sua conexão com a internet.',
+        detalhe: err.message
+      });
+    }
+  });
+
   // Aplica as associações no banco de dados
   router.post('/apply-import', async (req, res) => {
     try {

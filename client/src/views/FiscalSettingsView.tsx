@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin, CheckCircle, XCircle, Wifi, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 
 // Algoritmo de validação oficial do CNPJ (dois dígitos verificadores)
@@ -32,6 +32,8 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certPassword, setCertPassword] = useState('');
   const [cnpjValid, setCnpjValid] = useState<boolean | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validateResult, setValidateResult] = useState<any>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -87,30 +89,92 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
     }
   };
 
+  const handleValidate = async () => {
+    setIsValidating(true);
+    setValidateResult(null);
+    try {
+      const res = await fetch(api.getApiUrl() + '/fiscal/validate-api');
+      const data = await res.json();
+      setValidateResult(data);
+    } catch {
+      setValidateResult({ ok: false, error: 'Sem resposta do servidor. Verifique se o BarERP está rodando.' });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   if (isLoading) return <div className="p-8 text-center text-slate-400">Carregando...</div>;
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto pt-4 pb-20">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition">
           <ArrowLeft className="w-4 h-4" /> Voltar ao Painel
         </button>
-        <button 
-          onClick={handleSave}
-          disabled={isSaving || cnpjValid === false}
-          title={cnpjValid === false ? 'CNPJ inválido — corrija antes de salvar' : ''}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${
-            cnpjValid === false
-              ? 'bg-red-500/30 text-red-300 border border-red-500/50'
-              : 'bg-indigo-500 hover:bg-indigo-400 text-white'
-          }`}
-        >
-          <Save className="w-5 h-5" />
-          {isSaving ? 'Salvando...' : 'Cadastrar Dados da Empresa'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleValidate}
+            disabled={isValidating}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-50"
+          >
+            {isValidating ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
+            ) : (
+              <><Wifi className="w-4 h-4 text-sky-400" /> Testar Conexão</>
+            )}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving || cnpjValid === false}
+            title={cnpjValid === false ? 'CNPJ inválido — corrija antes de salvar' : ''}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              cnpjValid === false
+                ? 'bg-red-500/30 text-red-300 border border-red-500/50'
+                : 'bg-indigo-500 hover:bg-indigo-400 text-white'
+            }`}
+          >
+            <Save className="w-5 h-5" />
+            {isSaving ? 'Salvando...' : 'Cadastrar Dados da Empresa'}
+          </button>
+        </div>
       </div>
 
-      
+      {/* Painel de resultado do teste de conexão */}
+      {validateResult && (
+        <div className={`border rounded-2xl p-4 flex flex-col gap-3 ${
+          validateResult.ok
+            ? 'bg-emerald-500/10 border-emerald-500/30'
+            : 'bg-red-500/10 border-red-500/30'
+        }`}>
+          <div className="flex items-center gap-2">
+            {validateResult.ok
+              ? <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+              : <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+            }
+            <span className={`font-bold text-sm ${validateResult.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+              {validateResult.ok ? 'Conexão com a Focus NFe: OK' : 'Falha na Conexão'}
+            </span>
+            {validateResult.ambiente && (
+              <span className="ml-auto text-xs text-slate-400">{validateResult.ambiente}</span>
+            )}
+          </div>
+          {validateResult.ok && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Empresas na Conta</p>
+                <p className="font-bold text-white">{validateResult.totalEmpresas} empresa(s)</p>
+              </div>
+              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+                <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Status do CNPJ</p>
+                <p className="font-bold text-white leading-snug">{validateResult.empresaCadastrada}</p>
+              </div>
+            </div>
+          )}
+          {!validateResult.ok && (
+            <p className="text-sm text-red-300 leading-relaxed">{validateResult.error}</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* API Credentials */}
