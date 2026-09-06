@@ -1,3 +1,6 @@
+import { prisma } from './prisma.js';
+import { runRuntimeMigrations } from './runMigrations.js';
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -119,16 +122,23 @@ httpServer.on('error', (err: any) => {
 });
 
 // Vincula a 0.0.0.0 para que qualquer celular ou tablet no Wi-Fi do bar consiga conectar
-httpServer.listen(PORT, '0.0.0.0', () => {
-  const localIps = getLocalIps();
-  console.log('\n======================================================');
-  console.log('🚀 SERVIDOR BAR ERP INICIADO COM SUCESSO');
-  console.log(`• Localhost (PC do Caixa): http://localhost:${PORT}`);
-  if (localIps.length > 0) {
-    console.log('• Celulares/Tablets Android na rede Wi-Fi do Bar:');
-    localIps.forEach((ip) => {
-      console.log(`   ➜ http://${ip}:${PORT}`);
-    });
-  }
-  console.log('======================================================\n');
-});
+  
+
+const start = async () => {
+  await runRuntimeMigrations(prisma);
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    const localIps = getLocalIps();
+    console.log('\n======================================================');
+    console.log('🚀 SERVIDOR BAR ERP INICIADO COM SUCESSO');
+    console.log(`• Localhost (PC do Caixa): http://localhost:${PORT}`);
+    if (localIps.length > 0) {
+      console.log('• Celulares/Tablets Android na rede Wi-Fi do Bar:');
+      localIps.forEach((ip) => {
+        console.log(`   ➜ http://${ip}:${PORT}`);
+      });
+    }
+    console.log('======================================================\n');
+  });
+};
+
+start();

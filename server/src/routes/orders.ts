@@ -113,6 +113,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       const serviceFee = order.isServiceFeeActive ? subtotal * order.serviceFeeRate : 0;
       const total = subtotal + serviceFee - order.discount;
 
+
       const updatedOrder = await prisma.order.update({
         where: { id: order.id },
         data: { subtotal, serviceFee, total },
@@ -200,6 +201,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       const subtotal = allItems.reduce((acc, it) => acc + it.totalPrice, 0);
       const serviceFee = order.isServiceFeeActive ? subtotal * order.serviceFeeRate : 0;
       const total = subtotal + serviceFee - order.discount;
+
 
       const updatedOrder = await prisma.order.update({
         where: { id },
@@ -338,12 +340,15 @@ export function createOrdersRouter(io: SocketIOServer) {
       const newPaidTotal = (order.paidAmount || 0) + addedPaidAmount;
       const shouldClose = closeOrder !== undefined ? Boolean(closeOrder) : newPaidTotal >= order.total - 0.05;
 
+      if (customerId) {
+        await prisma.$executeRawUnsafe(`UPDATE "Order" SET customerId = ? WHERE id = ?`, customerId, order.id);
+      }
+
       const updatedOrder = await prisma.order.update({
         where: { id: order.id },
         data: {
           paidAmount: newPaidTotal,
           status: shouldClose ? 'PAID' : 'OPEN',
-          ...(customerId ? { customerId } : {}),
 
           closedAt: shouldClose ? new Date() : null
         },
