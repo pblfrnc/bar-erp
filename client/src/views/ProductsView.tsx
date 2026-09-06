@@ -432,12 +432,14 @@ export const ProductsView: React.FC = () => {
 
             <form onSubmit={handleSaveProduct} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Nome do Item
                 </label>
                 <input
                   type="text"
                   required
+                  id="formNameInput"
+                  autoFocus
                   placeholder="Ex: Chope Pilsen 500ml"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
@@ -446,7 +448,7 @@ export const ProductsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Descrição (Opcional)
                 </label>
                 <input
@@ -460,7 +462,7 @@ export const ProductsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Preço de Venda (R$)
                   </label>
                   <input
@@ -474,7 +476,7 @@ export const ProductsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Preço de Custo (R$)
                   </label>
                   <input
@@ -490,7 +492,7 @@ export const ProductsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Categoria
                   </label>
                   <select
@@ -506,7 +508,7 @@ export const ProductsView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Destino no KDS
                   </label>
                   <select
@@ -523,7 +525,7 @@ export const ProductsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Estoque Inicial
                   </label>
                   <input
@@ -534,7 +536,7 @@ export const ProductsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Estoque Mínimo (Alerta)
                   </label>
                   <input
@@ -656,7 +658,7 @@ export const ProductsView: React.FC = () => {
             <h3 className="text-lg font-black text-white mb-3">Nova Categoria</h3>
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Nome da Categoria
                 </label>
                 <input
@@ -666,6 +668,7 @@ export const ProductsView: React.FC = () => {
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  id="formNameInput"
                   autoFocus
                 />
               </div>
