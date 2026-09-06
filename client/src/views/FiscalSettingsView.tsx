@@ -61,34 +61,26 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
         >
           <Save className="w-5 h-5" />
-          {isSaving ? 'Salvando...' : 'Cadastrar Empresa (Software House)'}
+          {isSaving ? 'Salvando...' : 'Cadastrar Dados da Empresa'}
         </button>
       </div>
 
-      <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-3xl p-5 mb-6 flex items-start gap-4">
-        <AlertTriangle className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
-        <div>
-          <h3 className="text-base font-bold text-indigo-400 mb-1">Onboarding de Empresa (Software House)</h3>
-          <p className="text-sm text-slate-300 leading-relaxed">
-            Neste modelo, você usa o seu <strong>Token Master</strong>. O BarERP enviará o Certificado Digital A1 e todos os dados diretamente para a API, registrando o cliente automaticamente por baixo dos panos.
-          </p>
-        </div>
-      </div>
+      
 
       <div className="space-y-6">
         {/* API Credentials */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <Key className="w-5 h-5 text-amber-500" />
-            <h3 className="text-lg font-bold text-white">Token Master da Software House</h3>
+            <h3 className="text-lg font-bold text-white">Token da API de Emissão</h3>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Token da API Master (Focus NFe)</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Token da API (Focus NFe)</label>
             <input
               type="text"
               value={settings.apiToken || ''}
               onChange={e => handleChange('apiToken', e.target.value)}
-              placeholder="Obrigatório para abrir a empresa do cliente..."
+              placeholder="Cole o token da Focus NFe aqui..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
             />
           </div>
