@@ -739,6 +739,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
       {tableDetails && (
         <TableDetailsModal
           table={tableDetails}
+          isManager={false}
           onClose={() => setTableDetails(null)}
           onAddOrder={() => {
             const t = tableDetails;

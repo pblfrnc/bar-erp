@@ -24,6 +24,7 @@ interface TableDetailsModalProps {
   onTransfer: () => void;
   onMerge: () => void;
   onRefresh: () => void;
+  isManager?: boolean;
 }
 
 export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
@@ -33,7 +34,8 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
   onCheckout,
   onTransfer,
   onMerge,
-  onRefresh
+  onRefresh,
+  isManager = true
 }) => {
   if (!table || !table.activeOrder) return null;
 
@@ -251,13 +253,15 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
                   <span className="font-black text-sm text-white font-mono">
                     R$ {item.totalPrice.toFixed(2)}
                   </span>
-                  <button
-                    onClick={() => handleRemoveItem(item.id)}
-                    className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition"
-                    title="Cancelar item"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isManager && (
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition"
+                      title="Cancelar item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
