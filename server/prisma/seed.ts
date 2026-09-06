@@ -320,6 +320,7 @@ async function main() {
       tableId: createdTables[2].id,
       customerName: 'Lucas & Amigos',
       waiterName: 'Rafael Garçom',
+      orderNumber: 101,
       subtotal: 66.0, // 2x 14 + 38 = 66
       serviceFee: 0.0,
       serviceFeeRate: 0.10,
@@ -373,6 +374,7 @@ async function main() {
       tableId: createdTables[8].id,
       customerName: 'Mariana Silva',
       waiterName: 'Juliana Garçonete',
+      orderNumber: 102,
       subtotal: 155.0, // 32 + 34 + 89 = 155
       serviceFee: 0.0,
       serviceFeeRate: 0.10,
