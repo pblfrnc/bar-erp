@@ -32,7 +32,6 @@
       "package.json"
     ],
     "win": {
-      "publisherName": "Pablo Franco",
 
       "target": [
         {
