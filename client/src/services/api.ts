@@ -53,6 +53,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  getApiUrl: () => getApiUrl(),
+  uploadXml: (formData: FormData) => fetch(`${getApiUrl()}/fiscal/import-xml`, { method: 'POST', body: formData }).then(r => r.json()),
+  applyXmlImport: (data: any) => fetch(`${getApiUrl()}/fiscal/apply-import`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }).then(r => r.json()),
   // Mesas
   getTables: (): Promise<Table[]> =>
     fetchWithRetry(`${getApiUrl()}/tables`).then(handleResponse<Table[]>),

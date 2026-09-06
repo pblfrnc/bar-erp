@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin } from 'lucide-react';
-import api from '../services/api';
+import { api } from '../services/api';
 
 export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [settings, setSettings] = useState<any>({});
@@ -20,7 +20,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   }, []);
 
   const handleChange = (field: string, value: string) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {

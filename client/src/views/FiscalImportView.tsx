@@ -51,7 +51,9 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack }) =>
     if (!file) return;
     try {
       setIsUploading(true);
-      const res = await api.uploadXml(file);
+      const formData = new FormData();
+      formData.append('xml', file);
+      const res = await api.uploadXml(formData);
       if (res.error) {
         alert(res.error);
         return;
