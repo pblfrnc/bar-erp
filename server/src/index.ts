@@ -89,10 +89,19 @@ app.use('/api/waiters', createWaitersRouter());
 function getLocalIps(): string[] {
   const interfaces = os.networkInterfaces();
   const ips: string[] = [];
+  
   for (const name of Object.keys(interfaces)) {
+    const isVirtual = name.toLowerCase().includes('virtual') || name.toLowerCase().includes('vmware') || name.toLowerCase().includes('vethernet') || name.toLowerCase().includes('wsl') || name.toLowerCase().includes('tailscale') || name.toLowerCase().includes('hamachi');
+    if (isVirtual) continue;
+    
     for (const net of interfaces[name] || []) {
       if (net.family === 'IPv4' && !net.internal) {
-        ips.push(net.address);
+        // Priorizar IPs comuns de rede local
+        if (net.address.startsWith('192.168.')) {
+          ips.unshift(net.address); // Joga pro topo
+        } else {
+          ips.push(net.address);
+        }
       }
     }
   }
