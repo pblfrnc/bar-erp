@@ -18,6 +18,8 @@ export interface ProductComponent {
   componentId: string;
   component?: Product;
   quantity: number;
+  paidQuantity?: number;
+
 }
 
 export interface Product {
@@ -44,6 +46,8 @@ export interface OrderItem {
   productId: string;
   product: Product;
   quantity: number;
+  paidQuantity?: number;
+
   unitPrice: number;
   totalPrice: number;
   notes?: string | null;
@@ -176,6 +180,8 @@ export interface DashboardData {
   occupancyRate: number;
   averageTicket: number;
   topProducts: { name: string; quantity: number; total: number; station: string }[];
+  paidQuantity?: number;
+
   paymentMethodsBreakdown: Record<string, number>;
   salesByHour: { hour: string; total: number }[];
   waiterPerformance: { name: string; total: number; count: number }[];

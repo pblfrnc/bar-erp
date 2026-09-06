@@ -57,6 +57,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Cálculo da divisão por pessoa
 
+  // Itens que ainda não foram totalmente pagos
+  const unpaidItems = React.useMemo(() => {
+    return order.items.map(item => ({
+      ...item,
+      unpaidQty: item.quantity - (item.paidQuantity || 0)
+    })).filter(i => i.unpaidQty > 0);
+  }, [order.items]);
+
   // Lógica de "Racha Conta por Itens"
   const selectedItemsSubtotal = Object.entries(selectedItems).reduce((acc, [itemId, qty]) => {
     const item = order.items.find(i => i.id === itemId);
@@ -73,10 +81,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [selectedItemsTotal, splitMode]);
 
-  const handleToggleItemQty = (item: OrderItem, delta: number) => {
+  const handleToggleItemQty = (item: OrderItem & { unpaidQty?: number }, delta: number) => {
     setSelectedItems(prev => {
       const current = prev[item.id] || 0;
-      const next = Math.max(0, Math.min(item.quantity, current + delta));
+      const maxAllowed = item.unpaidQty !== undefined ? item.unpaidQty : item.quantity;
+      const next = Math.max(0, Math.min(maxAllowed, current + delta));
       if (next === 0) {
         const copy = { ...prev };
         delete copy[item.id];
@@ -175,7 +184,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           }
         ],
         closeOrder: isClosing,
-        customerId: finalCustomerId || undefined
+        customerId: finalCustomerId || undefined,
+        paidItems: splitMode === 'items' ? Object.entries(selectedItems).filter(([_, q]) => q > 0).map(([id, q]) => ({ itemId: id, quantity: q })) : undefined
       });
 
       setPaymentSuccess(true);
@@ -381,7 +391,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             ) : (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200 mt-3 space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                {order.items.map(item => {
+                {unpaidItems.map(item => {
                   const selectedQty = selectedItems[item.id] || 0;
                   const isSelected = selectedQty > 0;
                   return (
@@ -393,7 +403,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-500">
-                          {item.quantity}x R$ {item.unitPrice.toFixed(2)}
+                          {item.unpaidQty}x R$ {item.unitPrice.toFixed(2)}
                         </span>
                       </div>
                       

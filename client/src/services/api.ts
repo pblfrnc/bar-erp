@@ -150,7 +150,7 @@ export const api = {
 
   payOrder: (
     orderId: string,
-    data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean; customerId?: string }
+    data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean; customerId?: string; paidItems?: { itemId: string; quantity: number }[] }
   ): Promise<{ success: boolean; order: Order; isFullyPaid: boolean }> =>
     fetchWithRetry(`${getApiUrl()}/orders/${orderId}/pay`, {
       method: 'POST',

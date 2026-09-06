@@ -293,7 +293,7 @@ export function createOrdersRouter(io: SocketIOServer) {
   router.post('/:id/pay', async (req, res) => {
     try {
       const { id } = req.params;
-      const { payments, closeOrder, customerId } = req.body;
+      const { payments, closeOrder, customerId, paidItems } = req.body;
       // payments: Array<{ amount: number, method: string, notes?: string }>
 
       if (!payments || !Array.isArray(payments) || payments.length === 0) {
@@ -340,6 +340,9 @@ export function createOrdersRouter(io: SocketIOServer) {
         }
 
         addedPaidAmount += amt;
+
+
+
       }
 
       const newPaidTotal = (order.paidAmount || 0) + addedPaidAmount;
