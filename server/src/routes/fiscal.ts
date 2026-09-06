@@ -303,5 +303,180 @@ export function createFiscalRouter() {
     }
   });
 
+
+  // ============================================================
+  // MÓDULO: BIP DE CHAVE DE ACESSO (Recebimento de NF)
+  // ============================================================
+
+  // Bipa uma chave de acesso de 44 dígitos:
+  // 1. Registra Ciência da Operação na SEFAZ (via Focus NFe)
+  // 2. Baixa o XML completo
+  // 3. Salva o registro local no banco
+  router.post('/bip-chave', async (req, res) => {
+    try {
+      const { chave } = req.body;
+      if (!chave || chave.replace(/\D/g, '').length !== 44) {
+        return res.status(400).json({ error: 'Chave de acesso inválida. Deve ter 44 dígitos numéricos.' });
+      }
+
+      const chaveClean = chave.replace(/\D/g, '');
+
+      const settings = await (prisma as any).fiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken || !settings?.cnpj) {
+        return res.status(400).json({ error: 'Configure o Token da API e o CNPJ nas Configurações Fiscais antes de usar o bip.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      // PASSO 1: Registrar Ciência da Operação na SEFAZ
+      const manifestoRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+        body: JSON.stringify({ tipo: 'ciencia' })
+      });
+
+      const manifestoData = await manifestoRes.json();
+      
+      // Continua mesmo se a ciência já foi registrada antes (erro esperado)
+      const manifestoOk = manifestoRes.ok || JSON.stringify(manifestoData).includes('ciencia');
+      if (!manifestoOk) {
+        console.warn('[Bip] Aviso na manifestação:', manifestoData);
+      }
+
+      // PASSO 2: Aguardar um momento e baixar o XML
+      await new Promise(r => setTimeout(r, 1500));
+
+      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}`, {
+        headers: { 'Authorization': authHeader }
+      });
+
+      const xmlData = await xmlRes.json();
+
+      if (!xmlRes.ok) {
+        return res.status(400).json({ error: 'Nota não encontrada na base da Focus NFe. Tente novamente em alguns segundos.' });
+      }
+
+      // PASSO 3: Salvar registro local
+      const NotaRecebida = (prisma as any).notaRecebida;
+      
+      // Garantir que a tabela existe
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "NotaRecebida" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "chave" TEXT NOT NULL UNIQUE,
+          "emitente" TEXT,
+          "cnpjEmitente" TEXT,
+          "numero" TEXT,
+          "serie" TEXT,
+          "dataEmissao" TEXT,
+          "valorTotal" REAL,
+          "status" TEXT NOT NULL DEFAULT 'recebida',
+          "xmlContent" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      const now = new Date().toISOString();
+      await prisma.$executeRawUnsafe(`
+        INSERT OR REPLACE INTO "NotaRecebida"
+          ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+        chaveClean,
+        chaveClean,
+        xmlData.nome_emitente || '',
+        xmlData.cnpj_emitente || '',
+        xmlData.numero || '',
+        xmlData.serie || '',
+        xmlData.data_emissao || '',
+        parseFloat(xmlData.valor_total || '0'),
+        'recebida',
+        xmlData.caminho_xml_nota_fiscal ? JSON.stringify({ url: xmlData.caminho_xml_nota_fiscal }) : null,
+        now
+      );
+
+      res.json({
+        success: true,
+        chave: chaveClean,
+        emitente: xmlData.nome_emitente,
+        cnpjEmitente: xmlData.cnpj_emitente,
+        numero: xmlData.numero,
+        serie: xmlData.serie,
+        dataEmissao: xmlData.data_emissao,
+        valorTotal: xmlData.valor_total,
+        xmlUrl: xmlData.caminho_xml_nota_fiscal,
+        mensagem: 'Nota registrada com Ciência da Operação e XML disponível para importação.'
+      });
+    } catch (err: any) {
+      console.error('[Bip] Erro:', err);
+      res.status(500).json({ error: 'Erro ao processar a chave de acesso.' });
+    }
+  });
+
+  // Listar Notas Recebidas (registros locais)
+  router.get('/notas-recebidas', async (req, res) => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "NotaRecebida" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "chave" TEXT NOT NULL UNIQUE,
+          "emitente" TEXT,
+          "cnpjEmitente" TEXT,
+          "numero" TEXT,
+          "serie" TEXT,
+          "dataEmissao" TEXT,
+          "valorTotal" REAL,
+          "status" TEXT NOT NULL DEFAULT 'recebida',
+          "xmlContent" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      const notas = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "NotaRecebida" ORDER BY "createdAt" DESC LIMIT 50
+      `);
+      res.json(notas);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Erro ao listar notas recebidas.' });
+    }
+  });
+
+  // Baixar XML de uma nota recebida para importação de itens
+  router.get('/notas-recebidas/:chave/xml', async (req, res) => {
+    try {
+      const { chave } = req.params;
+      const settings = await (prisma as any).fiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token da API não configurado.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chave}/xml`, {
+        headers: { 'Authorization': authHeader }
+      });
+
+      if (!xmlRes.ok) {
+        return res.status(404).json({ error: 'XML não disponível ainda. Aguarde alguns segundos e tente novamente.' });
+      }
+
+      const xmlText = await xmlRes.text();
+      res.setHeader('Content-Type', 'application/xml');
+      res.send(xmlText);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Erro ao baixar XML.' });
+    }
+  });
+
   return router;
 }
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileCode2, Upload, AlertCircle, CheckCircle2, PackagePlus, ArrowRight, ArrowLeft } from 'lucide-react';
+import { FileCode2, Upload, AlertCircle, CheckCircle2, PackagePlus, ArrowRight, ArrowLeft, Loader } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Category } from '../types';
 
@@ -23,13 +23,15 @@ interface MatchState {
 
 interface FiscalImportViewProps {
   onBack: () => void;
+  chaveAcesso?: string; // Se fornecida, baixa o XML automaticamente via bip
 }
 
-export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack }) => {
+export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chaveAcesso }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [xmlData, setXmlData] = useState<any>(null);
   const [matches, setMatches] = useState<MatchState[]>([]);
+  const [autoLoading, setAutoLoading] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -40,6 +42,37 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack }) =>
     api.getProducts().then(setProducts).catch(() => {});
     api.getCategories().then(setCategories).catch(() => {});
   }, []);
+
+  // Auto-baixar XML pela chave de acesso (quando vem do fluxo de bip)
+  useEffect(() => {
+    if (!chaveAcesso) return;
+    const fetchXmlFromChave = async () => {
+      setAutoLoading(true);
+      try {
+        const res = await fetch(`${api.getApiUrl()}/fiscal/notas-recebidas/${chaveAcesso}/xml`);
+        if (!res.ok) throw new Error('XML ainda não disponível. Aguarde alguns segundos.');
+        const xmlText = await res.text();
+        // Convert XML text to File object and process
+        const blob = new Blob([xmlText], { type: 'application/xml' });
+        const xmlFile = new File([blob], `nfe_${chaveAcesso}.xml`, { type: 'application/xml' });
+        // Upload for parsing
+        const formData = new FormData();
+        formData.append('xml', xmlFile);
+        const parseRes = await fetch(`${api.getApiUrl()}/fiscal/import-xml`, { method: 'POST', body: formData });
+        const data = await parseRes.json();
+        if (!parseRes.ok) throw new Error(data.error || 'Erro ao processar XML.');
+        setXmlData(data);
+        setMatches(data.items.map((item: XmlItem) => ({ xmlItem: item, action: 'NEW' as const })));
+      } catch (err: any) {
+        alert('Erro ao baixar XML: ' + err.message);
+        onBack();
+      } finally {
+        setAutoLoading(false);
+      }
+    };
+    fetchXmlFromChave();
+  }, [chaveAcesso]);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -116,6 +149,16 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack }) =>
       setIsUploading(false);
     }
   };
+
+  if (autoLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 text-slate-400">
+        <Loader className="w-10 h-10 animate-spin text-amber-500" />
+        <p className="font-bold text-white">Baixando XML da SEFAZ...</p>
+        <p className="text-sm">Aguarde enquanto buscamos a nota fiscal.</p>
+      </div>
+    );
+  }
 
   if (!xmlData) {
     return (

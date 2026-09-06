@@ -71,10 +71,25 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "municipio" TEXT;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "uf" TEXT;`); } catch (e) {}
 
-
-
+    // Tabela de Notas Recebidas (Bip de Chave de Acesso)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "NotaRecebida" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "chave" TEXT NOT NULL UNIQUE,
+        "emitente" TEXT,
+        "cnpjEmitente" TEXT,
+        "numero" TEXT,
+        "serie" TEXT,
+        "dataEmissao" TEXT,
+        "valorTotal" REAL,
+        "status" TEXT NOT NULL DEFAULT 'recebida',
+        "xmlContent" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
+
   } catch (error) {
     console.error('[Migrations] Erro crítico ao rodar migrações em tempo de execução:', error);
   }
