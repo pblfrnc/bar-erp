@@ -25,6 +25,11 @@ function mascaraCNPJ(value: string): string {
     .replace(/(\d{4})(\d)/, '$1-$2');
 }
 
+function mascaraCEP(value: string): string {
+  const nums = value.replace(/\D/g, '').slice(0, 8);
+  return nums.replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
 export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [settings, setSettings] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +39,8 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const [cnpjValid, setCnpjValid] = useState<boolean | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<any>(null);
+
+  const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -50,14 +57,41 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
     setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleCnpjChange = (raw: string) => {
+  const handleCnpjChange = async (raw: string) => {
     const masked = mascaraCNPJ(raw);
     handleChange('cnpj', masked);
     const nums = masked.replace(/\D/g, '');
     if (nums.length < 14) {
-      setCnpjValid(null); // ainda digitando
+      setCnpjValid(null);
     } else {
-      setCnpjValid(validarCNPJ(masked));
+      const isValid = validarCNPJ(masked);
+      setCnpjValid(isValid);
+      
+      if (isValid) {
+        // Auto-fetch data from BrasilAPI
+        setIsFetchingCnpj(true);
+        try {
+          const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${nums}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSettings((prev: any) => ({
+              ...prev,
+              razaoSocial: data.razao_social || prev.razaoSocial,
+              nomeFantasia: data.nome_fantasia || prev.nomeFantasia,
+              cep: data.cep ? mascaraCEP(data.cep) : prev.cep,
+              logradouro: data.logradouro ? `${data.descricao_tipo_de_logradouro || ''} ${data.logradouro}`.trim() : prev.logradouro,
+              numero: data.numero || prev.numero,
+              bairro: data.bairro || prev.bairro,
+              municipio: data.municipio || prev.municipio,
+              uf: data.uf || prev.uf
+            }));
+          }
+        } catch (err) {
+          console.error("Erro ao buscar CNPJ na BrasilAPI", err);
+        } finally {
+          setIsFetchingCnpj(false);
+        }
+      }
     }
   };
 
@@ -228,7 +262,14 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-400 uppercase">CNPJ</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase">CNPJ</label>
+                  {isFetchingCnpj && (
+                    <span className="flex items-center gap-1 text-[10px] text-sky-400 font-bold">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Buscando dados...
+                    </span>
+                  )}
+                </div>
                 {cnpjValid === true && (
                   <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400">
                     <CheckCircle className="w-3 h-3" /> CNPJ Válido
