@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Sistema completo para operação de bares com controle de mesa, KDS e PDV",
   "main": "electron/main.cjs",
-  "author": "BarERP Pro",
+  "author": "Pablo Franco",
   "private": true,
   "scripts": {
     "dev:server": "npm --prefix server run dev",
@@ -32,6 +32,8 @@
       "package.json"
     ],
     "win": {
+      "publisherName": "Pablo Franco",
+
       "target": [
         {
           "target": "nsis",
