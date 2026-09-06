@@ -345,6 +345,17 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       }
 
+      // Atualizar paidQuantity dos itens (Racha por Itens)
+      if (paidItems && Array.isArray(paidItems)) {
+        for (const pi of paidItems) {
+          if (pi.itemId && pi.quantity > 0) {
+            try {
+              await prisma.$executeRawUnsafe(`UPDATE "OrderItem" SET "paidQuantity" = "paidQuantity" + ? WHERE id = ?`, pi.quantity, pi.itemId);
+            } catch(e) { console.error("Erro paidQuantity:", e); }
+          }
+        }
+      }
+
       const newPaidTotal = (order.paidAmount || 0) + addedPaidAmount;
       const shouldClose = closeOrder !== undefined ? Boolean(closeOrder) : newPaidTotal >= order.total - 0.05;
 
