@@ -32,6 +32,9 @@ model Order {
   table              Table?      @relation(fields: [tableId], references: [id])
   status             String      @default("OPEN") // OPEN, PAID, CANCELLED
   customerName       String?
+  customerId         String?
+  customer           Customer?   @relation(fields: [customerId], references: [id])
+
   waiterId           String?
   waiter             Waiter?     @relation(fields: [waiterId], references: [id])
   waiterName         String?     @default("Garçom")
@@ -173,4 +176,17 @@ model AuditLog {
   description String
   userId      String?
   createdAt   DateTime @default(now())
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  document  String?  // CPF/CNPJ
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  creditTabBalance Float @default(0) // Quanto o cliente está devendo (Fiado)
+  orders           Order[]
 }

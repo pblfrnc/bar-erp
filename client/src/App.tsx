@@ -11,6 +11,8 @@ import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
 import { SettingsView } from './views/SettingsView';
+import { CustomersView } from './views/CustomersView';
+
 
 
 import { WaiterView } from './views/WaiterView';
@@ -46,7 +48,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -353,9 +355,14 @@ export function App() {
           <SettingsView 
             onOpenWaitersModal={() => setShowWaitersModal(true)}
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
+            onOpenCustomers={() => setCurrentView('customers')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
           />
+        )}
+
+        {currentView === 'customers' && (
+          <CustomersView />
         )}
 
         {currentView === 'dashboard' && (

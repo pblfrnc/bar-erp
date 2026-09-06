@@ -291,7 +291,7 @@ export function createOrdersRouter(io: SocketIOServer) {
   router.post('/:id/pay', async (req, res) => {
     try {
       const { id } = req.params;
-      const { payments, closeOrder } = req.body;
+      const { payments, closeOrder, customerId } = req.body;
       // payments: Array<{ amount: number, method: string, notes?: string }>
 
       if (!payments || !Array.isArray(payments) || payments.length === 0) {
@@ -326,6 +326,12 @@ export function createOrdersRouter(io: SocketIOServer) {
           }
         });
 
+
+        // Atualizar saldo do fiado (usando query raw)
+        if (p.method === 'CREDIT_TAB' && customerId) {
+          await prisma.$executeRawUnsafe(`UPDATE Customer SET creditTabBalance = creditTabBalance + ? WHERE id = ?`, amt, customerId);
+        }
+
         addedPaidAmount += amt;
       }
 
@@ -337,6 +343,8 @@ export function createOrdersRouter(io: SocketIOServer) {
         data: {
           paidAmount: newPaidTotal,
           status: shouldClose ? 'PAID' : 'OPEN',
+          ...(customerId ? { customerId } : {}),
+
           closedAt: shouldClose ? new Date() : null
         },
         include: {

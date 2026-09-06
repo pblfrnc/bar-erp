@@ -3,6 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 
+
+// Habilitar impressão silenciosa (bypass janela de impressão do sistema)
+app.commandLine.appendSwitch('kiosk-printing');
+
+
 let mainWindow = null;
 
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';

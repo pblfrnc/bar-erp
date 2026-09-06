@@ -9,7 +9,7 @@ import {
   CreditCard,
   Banknote,
   QrCode,
-  Tag,
+  Tag, BookDown,
   Percent,
   Users, ListChecks, Plus, Minus,
   AlertCircle
@@ -43,6 +43,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [discountValue, setDiscountValue] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerId, setCustomerId] = useState<string>('"');  const [customerNameInput, setCustomerNameInput] = useState<string>('"');
+
+  React.useEffect(() => {
+    if (isManager) {
+      api.getCustomers().then(setCustomers).catch(() => {});
+    }
+  }, [isManager]);
+
 
   if (!table || !order) return null;
 
@@ -146,6 +155,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     try {
       setSubmitting(true);
+      let finalCustomerId = customerId;
+      if (paymentMethod === 'CREDIT_TAB') {
+        if (!finalCustomerId && customerNameInput.trim()) {
+          const newCust = await api.createCustomer({ name: customerNameInput.trim() });
+          finalCustomerId = newCust.id;
+        }
+      }
       const isClosing = closeOrderImmediately || amt >= remainingBalance - 0.05;
 
       await api.payOrder(order.id, {
@@ -158,7 +174,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               : (splitCount > 1 ? `Divisão (${splitCount}p)` : undefined)
           }
         ],
-        closeOrder: isClosing
+        closeOrder: isClosing,
+        customerId: finalCustomerId || undefined
       });
 
       setPaymentSuccess(true);
@@ -180,6 +197,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     { method: 'CASH', label: 'Dinheiro', icon: Banknote },
     { method: 'VOUCHER', label: 'Voucher / Vale', icon: Tag }
   ];
+
+  if (isManager) {
+    paymentOptions.push({ method: 'CREDIT_TAB', label: 'Conta Fiado (Prazo)', icon: BookDown });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
@@ -440,6 +461,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               })}
             </div>
           </div>
+
+          {paymentMethod === 'CREDIT_TAB' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                Vincular Cliente (Obrigatório / Recomendado)
+              </label>
+              <div className="flex flex-col gap-3">
+                <select
+                  value={customerId}
+                  onChange={(e) => { setCustomerId(e.target.value); setCustomerNameInput(''); }}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">-- Selecione um cliente existente --</option>
+                  {customers.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name} (Saldo Atual: R$ {c.creditTabBalance.toFixed(2)})</option>
+                  ))}
+                </select>
+                {!customerId && (
+                  <input
+                    type="text"
+                    value={customerNameInput}
+                    onChange={(e) => setCustomerNameInput(e.target.value)}
+                    placeholder="Ou digite o nome de um novo cliente..."
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 w-full placeholder-slate-600"
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Valor a Pagar neste Acerto */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

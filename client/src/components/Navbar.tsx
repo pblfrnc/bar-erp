@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings';
-  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings') => void;
+  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers';
+  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers') => void;
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;

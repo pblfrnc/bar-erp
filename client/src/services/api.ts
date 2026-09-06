@@ -150,7 +150,7 @@ export const api = {
 
   payOrder: (
     orderId: string,
-    data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean }
+    data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean; customerId?: string }
   ): Promise<{ success: boolean; order: Order; isFullyPaid: boolean }> =>
     fetchWithRetry(`${getApiUrl()}/orders/${orderId}/pay`, {
       method: 'POST',
@@ -292,6 +292,9 @@ export const api = {
     fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>),
 
   // Garçons & Comissões
+  getCustomers: () => fetchWithRetry(`${getApiUrl()}/customers`).then(handleResponse<any[]>),
+  createCustomer: (data: any) => fetchWithRetry(`${getApiUrl()}/customers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(handleResponse<any>),
+
   getWaiters: (all: boolean = false): Promise<Waiter[]> =>
     fetchWithRetry(`${getApiUrl()}/waiters?all=${all}`).then(handleResponse<Waiter[]>),
 

@@ -13,6 +13,8 @@ import { createDashboardRouter } from './routes/dashboard.js';
 import { createWaitersRouter } from './routes/waiters.js';
 import { createSettingsRouter } from './routes/settings.js';
 import { createAuditLogsRouter } from './routes/auditLogs.js';
+import { createCustomersRouter } from './routes/customers.js';
+
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -42,6 +44,8 @@ app.use("/api", limiter);
 
 app.use("/api/settings", createSettingsRouter());
 app.use("/api/audit-logs", createAuditLogsRouter());
+app.use("/api/customers", createCustomersRouter());
+
 
 
 
