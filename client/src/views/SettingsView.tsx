@@ -166,6 +166,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
 
       
+      </div>
+
       {/* Dispositivos Conectados */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mt-8">
         <div className="flex items-center gap-3 mb-4">
