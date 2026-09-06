@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin } from 'lucide-react';
+import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../services/api';
+
+// Algoritmo de validação oficial do CNPJ (dois dígitos verificadores)
+function validarCNPJ(cnpj: string): boolean {
+  const nums = cnpj.replace(/\D/g, '');
+  if (nums.length !== 14) return false;
+  if (/^(\d)\1+$/.test(nums)) return false; // todos iguais (00000000000000, etc.)
+  const calc = (n: string, weights: number[]) =>
+    weights.reduce((acc, w, i) => acc + parseInt(n[i]) * w, 0);
+  const mod11 = (n: number) => (n % 11 < 2 ? 0 : 11 - (n % 11));
+  const d1 = mod11(calc(nums, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]));
+  const d2 = mod11(calc(nums, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]));
+  return d1 === parseInt(nums[12]) && d2 === parseInt(nums[13]);
+}
+
+// Aplica máscara XX.XXX.XXX/XXXX-XX
+function mascaraCNPJ(value: string): string {
+  const nums = value.replace(/\D/g, '').slice(0, 14);
+  return nums
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2');
+}
 
 export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [settings, setSettings] = useState<any>({});
@@ -8,6 +31,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const [isSaving, setIsSaving] = useState(false);
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certPassword, setCertPassword] = useState('');
+  const [cnpjValid, setCnpjValid] = useState<boolean | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -15,6 +39,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
       .then(r => r.json())
       .then(data => {
         setSettings(data || {});
+        if (data?.cnpj) setCnpjValid(validarCNPJ(data.cnpj));
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -23,7 +48,22 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
     setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const handleCnpjChange = (raw: string) => {
+    const masked = mascaraCNPJ(raw);
+    handleChange('cnpj', masked);
+    const nums = masked.replace(/\D/g, '');
+    if (nums.length < 14) {
+      setCnpjValid(null); // ainda digitando
+    } else {
+      setCnpjValid(validarCNPJ(masked));
+    }
+  };
+
   const handleSave = async () => {
+    if (settings.cnpj && cnpjValid === false) {
+      alert('CNPJ inválido! Verifique os dígitos antes de salvar.');
+      return;
+    }
     setIsSaving(true);
     try {
       const formData = new FormData();
@@ -33,7 +73,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
 
       const res = await fetch(api.getApiUrl() + '/fiscal/settings', {
         method: 'PUT',
-        body: formData // Note: FormData automatically sets multipart/form-data headers
+        body: formData
       });
       
       const data = await res.json();
@@ -57,8 +97,13 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
         </button>
         <button 
           onClick={handleSave}
-          disabled={isSaving}
-          className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
+          disabled={isSaving || cnpjValid === false}
+          title={cnpjValid === false ? 'CNPJ inválido — corrija antes de salvar' : ''}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${
+            cnpjValid === false
+              ? 'bg-red-500/30 text-red-300 border border-red-500/50'
+              : 'bg-indigo-500 hover:bg-indigo-400 text-white'
+          }`}
         >
           <Save className="w-5 h-5" />
           {isSaving ? 'Salvando...' : 'Cadastrar Dados da Empresa'}
@@ -95,14 +140,38 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">CNPJ</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-400 uppercase">CNPJ</label>
+                {cnpjValid === true && (
+                  <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400">
+                    <CheckCircle className="w-3 h-3" /> CNPJ Válido
+                  </span>
+                )}
+                {cnpjValid === false && (
+                  <span className="flex items-center gap-1 text-[10px] font-black text-red-400">
+                    <XCircle className="w-3 h-3" /> CNPJ Inválido
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={settings.cnpj || ''}
-                onChange={e => handleChange('cnpj', e.target.value)}
-                placeholder="Apenas números"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                onChange={e => handleCnpjChange(e.target.value)}
+                placeholder="00.000.000/0000-00"
+                maxLength={18}
+                className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white font-mono outline-none transition ${
+                  cnpjValid === true
+                    ? 'border-emerald-500 focus:border-emerald-400'
+                    : cnpjValid === false
+                    ? 'border-red-500 focus:border-red-400'
+                    : 'border-slate-800 focus:border-indigo-500'
+                }`}
               />
+              {cnpjValid === false && (
+                <p className="text-xs text-red-400 mt-1.5 font-bold">
+                  ⚠️ Dígitos verificadores incorretos. Verifique o CNPJ.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Inscrição Estadual (IE)</label>
