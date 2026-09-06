@@ -276,7 +276,7 @@ export function createOrdersRouter(io: SocketIOServer) {
         await prisma.$executeRawUnsafe(`
           INSERT INTO AuditLog (id, action, description, createdAt) 
           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        `, auditId, 'APPLY_DISCOUNT', \`Desconto de R$ \${discountAmount.toFixed(2)} na Comanda #\${id.slice(-4)}\`);
+        `, auditId, 'APPLY_DISCOUNT', `Desconto de R$ \${discountAmount.toFixed(2)} na Comanda #\${id.slice(-4)}`);
       }
 
       io.emit('order:updated', { orderId: id });

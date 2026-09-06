@@ -77,7 +77,7 @@ export function createDashboardRouter() {
       let maxHour = activeHours.length > 0 ? Math.max(...activeHours) + 1 : 23;
       if (minHour < 0) minHour = 0;
       if (maxHour > 23) maxHour = 23;
-      const filteredSalesByHour = salesByHour.slice(minHour, maxHour + 1).map(h => ({ hour: \`\${h}h\`, total: h.total }));
+      const filteredSalesByHour = salesByHour.slice(minHour, maxHour + 1).map(h => ({ hour: `\${h}h`, total: h.total }));
 
       // Performance dos Garçons
       const waiterPerformanceMap: Record<string, { name: string; total: number; count: number }> = {};
