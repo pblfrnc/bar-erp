@@ -11,7 +11,7 @@ import { ProductsView } from './views/ProductsView';
 import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
 import { SettingsView } from './views/SettingsView';
-import { FiscalImportView } from './views/FiscalImportView';
+import { FiscalHubView } from './views/FiscalHubView';
 import { FiscalSettingsView } from './views/FiscalSettingsView';
 import { ManualNfceView } from './views/ManualNfceView';
 import { CustomersView } from './views/CustomersView';
@@ -350,21 +350,15 @@ export function App() {
           <ProductsView />
         )}
 
-        {currentView === 'audit' && (
-          <AuditView />
-        )}
+        
 
         
         
-        {currentView === 'fiscalSettings' && (
-          <FiscalSettingsView onBack={() => setCurrentView('settings')} />
-        )}
-        {currentView === 'manualNfce' && (
-          <ManualNfceView onBack={() => setCurrentView('settings')} />
-        )}
+        
+        
 
         {currentView === 'fiscal' && (
-          <FiscalImportView onBack={() => setCurrentView('settings')} />
+          <FiscalHubView />
         )}
 
         {currentView === 'settings' && (
@@ -372,9 +366,9 @@ export function App() {
             onOpenWaitersModal={() => setShowWaitersModal(true)}
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
-            onOpenFiscal={() => setCurrentView('fiscal')}
-            onOpenFiscalSettings={() => setCurrentView('fiscalSettings')}
-            onOpenManualNfce={() => setCurrentView('manualNfce')}
+            
+            
+            
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
           />

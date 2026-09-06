@@ -1,5 +1,5 @@
 import React from 'react';
-import {
+import { FileText, 
   Beer,
   LayoutGrid,
   ChefHat,
@@ -87,9 +87,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       badge: null
     },
     {
-      id: 'audit' as const,
-      label: 'Auditoria Cega',
-      icon: ShieldAlert,
+      id: 'fiscal' as const,
+      label: 'Módulo Fiscal',
+      icon: FileText,
       badge: null
     },
     {

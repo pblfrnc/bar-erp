@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FiscalSettingsView } from './FiscalSettingsView';
 import { Settings, Users, Smartphone, Printer, ChevronRight, ShieldCheck, MonitorSmartphone, Wifi, FileCode2, Receipt, Building2 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
@@ -7,9 +8,9 @@ interface SettingsViewProps {
   onOpenWaitersModal: () => void;
   onOpenConnectMobile: () => void;
   onOpenCustomers: () => void;
-  onOpenFiscal: () => void;
-  onOpenFiscalSettings: () => void;
-  onOpenManualNfce: () => void;
+  
+  
+  
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
 }
@@ -18,9 +19,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenWaitersModal,
   onOpenConnectMobile,
   onOpenCustomers,
-  onOpenFiscal,
-  onOpenFiscalSettings,
-  onOpenManualNfce,
+  
+  
+  
   autoPrintKitchen,
   onToggleAutoPrintKitchen
 }) => {
@@ -88,55 +89,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         
         
         {/* Configurações Fiscais */}
-        <button
-          onClick={onOpenFiscalSettings}
-          className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-              <Building2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white group-hover:text-indigo-400 transition">Configurações Fiscais</h3>
-              <p className="text-xs text-slate-400 mt-0.5">CNPJ, Certificado e Token da API Fiscal</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-indigo-400 transition" />
-        </button>
+        
 
         {/* Emissor Manual */}
-        <button
-          onClick={onOpenManualNfce}
-          className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-              <Receipt className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition">Emissor de Cupom Fiscal</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Emitir notas frias (NFC-e) manualmente</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition" />
-        </button>
+        
 
         {/* Importação XML */}
-        <button
-          onClick={onOpenFiscal}
-          className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-              <FileCode2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition">Entrada XML (NF-e)</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Importe XML de fornecedores p/ estoque</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition" />
-        </button>
+        
 
         {/* Clientes Fiado */}
         <button

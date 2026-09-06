@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AuditView } from './AuditView';
 import { DashboardData } from '../types';
 import { api } from '../services/api';
 import {
@@ -10,10 +11,12 @@ import {
   Award,
   RefreshCw,
   Beer,
-  ChefHat
+  ChefHat,
+  ShieldAlert
 } from 'lucide-react';
 
 export const DashboardView: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'audit'>('overview');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
