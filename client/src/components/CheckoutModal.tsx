@@ -19,12 +19,14 @@ interface CheckoutModalProps {
   table: Table | null;
   onClose: () => void;
   onSuccess: () => void;
+  isManager?: boolean;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   table,
   onClose,
-  onSuccess
+  onSuccess,
+  isManager = true
 }) => {
   const order = table?.activeOrder;
   const remainingBalance = Math.max(0, (order?.total || 0) - (order?.paidAmount || 0));
@@ -260,24 +262,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
 
             {/* Desconto */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-300">Desconto:</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  placeholder="0.00"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  className="w-20 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-right font-mono"
-                />
-                <button
-                  onClick={handleApplyDiscount}
-                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300"
-                >
-                  Aplicar
-                </button>
+            {isManager && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-300">Desconto:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    className="w-20 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-right font-mono"
+                  />
+                  <button
+                    onClick={handleApplyDiscount}
+                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300"
+                  >
+                    Aplicar
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
               <div>

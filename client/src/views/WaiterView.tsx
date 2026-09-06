@@ -768,6 +768,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
       {tableForCheckout && (
         <CheckoutModal
           table={tableForCheckout}
+          isManager={false}
           onClose={() => setTableForCheckout(null)}
           onSuccess={() => {
             onRefresh();
