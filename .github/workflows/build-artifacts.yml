@@ -152,14 +152,41 @@ jobs:
           name: BarERP-Cozinha-APK
           path: release-files/
 
-      - name: Criar/Atualizar Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "release-files/*"
-          tag: "latest"
-          name: "BarERP - Versão de Produção"
-          body: "Baixe aqui os instaladores da última versão do BarERP.\n\n- **.EXE**: Instalador para o computador (Caixa/Servidor)\n- **Garcom.apk**: App Android para os garçons tirarem pedidos\n- **Cozinha.apk**: App Android para exibir a fila de pratos na cozinha"
-          allowUpdates: true
-          replacesArtifacts: true
-          makeLatest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sanitizar nomes de arquivos (remover espaços se houver)
+        run: |
+          cd release-files
+          for f in *\ *; do
+            [ -f "$f" ] && mv "$f" "${f// /-}"
+          done
+          echo "Arquivos para publicação na release:"
+          ls -la
+
+      - name: Publicar ou Atualizar Release no GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          TITLE="BarERP - Versão de Produção"
+          BODY="Baixe aqui os instaladores atualizados da última versão do BarERP:
+
+          - **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa
+          - **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas
+          - **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release '$TAG' já existente. Atualizando informações e sobrescrevendo arquivos (--clobber)..."
+            gh release edit "$TAG" --title "$TITLE" --notes "$BODY"
+            for file in release-files/*; do
+              if [ -f "$file" ]; then
+                echo "Enviando $file..."
+                gh release upload "$TAG" "$file" --clobber
+              fi
+            done
+          else
+            echo "Criando nova release '$TAG'..."
+            gh release create "$TAG" release-files/* \
+              --title "$TITLE" \
+              --notes "$BODY" \
+              --latest
+          fi
+          echo "Release publicada com sucesso!"

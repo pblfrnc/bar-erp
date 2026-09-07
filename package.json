@@ -49,7 +49,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "BarERP Pro"
+      "shortcutName": "BarERP Pro",
+      "artifactName": "BarERP-Instalador-Windows.exe"
+    },
+    "portable": {
+      "artifactName": "BarERP-Portatil-Windows.exe"
     }
   },
   "devDependencies": {
