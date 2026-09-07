@@ -12,6 +12,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   const [items, setItems] = useState<{ product: Product, quantity: number }[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [customerCpf, setCustomerCpf] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('PIX');
   const [isEmitting, setIsEmitting] = useState(false);
   const [resultDanfe, setResultDanfe] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
     try {
       const payload = {
         customerCpf,
+        paymentMethod,
         items: items.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
@@ -176,6 +178,24 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500"
             />
           </div>
+
+          {/* Forma de Pagamento */}
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+              Forma de Pagamento Sefaz
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-amber-500 outline-none transition font-bold"
+            >
+              <option value="PIX">PIX</option>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="CREDITO">Cartão de Crédito</option>
+              <option value="DEBITO">Cartão de Débito</option>
+            </select>
+          </div>
+
           
           <div className="w-full sm:w-auto text-right">
             <div className="text-sm text-slate-400 mb-1">Total da Nota</div>

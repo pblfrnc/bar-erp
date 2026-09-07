@@ -351,7 +351,7 @@ export function createFiscalRouter() {
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {
     try {
-      const { items, customerCpf } = req.body;
+      const { items, customerCpf, paymentMethod } = req.body;
       
       // Validações básicas
       if (!items || items.length === 0) {
@@ -392,7 +392,14 @@ export function createFiscalRouter() {
         })),
         formas_pagamento: [
           {
-            forma_pagamento: '01', // 01 = Dinheiro (padrão genérico pra simplificar)
+            forma_pagamento: (() => {
+               // De -> Para Sefaz
+               const pm = (paymentMethod || '').toUpperCase();
+               if (pm === 'PIX') return '17';
+               if (pm === 'CREDITO' || pm === 'CARTÃO DE CRÉDITO') return '03';
+               if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO') return '04';
+               return '01'; // Default: Dinheiro
+            })(),
             valor_pagamento: String(items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0).toFixed(2))
           }
         ]
