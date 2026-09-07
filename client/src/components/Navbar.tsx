@@ -88,12 +88,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       badge: null
     },
     {
-      id: 'suppliers' as const,
-      label: 'Fornecedores',
-      icon: Truck,
-      badge: null
-    },
-    {
       id: 'fiscal' as const,
       label: 'Módulo Fiscal',
       icon: FileText,

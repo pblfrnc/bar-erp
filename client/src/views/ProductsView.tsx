@@ -296,7 +296,8 @@ export const ProductsView: React.FC = () => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const price = parseFloat(formPrice);
+    const priceStr = formPrice.replace(',', '.');
+    const price = parseFloat(priceStr);
     if (isNaN(price) || price < 0 || !formName.trim() || !formCategoryId) {
       alert('Preencha os campos obrigatórios (Nome, Preço e Categoria)');
       return;
@@ -316,6 +317,10 @@ export const ProductsView: React.FC = () => {
         if (match) finalSupplierId = match.id;
       }
 
+      const parsedCost = formCostPrice ? parseFloat(formCostPrice.replace(',', '.')) : null;
+      const parsedStock = parseFloat(formStock.replace(',', '.')) || 0;
+      const parsedMinStock = parseFloat(formMinStock.replace(',', '.')) || 5;
+
       const payload: any = {
         name: formName.trim(),
         code: formCode.trim() || null,
@@ -325,16 +330,19 @@ export const ProductsView: React.FC = () => {
         supplierId: finalSupplierId,
         description: formDescription.trim() || null,
         price,
-        costPrice: formCostPrice ? parseFloat(formCostPrice) : null,
+        costPrice: parsedCost,
         categoryId: formCategoryId,
         kdsStation: formKdsStation,
-        stock: parseInt(formStock) || 0,
-        minStock: parseInt(formMinStock) || 5,
+        stock: parsedStock,
+        minStock: parsedMinStock,
         ncm: formNcm.trim() || null,
         cfop: formCfop.trim() || null,
         cest: formCest.trim() || null,
         unit: formUnit.trim() || 'un',
-        components: isComposed ? formComponents.filter(c => c.componentId && parseFloat(c.quantity) > 0) : []
+        components: isComposed ? formComponents.filter(c => c.componentId && parseFloat((c.quantity || '0').replace(',', '.')) > 0).map(c => ({
+          componentId: c.componentId,
+          quantity: parseFloat(c.quantity.replace(',', '.'))
+        })) : []
       };
 
       if (editingProduct) {
@@ -532,18 +540,18 @@ export const ProductsView: React.FC = () => {
     const term = search.trim().toLowerCase();
     const matchSearch =
       term === '' ||
-      p.name.toLowerCase().includes(term) ||
-      (p.code && p.code.toLowerCase().includes(term)) ||
-      (p.ean && p.ean.toLowerCase().includes(term)) ||
-      (p.brand && p.brand.toLowerCase().includes(term)) ||
-      (p.supplier && p.supplier.toLowerCase().includes(term)) ||
-      (p.description && p.description.toLowerCase().includes(term));
+      Boolean(p.name && p.name.toLowerCase().includes(term)) ||
+      Boolean(p.code && p.code.toLowerCase().includes(term)) ||
+      Boolean(p.ean && p.ean.toLowerCase().includes(term)) ||
+      Boolean(p.brand && p.brand.toLowerCase().includes(term)) ||
+      Boolean(p.supplier && p.supplier.toLowerCase().includes(term)) ||
+      Boolean(p.description && p.description.toLowerCase().includes(term));
     return matchCat && matchSearch;
   });
 
-  // Rentabilidade em Tempo Real
-  const vPrice = parseFloat(formPrice) || 0;
-  const cPrice = parseFloat(formCostPrice) || 0;
+  // Rentabilidade em Tempo Real (Suporta tanto ponto quanto vírgula)
+  const vPrice = parseFloat((formPrice || '0').replace(',', '.')) || 0;
+  const cPrice = parseFloat((formCostPrice || '0').replace(',', '.')) || 0;
   const grossProfit = vPrice - cPrice;
   const profitMargin = vPrice > 0 ? ((vPrice - cPrice) / vPrice) * 100 : 0;
   const markup = cPrice > 0 ? ((vPrice - cPrice) / cPrice) * 100 : 0;
@@ -551,7 +559,7 @@ export const ProductsView: React.FC = () => {
   // Custo Total Estimado da Ficha Técnica
   const recipeCost = formComponents.reduce((acc, comp) => {
     const prod = products.find(p => p.id === comp.componentId);
-    const qty = parseFloat(comp.quantity) || 0;
+    const qty = parseFloat((comp.quantity || '0').replace(',', '.')) || 0;
     const unitCost = (prod?.costPrice && prod.costPrice > 0) ? prod.costPrice : (prod?.price || 0);
     return acc + (unitCost * qty);
   }, 0);
@@ -648,11 +656,12 @@ export const ProductsView: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
               <div className="relative flex-1">
-                <Barcode className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Barcode className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="prod-form-ean"
                   type="text"
                   value={formEan}
-                  onChange={(e) => setFormEan(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setFormEan(e.target.value.trim())}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -660,7 +669,7 @@ export const ProductsView: React.FC = () => {
                     }
                   }}
                   placeholder="Bipe com o leitor ou digite o código de barras EAN (ex: 7894900010015)..."
-                  className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
                 />
               </div>
               <button
@@ -705,30 +714,33 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-name" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                       Nome do Item / Produto *
                     </label>
                     <input
+                      id="prod-form-name"
                       type="text"
                       required
+                      autoFocus
                       placeholder="Ex: Cerveja Heineken Long Neck 330ml"
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-code" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Código Interno (#)
                       </label>
                       <input
+                        id="prod-form-code"
                         type="text"
                         placeholder="Ex: 5001 ou BEB-01"
                         value={formCode}
                         onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase placeholder:text-slate-600"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase placeholder:text-slate-600 cursor-text"
                       />
                       <span className="text-[10px] text-slate-500 mt-1 block">
                         Sequencial por categoria ou código de referência interno.
@@ -737,7 +749,7 @@ export const ProductsView: React.FC = () => {
 
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
+                        <label htmlFor="prod-form-category" className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
                           Categoria *
                         </label>
                         <button
@@ -749,6 +761,7 @@ export const ProductsView: React.FC = () => {
                         </button>
                       </div>
                       <select
+                        id="prod-form-category"
                         value={formCategoryId}
                         onChange={async (e) => {
                           const newCatId = e.target.value;
@@ -760,7 +773,7 @@ export const ProductsView: React.FC = () => {
                             } catch {}
                           }
                         }}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
                       >
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
@@ -773,28 +786,30 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-brand" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Marca / Fabricante
                       </label>
                       <input
+                        id="prod-form-brand"
                         type="text"
                         placeholder="Ex: Heineken, Ambev, Coca-Cola"
                         value={formBrand}
                         onChange={(e) => setFormBrand(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-unit" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Unidade de Medida
                       </label>
                       <input
+                        id="prod-form-unit"
                         type="text"
                         placeholder="un, lata, garrafa, dose..."
                         value={formUnit}
                         onChange={(e) => setFormUnit(e.target.value.toLowerCase())}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase placeholder:text-slate-600"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase placeholder:text-slate-600 cursor-text"
                       />
                       <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
                         <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Sugestões:</span>
@@ -817,15 +832,16 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-desc" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                       Descrição / Ingredientes (Exibido no Cardápio)
                     </label>
                     <textarea
+                      id="prod-form-desc"
                       rows={2}
                       placeholder="Ex: Chopp puro malte artesanal com lúpulos aromáticos. Teor alcoólico 5.0%..."
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 resize-none"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 resize-none cursor-text"
                     />
                   </div>
                 </div>
@@ -839,21 +855,22 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-price" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Preço de Venda (R$) *
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
                           R$
                         </span>
                         <input
-                          type="number"
-                          step="0.01"
+                          id="prod-form-price"
+                          type="text"
+                          inputMode="decimal"
                           required
-                          placeholder="14.00"
+                          placeholder="14,00"
                           value={formPrice}
-                          onChange={(e) => setFormPrice(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none"
+                          onChange={(e) => setFormPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text"
                         />
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">
@@ -862,20 +879,21 @@ export const ProductsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-cost" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Preço de Custo (R$)
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
                           R$
                         </span>
                         <input
-                          type="number"
-                          step="0.01"
-                          placeholder="4.50"
+                          id="prod-form-cost"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="4,50"
                           value={formCostPrice}
-                          onChange={(e) => setFormCostPrice(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none"
+                          onChange={(e) => setFormCostPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text"
                         />
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">
@@ -974,7 +992,7 @@ export const ProductsView: React.FC = () => {
                       {formComponents.map((comp, idx) => {
                         const selProd = products.find(p => p.id === comp.componentId);
                         const cCost = selProd?.costPrice || selProd?.price || 0;
-                        const cQty = parseFloat(comp.quantity) || 0;
+                        const cQty = parseFloat((comp.quantity || '0').replace(',', '.')) || 0;
                         const subtotal = cCost * cQty;
 
                         return (
@@ -986,7 +1004,7 @@ export const ProductsView: React.FC = () => {
                                 newComps[idx].componentId = e.target.value;
                                 setFormComponents(newComps);
                               }}
-                              className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
+                              className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none cursor-pointer"
                             >
                               <option value="">Selecione um insumo do estoque...</option>
                               {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
@@ -998,20 +1016,20 @@ export const ProductsView: React.FC = () => {
 
                             <div className="flex items-center gap-2">
                               <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-700">
-                                <span className="text-[11px] text-slate-400 font-bold">Qtd:</span>
+                                <span className="text-[11px] text-slate-400 font-bold select-none">Qtd:</span>
                                 <input
-                                  type="number"
-                                  step="0.01"
+                                  type="text"
+                                  inputMode="decimal"
                                   placeholder="1.0"
                                   value={comp.quantity}
                                   onChange={(e) => {
                                     const newComps = [...formComponents];
-                                    newComps[idx].quantity = e.target.value;
+                                    newComps[idx].quantity = e.target.value.replace(/[^0-9.,]/g, '');
                                     setFormComponents(newComps);
                                   }}
-                                  className="w-16 bg-transparent text-white font-mono text-xs focus:outline-none text-right font-bold"
+                                  className="w-16 bg-transparent text-white font-mono text-xs focus:outline-none text-right font-bold cursor-text"
                                 />
-                                <span className="text-[10px] text-slate-500 font-mono">
+                                <span className="text-[10px] text-slate-500 font-mono select-none">
                                   {selProd?.unit || 'un'}
                                 </span>
                               </div>
@@ -1070,10 +1088,11 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-supplier-id" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                       Selecionar Fornecedor Cadastrado
                     </label>
                     <select
+                      id="prod-form-supplier-id"
                       value={formSupplierId}
                       onChange={(e) => {
                         const supId = e.target.value;
@@ -1085,7 +1104,7 @@ export const ProductsView: React.FC = () => {
                           setFormSupplier('');
                         }
                       }}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
                     >
                       <option value="">Nenhum fornecedor vinculado</option>
                       {suppliers.map(s => (
@@ -1128,15 +1147,16 @@ export const ProductsView: React.FC = () => {
 
                   {!formSupplierId && (
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                      <label htmlFor="prod-form-supplier-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                         Ou Nome Avulso do Fornecedor
                       </label>
                       <input
+                        id="prod-form-supplier-name"
                         type="text"
                         placeholder="Ex: Distribuidora Central, Padaria São Paulo..."
                         value={formSupplier}
                         onChange={(e) => setFormSupplier(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
                       />
                     </div>
                   )}
@@ -1150,13 +1170,14 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-kds" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                       Destino da Comanda no KDS
                     </label>
                     <select
+                      id="prod-form-kds"
                       value={formKdsStation}
                       onChange={(e) => setFormKdsStation(e.target.value as KdsStation)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
                     >
                       <option value="BAR">🍺 Barman / Balcão (Bebidas, Chopp, Doses)</option>
                       <option value="KITCHEN">🍳 Cozinha (Pratos, Petiscos, Pizzas, Lanches)</option>
@@ -1166,26 +1187,30 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-stock" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Estoque Atual
                       </label>
                       <input
-                        type="number"
+                        id="prod-form-stock"
+                        type="text"
+                        inputMode="decimal"
                         value={formStock}
-                        onChange={(e) => setFormStock(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                        onChange={(e) => setFormStock(e.target.value.replace(/[^0-9.,]/g, ''))}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-min-stock" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         Estoque Mínimo
                       </label>
                       <input
-                        type="number"
+                        id="prod-form-min-stock"
+                        type="text"
+                        inputMode="decimal"
                         value={formMinStock}
-                        onChange={(e) => setFormMinStock(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                        onChange={(e) => setFormMinStock(e.target.value.replace(/[^0-9.,]/g, ''))}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
                       />
                       <span className="text-[10px] text-slate-500 mt-1 block">
                         Alerta de reposição.
@@ -1212,44 +1237,47 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-ncm" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         NCM (8 dígitos)
                       </label>
                       <input
+                        id="prod-form-ncm"
                         type="text"
                         value={formNcm}
                         onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
                         placeholder="Ex: 22030000"
                         maxLength={8}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-cest" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                         CEST (Subst. Tributária)
                       </label>
                       <input
+                        id="prod-form-cest"
                         type="text"
                         value={formCest}
                         onChange={(e) => setFormCest(e.target.value)}
                         placeholder="Ex: 03.001.00"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-cfop" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
                       CFOP
                     </label>
                     <input
+                      id="prod-form-cfop"
                       type="text"
                       value={formCfop}
                       onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
                       placeholder="5102 / 5405 / 5101"
                       maxLength={4}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
                     />
                     <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
                       <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Padrões:</span>
@@ -1468,8 +1496,8 @@ export const ProductsView: React.FC = () => {
 
                 return (
                   <tr key={p.id} className="hover:bg-slate-850/50 transition">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-white text-sm flex items-center gap-2 flex-wrap">
+                    <td className="py-3 px-4 cursor-pointer group" onClick={() => openEditModal(p)} title="Clique para abrir e editar este produto">
+                      <div className="font-bold text-white text-sm flex items-center gap-2 flex-wrap group-hover:text-amber-400 transition-colors">
                         <span>{p.name}</span>
                         {p.code && (
                           <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono" title="Código Interno">

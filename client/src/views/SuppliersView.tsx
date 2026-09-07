@@ -125,12 +125,12 @@ export const SuppliersView: React.FC = () => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     return (
-      s.name.toLowerCase().includes(term) ||
-      (s.tradeName && s.tradeName.toLowerCase().includes(term)) ||
-      (s.document && s.document.includes(term)) ||
-      (s.contactName && s.contactName.toLowerCase().includes(term)) ||
-      (s.city && s.city.toLowerCase().includes(term)) ||
-      (s.phone && s.phone.includes(term))
+      Boolean(s.name && s.name.toLowerCase().includes(term)) ||
+      Boolean(s.tradeName && s.tradeName.toLowerCase().includes(term)) ||
+      Boolean(s.document && s.document.includes(term)) ||
+      Boolean(s.contactName && s.contactName.toLowerCase().includes(term)) ||
+      Boolean(s.city && s.city.toLowerCase().includes(term)) ||
+      Boolean(s.phone && s.phone.includes(term))
     );
   });
 
@@ -383,152 +383,163 @@ export const SuppliersView: React.FC = () => {
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="sup-form-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome Principal *
                 </label>
                 <input
+                  id="sup-form-name"
                   type="text"
                   required
                   placeholder="Ex: Cervejaria Ambev S.A. ou Distribuidora Modelo"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   autoFocus
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-trade-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Nome Fantasia
                   </label>
                   <input
+                    id="sup-form-trade-name"
                     type="text"
                     placeholder="Ex: Ambev Chopp"
                     value={formTradeName}
                     onChange={(e) => setFormTradeName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     CNPJ ou CPF
                   </label>
                   <input
+                    id="sup-form-doc"
                     type="text"
                     placeholder="00.000.000/0000-00"
                     value={formDocument}
                     onChange={(e) => setFormDocument(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Telefone / WhatsApp
                   </label>
                   <input
+                    id="sup-form-phone"
                     type="text"
                     placeholder="(11) 98888-7777"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-ie" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Inscrição Estadual (IE)
                   </label>
                   <input
+                    id="sup-form-ie"
                     type="text"
                     placeholder="Ex: 123456789"
                     value={formIe}
                     onChange={(e) => setFormIe(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-email" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     E-mail
                   </label>
                   <input
+                    id="sup-form-email"
                     type="email"
                     placeholder="pedidos@fornecedor.com.br"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-contact" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Contato / Vendedor
                   </label>
                   <input
+                    id="sup-form-contact"
                     type="text"
                     placeholder="Ex: Carlos Representante"
                     value={formContactName}
                     onChange={(e) => setFormContactName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-city" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Cidade
                   </label>
                   <input
+                    id="sup-form-city"
                     type="text"
                     placeholder="Ex: São Paulo"
                     value={formCity}
                     onChange={(e) => setFormCity(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="sup-form-state" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     UF
                   </label>
                   <input
+                    id="sup-form-state"
                     type="text"
                     placeholder="SP"
                     maxLength={2}
                     value={formState}
                     onChange={(e) => setFormState(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="sup-form-address" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Endereço
                 </label>
                 <input
+                  id="sup-form-address"
                   type="text"
                   placeholder="Rua, número, bairro..."
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="sup-form-notes" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Observações / Condições Comerciais
                 </label>
                 <textarea
+                  id="sup-form-notes"
                   rows={2}
                   placeholder="Ex: Entrega às terças-feiras. Pedido mínimo R$ 500. Boleto 28 dias."
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none resize-none"
+                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none resize-none cursor-text"
                 />
               </div>
 
