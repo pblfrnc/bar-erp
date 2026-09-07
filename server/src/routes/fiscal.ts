@@ -31,7 +31,52 @@ function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: 
   }
 }
 
+// Garantir que as tabelas de notas fiscais existem no banco SQLite
+async function ensureFiscalTables() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "NotaRecebida" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "chave" TEXT NOT NULL,
+        "emitente" TEXT,
+        "cnpjEmitente" TEXT,
+        "numero" TEXT,
+        "serie" TEXT,
+        "dataEmissao" TEXT,
+        "valorTotal" REAL,
+        "status" TEXT NOT NULL DEFAULT 'recebida',
+        "xmlContent" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "NotaRecebida_chave_key" ON "NotaRecebida"("chave")
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "NotaEmitida" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "referencia" TEXT NOT NULL,
+        "chave" TEXT,
+        "numero" TEXT,
+        "serie" TEXT,
+        "dataEmissao" TEXT,
+        "valorTotal" REAL,
+        "status" TEXT NOT NULL DEFAULT 'autorizado',
+        "xmlUrl" TEXT,
+        "pdfUrl" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "NotaEmitida_referencia_key" ON "NotaEmitida"("referencia")
+    `);
+  } catch (err) {
+    console.error('Erro ao verificar/criar tabelas fiscais:', err);
+  }
+}
+
 export function createFiscalRouter() {
+  ensureFiscalTables();
   const router = Router();
 
   // Recebe e processa o arquivo XML
