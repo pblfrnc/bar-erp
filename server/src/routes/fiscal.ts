@@ -10,6 +10,7 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
+import { getNextSequentialCode } from '../services/catalogService.js';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {
@@ -280,11 +281,16 @@ export function createFiscalRouter() {
           });
           results.updated++;
         } else if (item.action === 'NEW' && item.categoryId) {
+          let finalCode = await getNextSequentialCode(item.categoryId);
+          if (!finalCode && item.xmlItem.code) {
+            finalCode = item.xmlItem.code;
+          }
+
           // Cria novo produto com dados fiscais e fornecedor herdados da nota
           await prisma.product.create({
             data: {
               name: item.xmlItem.name,
-              code: item.xmlItem.code || null,
+              code: finalCode,
               ean: item.xmlItem.ean || null,
               supplier: effectiveSupplierName,
               supplierId: effectiveSupplierId,
@@ -304,12 +310,19 @@ export function createFiscalRouter() {
       // Se foi importada a partir de uma chave de acesso (2º bip), marca a nota como 'importada'
       if (chaveAcesso) {
         try {
-          await (prisma as any).notaRecebida.updateMany({
-            where: { chave: chaveAcesso },
-            data: { status: 'importada' }
-          });
+          await prisma.$executeRawUnsafe(
+            `UPDATE "NotaRecebida" SET "status" = 'importada' WHERE "chave" = ?`,
+            chaveAcesso
+          );
         } catch (e) {
-          console.error("Erro ao marcar nota como importada:", e);
+          try {
+            await (prisma as any).notaRecebida.updateMany({
+              where: { chave: chaveAcesso },
+              data: { status: 'importada' }
+            });
+          } catch (e2) {
+            console.error("Erro ao marcar nota como importada:", e2);
+          }
         }
       }
 

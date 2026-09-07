@@ -85,7 +85,8 @@ export function createSuppliersRouter() {
         return res.status(400).json({ error: 'Razão Social / Nome é obrigatório' });
       }
 
-      const cleanDoc = document ? String(document).replace(/\D/g, '') : null;
+      const digitsOnly = document ? String(document).replace(/\D/g, '') : '';
+      const cleanDoc = digitsOnly.length > 0 ? digitsOnly : null;
 
       if (cleanDoc) {
         const existing = await prisma.supplier.findUnique({
@@ -137,9 +138,15 @@ export function createSuppliersRouter() {
         notes
       } = req.body;
 
-      const cleanDoc = document !== undefined && document !== null
-        ? (String(document).trim() ? String(document).replace(/\D/g, '') : null)
-        : undefined;
+      let cleanDoc: string | null | undefined = undefined;
+      if (document !== undefined) {
+        if (document === null) {
+          cleanDoc = null;
+        } else {
+          const digits = String(document).replace(/\D/g, '');
+          cleanDoc = digits.length > 0 ? digits : null;
+        }
+      }
 
       if (cleanDoc) {
         const existing = await prisma.supplier.findUnique({

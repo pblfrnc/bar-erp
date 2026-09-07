@@ -202,6 +202,11 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       return;
     }
 
+    if (confirmStatus === 'error') {
+      alert("Atenção: A chave de acesso bipada na conferência não confere com o DANFE desta nota. Verifique o código de barras antes de efetivar.");
+      return;
+    }
+
     for (const m of validMatches) {
       if (m.action === 'NEW' && !m.categoryId) {
         alert("Selecione uma categoria para os novos produtos.");

@@ -295,13 +295,26 @@ export const ProductsView: React.FC = () => {
     }
 
     try {
+      let finalSupplier = formSupplier.trim() || null;
+      let finalSupplierId = formSupplierId || null;
+      if (!finalSupplier && finalSupplierId) {
+        const sup = suppliers.find(s => s.id === finalSupplierId);
+        if (sup) finalSupplier = sup.tradeName || sup.name;
+      } else if (finalSupplier && !finalSupplierId) {
+        const match = suppliers.find(s =>
+          s.name.toLowerCase() === finalSupplier!.toLowerCase() ||
+          (s.tradeName && s.tradeName.toLowerCase() === finalSupplier!.toLowerCase())
+        );
+        if (match) finalSupplierId = match.id;
+      }
+
       const payload: any = {
         name: formName.trim(),
         code: formCode.trim() || null,
         ean: formEan.trim() || null,
         brand: formBrand.trim() || null,
-        supplier: formSupplier.trim() || null,
-        supplierId: formSupplierId || null,
+        supplier: finalSupplier,
+        supplierId: finalSupplierId,
         description: formDescription.trim() || null,
         price,
         costPrice: formCostPrice ? parseFloat(formCostPrice) : null,
