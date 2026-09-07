@@ -13,12 +13,13 @@ import { FileText,
   Sun,
   Moon,
   Users,
-  Smartphone
+  Smartphone,
+  Truck
 } from 'lucide-react';
 
 interface NavbarProps {
-  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce';
-  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce') => void;
+  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce';
+  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce') => void;
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;
@@ -84,6 +85,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'products' as const,
       label: 'Cardápio & Estoque',
       icon: UtensilsCrossed,
+      badge: null
+    },
+    {
+      id: 'suppliers' as const,
+      label: 'Fornecedores',
+      icon: Truck,
       badge: null
     },
     {

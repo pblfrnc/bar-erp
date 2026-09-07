@@ -61,6 +61,13 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
 
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "ncm" TEXT;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "cfop" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "code" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "ean" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "supplier" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "brand" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "cest" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "costPrice" REAL;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Category" ADD COLUMN "codeStart" INTEGER DEFAULT 1001;`); } catch (e) {}
 
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "environment" TEXT DEFAULT 'homologacao';`); } catch (e) {}
 

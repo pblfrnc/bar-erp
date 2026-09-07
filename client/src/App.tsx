@@ -8,6 +8,7 @@ import { TablesView } from './views/TablesView';
 import { KdsView } from './views/KdsView';
 import { CashView } from './views/CashView';
 import { ProductsView } from './views/ProductsView';
+import { SuppliersView } from './views/SuppliersView';
 import { DashboardView } from './views/DashboardView';
 import { AuditView } from './views/AuditView';
 import { SettingsView } from './views/SettingsView';
@@ -51,7 +52,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce'>('tables');
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -350,12 +351,9 @@ export function App() {
           <ProductsView />
         )}
 
-        
-
-        
-        
-        
-        
+        {currentView === 'suppliers' && (
+          <SuppliersView />
+        )}
 
         {currentView === 'fiscal' && (
           <FiscalHubView />
@@ -366,9 +364,7 @@ export function App() {
             onOpenWaitersModal={() => setShowWaitersModal(true)}
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
-            
-            
-            
+            onOpenSuppliers={() => setCurrentView('suppliers')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
           />
