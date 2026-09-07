@@ -197,12 +197,14 @@ model Customer {
 }
 
 model FiscalSettings {
-  cep         String?
-  logradouro  String?
-  numero      String?
-  bairro      String?
-  municipio   String?
-  uf          String?
+  cep          String?
+  logradouro   String?
+  numero       String?
+  bairro       String?
+  municipio    String?
+  uf           String?
+  razaoSocial  String?
+  nomeFantasia String?
 
   environment String? @default("homologacao")
 
