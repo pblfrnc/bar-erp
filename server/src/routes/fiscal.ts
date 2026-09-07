@@ -9,6 +9,7 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_
 
 import fs from 'fs';
 import path from 'path';
+import AdmZip from 'adm-zip';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {
@@ -978,6 +979,208 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error(err);
       res.status(500).json({ error: 'Erro ao buscar nota por número.' });
+    }
+  });
+
+  // Resumo do mês para o Painel do Contador (prévia de saídas e entradas)
+  router.get('/month-summary', async (req, res) => {
+    try {
+      const month = (req.query.month as string) || new Date().toISOString().substring(0, 7);
+      const [yearStr, monthStr] = month.split('-');
+      const year = parseInt(yearStr, 10);
+      const monthNum = parseInt(monthStr, 10);
+      if (isNaN(year) || isNaN(monthNum)) {
+        return res.status(400).json({ error: 'Mês de referência inválido. Use o formato AAAA-MM.' });
+      }
+
+      const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+      const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
+
+      const emitidas = await (prisma as any).notaEmitida.findMany({
+        where: {
+          createdAt: { gte: startDate, lte: endDate }
+        }
+      });
+
+      const recebidas = await (prisma as any).notaRecebida.findMany({
+        where: {
+          createdAt: { gte: startDate, lte: endDate }
+        }
+      });
+
+      const emitidasTotal = emitidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
+      const recebidasTotal = recebidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
+
+      res.json({
+        month,
+        emitidasCount: emitidas.length,
+        emitidasTotal,
+        recebidasCount: recebidas.length,
+        recebidasTotal,
+        hasNotes: emitidas.length > 0 || recebidas.length > 0
+      });
+    } catch (err: any) {
+      console.error('[Month Summary] Erro:', err);
+      res.status(500).json({ error: 'Erro ao consultar resumo do mês.' });
+    }
+  });
+
+  // Exportar Fechamento Contábil Mensal (.ZIP com XMLs + Relatório CSV)
+  router.get('/export-month', async (req, res) => {
+    try {
+      const month = (req.query.month as string) || new Date().toISOString().substring(0, 7);
+      const [yearStr, monthStr] = month.split('-');
+      const year = parseInt(yearStr, 10);
+      const monthNum = parseInt(monthStr, 10);
+      if (isNaN(year) || isNaN(monthNum)) {
+        return res.status(400).json({ error: 'Mês de referência inválido. Use o formato AAAA-MM.' });
+      }
+
+      const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+      const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+
+      const emitidas = await (prisma as any).notaEmitida.findMany({
+        where: {
+          createdAt: { gte: startDate, lte: endDate }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const recebidas = await (prisma as any).notaRecebida.findMany({
+        where: {
+          createdAt: { gte: startDate, lte: endDate }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const zip = new AdmZip();
+
+      // 1. Adicionar XMLs de Saída (NFC-e)
+      const vaultSaidaPath = path.join(process.cwd(), 'xml_vault', yearStr, monthStr.padStart(2, '0'), 'SAIDA');
+      for (const nota of emitidas) {
+        const chaveOuRef = nota.chave || nota.referencia;
+        let xmlBuffer: Buffer | null = null;
+
+        // Tentar pegar do cofre local
+        const localPath = path.join(vaultSaidaPath, `${chaveOuRef}.xml`);
+        if (fs.existsSync(localPath)) {
+          xmlBuffer = fs.readFileSync(localPath);
+        } else if (nota.xmlUrl) {
+          try {
+            const fetchRes = await fetch(nota.xmlUrl, {
+              headers: settings?.apiToken ? { 'Authorization': 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64') } : {}
+            });
+            if (fetchRes.ok) {
+              const text = await fetchRes.text();
+              xmlBuffer = Buffer.from(text, 'utf-8');
+            }
+          } catch (e) {}
+        }
+
+        // Se ainda não tiver o arquivo XML completo, gerar o XML de contingência/registro
+        if (!xmlBuffer) {
+          const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe Id="NFe${nota.chave || nota.referencia}" versao="4.00">
+    <ide>
+      <nNF>${nota.numero || '1'}</nNF>
+      <serie>${nota.serie || '1'}</serie>
+      <dhEmi>${nota.dataEmissao || nota.createdAt.toISOString()}</dhEmi>
+      <tpNF>1</tpNF>
+    </ide>
+    <emit>
+      <CNPJ>${(settings?.cnpj || '').replace(/\D/g, '')}</CNPJ>
+    </emit>
+    <total>
+      <ICMSTot>
+        <vNF>${(nota.valorTotal || 0).toFixed(2)}</vNF>
+      </ICMSTot>
+    </total>
+  </infNFe>
+</NFe>`;
+          xmlBuffer = Buffer.from(fallbackXml, 'utf-8');
+        }
+
+        const fileName = `NFCe_${nota.numero || nota.referencia}_${nota.chave || 'sem_chave'}.xml`;
+        zip.addFile(`NFCe_Emitidas/${fileName}`, xmlBuffer);
+      }
+
+      // 2. Adicionar XMLs de Entrada (NF-e de Compra)
+      const vaultEntradaPath = path.join(process.cwd(), 'xml_vault', yearStr, monthStr.padStart(2, '0'), 'ENTRADA');
+      for (const nota of recebidas) {
+        let xmlBuffer: Buffer | null = null;
+        const localPath = path.join(vaultEntradaPath, `${nota.chave}.xml`);
+        if (fs.existsSync(localPath)) {
+          xmlBuffer = fs.readFileSync(localPath);
+        } else if (nota.xmlContent && !nota.xmlContent.startsWith('{')) {
+          xmlBuffer = Buffer.from(nota.xmlContent, 'utf-8');
+        }
+
+        if (!xmlBuffer) {
+          const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+  <infNFe Id="NFe${nota.chave}" versao="4.00">
+    <ide>
+      <nNF>${nota.numero || '1'}</nNF>
+      <serie>${nota.serie || '1'}</serie>
+      <dhEmi>${nota.dataEmissao || nota.createdAt.toISOString()}</dhEmi>
+    </ide>
+    <emit>
+      <CNPJ>${(nota.cnpjEmitente || '').replace(/\D/g, '')}</CNPJ>
+      <xNome>${nota.emitente || ''}</xNome>
+    </emit>
+    <total>
+      <ICMSTot>
+        <vNF>${(nota.valorTotal || 0).toFixed(2)}</vNF>
+      </ICMSTot>
+    </total>
+  </infNFe>
+</NFe>`;
+          xmlBuffer = Buffer.from(fallbackXml, 'utf-8');
+        }
+
+        const fileName = `NFe_${nota.numero || 'compra'}_${nota.chave}.xml`;
+        zip.addFile(`NFe_Recebidas/${fileName}`, xmlBuffer);
+      }
+
+      // 3. Gerar Relatório Contábil Consolidado (CSV formatado com separador ponto e vírgula para Excel / contabilidade)
+      let csvContent = `RELATÓRIO DE FECHAMENTO FISCAL MENSAL\n`;
+      csvContent += `Mês de Competência:;${month}\n`;
+      csvContent += `CNPJ da Empresa:;${settings?.cnpj || 'Não cadastrado'}\n`;
+      csvContent += `Data de Emissão do Relatório:;${new Date().toLocaleString('pt-BR')}\n\n`;
+
+      csvContent += `--- RESUMO GERAL ---\n`;
+      const totalSaidas = emitidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
+      const totalEntradas = recebidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
+      csvContent += `Total de NFC-e Emitidas (Saídas):;${emitidas.length};R$ ${totalSaidas.toFixed(2).replace('.', ',')}\n`;
+      csvContent += `Total de NF-e Recebidas (Entradas/Compras):;${recebidas.length};R$ ${totalEntradas.toFixed(2).replace('.', ',')}\n\n`;
+
+      csvContent += `--- NOTAS FISCAIS DE SAÍDA (NFC-E) ---\n`;
+      csvContent += `Número;Série;Data/Hora;Chave de Acesso;Status;Valor (R$)\n`;
+      for (const n of emitidas) {
+        csvContent += `"${n.numero || ''}";"${n.serie || ''}";"${n.dataEmissao || n.createdAt.toISOString()}";"${n.chave || n.referencia}";"${n.status}";"${(n.valorTotal || 0).toFixed(2).replace('.', ',')}"\n`;
+      }
+      csvContent += `\n`;
+
+      csvContent += `--- NOTAS FISCAIS DE ENTRADA (COMPRAS / FORNECEDORES) ---\n`;
+      csvContent += `Número;Série;Fornecedor;CNPJ Fornecedor;Data Emissão;Status;Valor (R$)\n`;
+      for (const n of recebidas) {
+        csvContent += `"${n.numero || ''}";"${n.serie || ''}";"${n.emitente || ''}";"${n.cnpjEmitente || ''}";"${n.dataEmissao || n.createdAt.toISOString()}";"${n.status}";"${(n.valorTotal || 0).toFixed(2).replace('.', ',')}"\n`;
+      }
+
+      zip.addFile(`Relatorio_Fiscal_${month}.csv`, Buffer.from('\uFEFF' + csvContent, 'utf-8'));
+
+      const zipBuffer = zip.toBuffer();
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="Fechamento_Contabil_${month}.zip"`);
+      res.setHeader('Content-Length', zipBuffer.length.toString());
+      res.send(zipBuffer);
+    } catch (err: any) {
+      console.error('[Export Month] Erro ao gerar fechamento:', err);
+      res.status(500).json({ error: 'Erro ao gerar o pacote ZIP: ' + err.message });
     }
   });
 
