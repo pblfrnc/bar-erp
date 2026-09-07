@@ -208,6 +208,9 @@ model FiscalSettings {
 
   environment String? @default("homologacao")
 
+  serieNfce         String?  @default("1")
+  proximoNumeroNfce Int?     @default(1)
+
   id          String   @id @default("default")
   apiToken    String?
   cnpj        String?

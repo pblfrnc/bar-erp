@@ -251,6 +251,10 @@ export function createFiscalRouter() {
           id_token_nfce_producao: data.cscId,
           csc_nfce_homologacao: data.cscSecret,
           id_token_nfce_homologacao: data.cscId,
+          serie_nfce_producao: String(data.serieNfce || '1'),
+          proximo_numero_nfce_producao: Number(data.proximoNumeroNfce) || 1,
+          serie_nfce_homologacao: String(data.serieNfce || '1'),
+          proximo_numero_nfce_homologacao: Number(data.proximoNumeroNfce) || 1,
         };
 
         if (certBase64 && certPassword) {
@@ -371,6 +375,7 @@ export function createFiscalRouter() {
       const focusPayload = {
         natureza_operacao: 'VENDA DE MERCADORIA',
         presenca_comprador: '1',
+        serie: String(settings.serieNfce || '1'),
         cpf_cnpj_destinatario: customerCpf ? customerCpf.replace(/\D/g, '') : undefined,
         itens: items.map((i: any, index: number) => ({
           numero_item: String(index + 1),

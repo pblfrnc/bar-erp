@@ -376,6 +376,55 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             </div>
           </div>
 
+          {/* Numeração e Sequência da NFC-e */}
+          <div className="p-5 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-amber-400" />
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                Sequência & Numeração da NFC-e (Continuidade Fiscal)
+              </h4>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Configure aqui a numeração para não quebrar a sequência da SEFAZ ou inicie uma nova série recomendada para transição de software.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">
+                  Série da NFC-e
+                </label>
+                <input
+                  type="text"
+                  value={settings.serieNfce ?? '1'}
+                  onChange={e => handleChange('serieNfce', e.target.value)}
+                  placeholder="Ex: 1 ou 2"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono focus:border-amber-500 outline-none transition"
+                />
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Padrão: <strong>1</strong>. (Contadores recomendam iniciar na Série <strong>2</strong> ao trocar de emissor para evitar conflitos).
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">
+                  Próximo Número da NFC-e
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={settings.proximoNumeroNfce ?? 1}
+                  onChange={e => handleChange('proximoNumeroNfce', e.target.value)}
+                  placeholder="Ex: 1543"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono focus:border-amber-500 outline-none transition"
+                />
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Ex: Se a última nota no sistema anterior foi a <strong>1542</strong>, digite <strong>1543</strong> para continuar sem pular números.
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3 mb-4 pt-4 border-t border-slate-800">
             <MapPin className="w-5 h-5 text-indigo-400" />
             <h4 className="text-sm font-bold text-white uppercase">Endereço do Cliente (Obrigatório)</h4>
