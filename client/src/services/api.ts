@@ -186,6 +186,13 @@ export const api = {
       body: JSON.stringify(data)
     }).then(handleResponse<{ success: boolean; order: Order; isFullyPaid: boolean }>),
 
+  getOrderHistory: (limit = 100, date?: string): Promise<Order[]> => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', String(limit));
+    if (date) params.append('date', date);
+    return fetchWithRetry(`${getApiUrl()}/orders/history?${params.toString()}`).then(handleResponse<Order[]>);
+  },
+
   // KDS
   getKdsItems: (station?: string): Promise<KdsItem[]> => {
     const query = station && station !== 'ALL' ? `?station=${station}` : '';

@@ -18,9 +18,11 @@ import {
   Plus,
   Minus,
   RefreshCw,
-  Zap
+  Zap,
+  FileText
 } from 'lucide-react';
 import { QuickSaleModal } from '../components/QuickSaleModal';
+import { OrderHistoryModal } from '../components/OrderHistoryModal';
 
 interface CashViewProps {
   onRefreshStatus: () => void;
@@ -54,6 +56,9 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
 
   // Estado de Venda Rápida de Balcão
   const [showQuickSale, setShowQuickSale] = useState<boolean>(false);
+
+  // Estado de Comandas Finalizadas
+  const [showOrderHistory, setShowOrderHistory] = useState<boolean>(false);
 
   const loadCashData = async () => {
     try {
@@ -161,6 +166,15 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
               <span>Venda Rápida (Balcão)</span>
             </button>
           )}
+
+          <button
+            onClick={() => setShowOrderHistory(true)}
+            title="Ver histórico de comandas finalizadas"
+            className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-amber-500" />
+            <span>Comandas Finalizadas</span>
+          </button>
 
           <button
             onClick={loadCashData}
@@ -708,6 +722,11 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
             onRefreshStatus();
           }}
         />
+      )}
+
+      {/* Modal de Histórico de Comandas Finalizadas */}
+      {showOrderHistory && (
+        <OrderHistoryModal onClose={() => setShowOrderHistory(false)} />
       )}
     </div>
   );

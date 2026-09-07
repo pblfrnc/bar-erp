@@ -28,7 +28,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onSuccess,
   isManager = true
 }) => {
-  const order = table?.activeOrder;
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(table?.activeOrder || null);
+
+  React.useEffect(() => {
+    if (table?.activeOrder) {
+      setCurrentOrder(table.activeOrder);
+      const remaining = Math.max(0, (table.activeOrder.total || 0) - (table.activeOrder.paidAmount || 0));
+      setPayAmount(remaining.toFixed(2));
+    }
+  }, [table?.activeOrder]);
+
+  const order = currentOrder;
   const remainingBalance = Math.max(0, (order?.total || 0) - (order?.paidAmount || 0));
 
   // Estados de divisão
@@ -44,7 +54,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [customerId, setCustomerId] = useState<string>('"');  const [customerNameInput, setCustomerNameInput] = useState<string>('"');
+  const [customerId, setCustomerId] = useState<string>('');
+  const [customerNameInput, setCustomerNameInput] = useState<string>('');
 
   React.useEffect(() => {
     if (isManager) {
@@ -104,8 +115,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Alternar taxa de serviço 10%
   const handleToggleService = async () => {
+    if (!order) return;
     try {
-      await api.toggleServiceFee(order.id, !order.isServiceFeeActive);
+      const updated = await api.toggleServiceFee(order.id, !order.isServiceFeeActive);
+      setCurrentOrder(updated);
+      const rem = Math.max(0, (updated.total || 0) - (updated.paidAmount || 0));
+      setPayAmount(rem.toFixed(2));
       onSuccess();
     } catch (err: any) {
       alert(err.message || 'Erro ao alterar taxa de serviço');
@@ -114,9 +129,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Aplicar desconto
   const handleApplyDiscount = async () => {
-    const val = parseFloat(discountValue) || 0;
+    if (!order) return;
+    const val = parseFloat(discountValue.replace(',', '.')) || 0;
     try {
-      await api.applyDiscount(order.id, val);
+      const updated = await api.applyDiscount(order.id, val);
+      setCurrentOrder(updated);
+      const rem = Math.max(0, (updated.total || 0) - (updated.paidAmount || 0));
+      setPayAmount(rem.toFixed(2));
       onSuccess();
     } catch (err: any) {
       alert(err.message || 'Erro ao aplicar desconto');
@@ -275,7 +294,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={handleToggleService}
-                  className={`w-9 h-5 rounded-full transition-colors relative ${
+                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer active:scale-95 ${
                     order.isServiceFeeActive ? 'bg-amber-500' : 'bg-slate-700'
                   }`}
                 >
@@ -303,12 +322,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     placeholder="0,00"
                     value={discountValue}
                     onChange={(e) => setDiscountValue(e.target.value.replace(',', '.'))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleApplyDiscount(); }}
                     onFocus={(e) => e.target.select()}
-                    className="w-20 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-right font-mono"
+                    className="w-20 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-right font-mono text-white focus:border-amber-500 focus:outline-none"
                   />
                   <button
+                    type="button"
                     onClick={handleApplyDiscount}
-                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300"
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-[11px] font-bold cursor-pointer active:scale-95 transition"
                   >
                     Aplicar
                   </button>

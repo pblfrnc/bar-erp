@@ -224,6 +224,48 @@ export function createOrdersRouter(io: SocketIOServer) {
     }
   });
 
+  // ============================================================
+  // Listar Comandas Finalizadas (Histórico de Vendas)
+  // ============================================================
+  router.get('/history', async (req, res) => {
+    try {
+      const { limit = 100, date } = req.query;
+
+      const whereClause: any = {
+        status: { in: ['PAID', 'CLOSED'] }
+      };
+
+      if (date && typeof date === 'string') {
+        const startOfDay = new Date(date + 'T00:00:00.000Z');
+        const endOfDay = new Date(date + 'T23:59:59.999Z');
+        whereClause.closedAt = {
+          gte: startOfDay,
+          lte: endOfDay
+        };
+      }
+
+      const orders = await prisma.order.findMany({
+        where: whereClause,
+        orderBy: { closedAt: 'desc' },
+        take: Number(limit) || 100,
+        include: {
+          table: true,
+          items: {
+            include: { product: true }
+          },
+          payments: {
+            orderBy: { receivedAt: 'desc' }
+          }
+        }
+      });
+
+      res.json(orders);
+    } catch (error: any) {
+      console.error('Erro ao buscar histórico de comandas:', error);
+      res.status(500).json({ error: 'Erro ao buscar histórico de comandas' });
+    }
+  });
+
   // Buscar comanda por ID
   router.get('/:id', async (req, res) => {
     try {
@@ -497,7 +539,7 @@ export function createOrdersRouter(io: SocketIOServer) {
         await prisma.$executeRawUnsafe(`
           INSERT INTO AuditLog (id, action, description, createdAt) 
           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        `, auditId, 'APPLY_DISCOUNT', `Desconto de R$ \${discountAmount.toFixed(2)} na Comanda #\${id.slice(-4)}`);
+        `, auditId, 'APPLY_DISCOUNT', `Desconto de R$ ${discountAmount.toFixed(2)} na Comanda #${order.orderNumber}`);
       }
 
       io.emit('order:updated', { orderId: id });

@@ -18,8 +18,10 @@ import {
   Plus,
   RefreshCw,
   Search,
-  MapPin
+  MapPin,
+  FileText
 } from 'lucide-react';
+import { OrderHistoryModal } from '../components/OrderHistoryModal';
 
 interface TablesViewProps {
   tables: Table[];
@@ -47,6 +49,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
   // Modal para criar nova mesa
   const [showNewTableModal, setShowNewTableModal] = useState<boolean>(false);
   const [isManageTablesOpen, setIsManageTablesOpen] = useState<boolean>(false);
+  const [showOrderHistory, setShowOrderHistory] = useState<boolean>(false);
   const [newTableNumber, setNewTableNumber] = useState<string>('');
   const [newTableName, setNewTableName] = useState<string>('');
   const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
@@ -214,6 +217,15 @@ export const TablesView: React.FC<TablesViewProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Atualizar</span>
+            </button>
+
+            <button
+              onClick={() => setShowOrderHistory(true)}
+              className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+              title="Consultar comandas finalizadas e histórico"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Comandas Finalizadas</span>
             </button>
 
             <button
@@ -389,6 +401,11 @@ export const TablesView: React.FC<TablesViewProps> = ({
           onClose={() => setTableForMerge(null)}
           onSuccess={onRefresh}
         />
+      )}
+
+      {/* Modal de Comandas Finalizadas */}
+      {showOrderHistory && (
+        <OrderHistoryModal onClose={() => setShowOrderHistory(false)} />
       )}
 
       {/* Modal Criar Nova Mesa */}
