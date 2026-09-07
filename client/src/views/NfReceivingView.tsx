@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Scan, CheckCircle, Package, Loader, Trash2, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Scan, CheckCircle, RefreshCw, Package, Loader, Trash2, FileText, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 
 interface NotaRecebida {
@@ -43,6 +43,25 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
       setNotas([]);
     } finally {
       setLoadingNotas(false);
+    }
+  };
+
+  
+  const handleSyncSEFAZ = async () => {
+    setIsLoading(true);
+    setLastResult(null);
+    try {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/sync-nfe-recebidas`);
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar');
+      
+      setLastResult({ success: true, message: data.message || 'Sincronização concluída!' });
+      await loadNotas();
+    } catch (err: any) {
+      setLastResult({ success: false, error: err.message });
+    } finally {
+      setIsLoading(false);
     }
   };
 
