@@ -113,15 +113,27 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
       </button>
 
       <div>
-        <h2 className="text-2xl font-black text-white tracking-tight">Recebimento de NF por Bip</h2>
-        <p className="text-sm text-slate-400 mt-1">Bipe o código de barras da nota ou cole a chave de acesso (44 dígitos). O sistema registra a Ciência da Operação na SEFAZ automaticamente.</p>
+        <h2 className="text-2xl font-black text-white tracking-tight">1º BIP: Recebimento de NF & Ciência na SEFAZ</h2>
+        <p className="text-sm text-slate-400 mt-1">
+          Bipe a chave de 44 dígitos na entrega da mercadoria. O sistema registra a <strong>Ciência da Operação na SEFAZ</strong> e faz o download automático do XML.
+        </p>
+      </div>
+
+      {/* Alerta explicativo do fluxo em 2 etapas */}
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-300/90 flex items-start gap-3">
+        <Scan className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-bold text-white">Fluxo de Entrada em 2 Etapas:</p>
+          <p><strong>1º Bip (Aqui):</strong> Confirma o recebimento fiscal na SEFAZ e baixa o XML. O estoque <u className="font-bold text-amber-200">não</u> é alterado ainda.</p>
+          <p><strong>2º Bip (Na Conferência):</strong> Feito ao descarregar as caixas e conferir os itens recebidos com a DANFE impressa. É neste momento que os produtos e custos entram no estoque.</p>
+        </div>
       </div>
 
       {/* Campo de Bip */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <Scan className="w-5 h-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-white">Leitor de Chave de Acesso</h3>
+          <h3 className="text-lg font-bold text-white">1º Bip — Leitor de Chave de Acesso</h3>
         </div>
 
         <div className="flex gap-3">
@@ -213,10 +225,10 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                       nota.status === 'importada'
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-amber-500/20 text-amber-400'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                     }`}>
-                      {nota.status === 'importada' ? '✓ Importada' : 'Aguardando Importação'}
+                      {nota.status === 'importada' ? '✓ 2º Bip OK (No Estoque)' : 'Aguardando 2º Bip (Conferência)'}
                     </span>
                     <span className="text-xs text-slate-500 font-mono">NF {nota.numero}/{nota.serie}</span>
                   </div>
@@ -232,10 +244,10 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
                 <button
                   onClick={() => onImportarXml(nota.chave)}
                   disabled={nota.status === 'importada'}
-                  className="shrink-0 flex items-center gap-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400 font-bold text-sm rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-bold text-sm rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed border border-amber-500/30"
                 >
                   <FileText className="w-4 h-4" />
-                  {nota.status === 'importada' ? 'Importada' : 'Importar Itens'}
+                  {nota.status === 'importada' ? 'Entrada Realizada' : 'Fazer 2º Bip / Conferir'}
                 </button>
               </div>
             ))}

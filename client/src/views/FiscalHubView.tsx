@@ -64,7 +64,7 @@ export const FiscalHubView: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Card: Receber NF (Bip) */}
+        {/* Card: Receber NF (1º Bip) */}
         <button
           onClick={() => setActiveTab('receive')}
           className="md:col-span-2 bg-slate-900 border border-amber-500/40 hover:border-amber-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
@@ -72,24 +72,27 @@ export const FiscalHubView: React.FC = () => {
           <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition"></div>
           <div className="flex items-center gap-4 mb-3">
             <Scan className="w-10 h-10 text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Novo</span>
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">1º Bip</span>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Receber NF por Bip ⚡</h3>
+          <h3 className="text-xl font-bold text-white mb-2">1º BIP — Receber NF do Fornecedor ⚡</h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Bipe o código de barras da nota do fornecedor e o sistema registra automaticamente a <strong className="text-slate-300">Ciência da Operação na SEFAZ</strong> e baixa o XML. Depois, importe os itens com um clique.
+            Bipe a nota recebida para registrar a <strong className="text-slate-300">Ciência da Operação na SEFAZ</strong> e fazer o download do XML. O estoque não é alterado nesta etapa.
           </p>
         </button>
 
-        {/* Card: Importar XML manual */}
+        {/* Card: Importar XML / 2º Bip */}
         <button
           onClick={() => { setChaveParaImportar(null); setActiveTab('import'); }}
           className="bg-slate-900 border border-slate-800 hover:border-emerald-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition"></div>
           <FileText className="w-10 h-10 text-emerald-500 mb-6" />
-          <h3 className="text-xl font-bold text-white mb-2">Importar XML (Entrada)</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl font-bold text-white">2º BIP — Entrada no Estoque</h3>
+            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">2º Bip</span>
+          </div>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Importe notas de fornecedores pelo arquivo .xml para dar entrada no estoque e atualizar preços de custo.
+            Bipe a DANFE impressa ou selecione o arquivo .xml para conferir os itens recebidos e dar entrada definitiva no estoque.
           </p>
         </button>
 
@@ -118,7 +121,7 @@ export const FiscalHubView: React.FC = () => {
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Reimprimir NFC-e</h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Busque o DANFE e o XML de uma nota já emitida na Sefaz usando o número de referência.
+            Busque o DANFE e o XML de uma nota já emitida na SEFAZ usando o número da nota fiscal.
           </p>
         </button>
 

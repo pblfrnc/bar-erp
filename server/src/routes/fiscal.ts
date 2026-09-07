@@ -158,7 +158,8 @@ export function createFiscalRouter() {
   // Aplica as associações no banco de dados
   router.post('/apply-import', async (req, res) => {
     try {
-      const { items } = req.body;
+      const items = Array.isArray(req.body) ? req.body : req.body?.items;
+      const chaveAcesso = Array.isArray(req.body) ? undefined : req.body?.chaveAcesso;
       if (!items || !Array.isArray(items)) {
         return res.status(400).json({ error: 'Nenhum item para importar.' });
       }
@@ -190,6 +191,18 @@ export function createFiscalRouter() {
             }
           });
           results.created++;
+        }
+      }
+
+      // Se foi importada a partir de uma chave de acesso (2º bip), marca a nota como 'importada'
+      if (chaveAcesso) {
+        try {
+          await (prisma as any).notaRecebida.updateMany({
+            where: { chave: chaveAcesso },
+            data: { status: 'importada' }
+          });
+        } catch (e) {
+          console.error("Erro ao marcar nota como importada:", e);
         }
       }
 
@@ -339,6 +352,16 @@ export function createFiscalRouter() {
         });
       }
 
+      // Atualizar status no banco de dados local
+      try {
+        await (prisma as any).notaEmitida.updateMany({
+          where: { referencia },
+          data: { status: 'cancelado' }
+        });
+      } catch (e) {
+        console.error('Erro ao atualizar status para cancelado:', e);
+      }
+
       return res.json({
         ok: true,
         mensagem: 'Nota fiscal cancelada com sucesso!',
@@ -348,6 +371,37 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error('[FocusNFe Cancel Exception]', err);
       return res.status(500).json({ error: 'Erro interno ao comunicar com a Focus NFe.', detail: err.message });
+    }
+  });
+
+  // ============================================================
+  // Listar Notas Disponíveis para Cancelamento (Prazo 30 min)
+  // ============================================================
+  router.get('/cancelable-notes', async (req, res) => {
+    try {
+      const notas = await (prisma as any).notaEmitida.findMany({
+        where: { status: 'autorizado' },
+        orderBy: { createdAt: 'desc' },
+        take: 50
+      });
+
+      const now = Date.now();
+      const cancelable = notas.map((n: any) => {
+        const createdAtMs = new Date(n.createdAt).getTime();
+        const diffMinutes = Math.floor((now - createdAtMs) / 60000);
+        const minutesRemaining = Math.max(0, 30 - diffMinutes);
+        return {
+          ...n,
+          diffMinutes,
+          minutesRemaining,
+          isCancelable: minutesRemaining > 0
+        };
+      }).filter((n: any) => n.isCancelable);
+
+      res.json(cancelable);
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: 'Erro ao listar notas para cancelamento.' });
     }
   });
 
@@ -713,6 +767,78 @@ export function createFiscalRouter() {
     }
   });
 
+  // Obter itens já parseados a partir da chave de acesso (2º bip direto)
+  router.get('/parsed-by-chave/:chave', async (req, res) => {
+    try {
+      const chaveClean = req.params.chave.replace(/\D/g, '');
+      if (chaveClean.length !== 44) {
+        return res.status(400).json({ error: 'Chave de acesso deve ter 44 dígitos.' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token da API não configurado.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
+        headers: { 'Authorization': authHeader }
+      });
+
+      if (!xmlRes.ok) {
+        return res.status(404).json({ 
+          error: 'XML da nota ainda não disponível na SEFAZ. Se acabou de realizar o 1º bip, aguarde 30 a 60 segundos para o processamento do download.' 
+        });
+      }
+
+      const xmlText = await xmlRes.text();
+      const jsonObj = parser.parse(xmlText);
+
+      const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
+      if (!nfe) {
+        return res.status(400).json({ error: 'Não foi possível extrair dados válidos de NF-e do XML.' });
+      }
+
+      const emit = nfe.emit || {};
+      let det = nfe.det || [];
+      if (!Array.isArray(det)) det = [det];
+
+      const items = det.map((d: any, index: number) => {
+        const prod = d.prod || {};
+        return {
+          id: `xml_item_${index}`,
+          code: prod.cProd || '',
+          name: prod.xProd || 'Produto sem descrição',
+          quantity: parseFloat(prod.qCom || '1'),
+          unitCost: parseFloat(prod.vUnCom || '0'),
+          ncm: prod.NCM || '',
+          cfop: prod.CFOP || '',
+          unit: prod.uCom || 'UN'
+        };
+      });
+
+      res.json({
+        vendor: {
+          name: emit.xNome || 'Fornecedor',
+          cnpj: emit.CNPJ || ''
+        },
+        items,
+        accessKey: chaveClean,
+        numero: nfe.ide?.nNF || '',
+        serie: nfe.ide?.serie || ''
+      });
+    } catch (err: any) {
+      console.error('[Parsed XML] Erro:', err);
+      res.status(500).json({ error: 'Erro ao processar XML da chave: ' + err.message });
+    }
+  });
+
   
   // ============================================================
   // Sincronizar Notas Destinadas (Focus NFe) - Manifestação em Lote
@@ -804,6 +930,54 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error(err);
       res.status(500).json({ error: 'Erro ao consultar a Sefaz para reimpressão.' });
+    }
+  });
+
+  // Listar notas emitidas recentes
+  router.get('/recent-notes', async (req, res) => {
+    try {
+      const notas = await (prisma as any).notaEmitida.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 30
+      });
+      res.json(notas);
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: 'Erro ao listar notas emitidas.' });
+    }
+  });
+
+  // Reimprimir NFC-e buscando pelo NÚMERO da nota
+  router.get('/reprint-by-number/:number', async (req, res) => {
+    try {
+      const { number } = req.params;
+      const cleanNum = String(number).trim();
+
+      const nota = await (prisma as any).notaEmitida.findFirst({
+        where: { numero: cleanNum },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!nota) {
+        return res.status(404).json({ error: `Nenhuma nota emitida encontrada com o número ${cleanNum}.` });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const baseURL = settings?.environment === 'producao' 
+        ? 'https://api.focusnfe.com.br/v2/nfce/'
+        : 'https://homologacao.focusnfe.com.br/v2/nfce/';
+
+      return res.json({
+        success: true,
+        nota,
+        status: nota.status,
+        chaveAcesso: nota.chave,
+        caminhoDanfe: nota.pdfUrl || (baseURL + nota.referencia + '/danfe.pdf'),
+        xmlUrl: nota.xmlUrl
+      });
+    } catch (err: any) {
+      console.error(err);
+      res.status(500).json({ error: 'Erro ao buscar nota por número.' });
     }
   });
 
