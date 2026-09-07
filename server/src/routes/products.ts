@@ -1,9 +1,20 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { lookupEanCatalog } from '../services/catalogService.js';
+import { lookupEanCatalog, getNextSequentialCode } from '../services/catalogService.js';
 
 export function createProductsRouter() {
   const router = Router();
+
+  // Obter próximo código numérico sequencial da categoria (ex: 5001 para bebidas, 6001 para chicletes)
+  router.get('/categories/:id/next-code', async (req, res) => {
+    try {
+      const nextCode = await getNextSequentialCode(req.params.id);
+      res.json({ categoryId: req.params.id, nextCode });
+    } catch (error: any) {
+      console.error('Erro ao gerar código sequencial:', error);
+      res.status(500).json({ error: 'Erro ao gerar código sequencial' });
+    }
+  });
 
   // Buscar informações fiscais e cadastrais por Código de Barras (EAN / GTIN)
   router.get('/lookup-ean/:ean', async (req, res) => {
@@ -80,10 +91,15 @@ export function createProductsRouter() {
         return res.status(400).json({ error: 'Nome, preço e categoria são obrigatórios' });
       }
 
+      let finalCode = code ? String(code).trim() : null;
+      if (!finalCode && categoryId) {
+        finalCode = await getNextSequentialCode(categoryId);
+      }
+
       const product = await prisma.product.create({
         data: {
           name: name.trim(),
-          code: code ? String(code).trim() : null,
+          code: finalCode,
           ean: ean ? String(ean).trim() : null,
           supplier: supplier ? String(supplier).trim() : null,
           brand: brand ? String(brand).trim() : null,
@@ -233,20 +249,58 @@ export function createProductsRouter() {
   // Criar Categoria
   router.post('/categories', async (req, res) => {
     try {
-      const { name, icon, sortOrder } = req.body;
+      const { name, icon, sortOrder, codeStart } = req.body;
       if (!name) return res.status(400).json({ error: 'Nome da categoria é obrigatório' });
+
+      let finalCodeStart = codeStart ? Number(codeStart) : null;
+      if (!finalCodeStart) {
+        const lower = name.toLowerCase();
+        if (/bebida|cerveja|chope|chopp|drink|dose|destilado|alco/.test(lower)) {
+          finalCodeStart = 5001;
+        } else if (/trident|chiclete|bala|doce|sobremesa|tabaco|cigarro/.test(lower)) {
+          finalCodeStart = 6001;
+        } else if (/cozinha|petisco|porcao|porção|lanche|burger|prato/.test(lower)) {
+          finalCodeStart = 1001;
+        } else {
+          finalCodeStart = ((Number(sortOrder) || 1) > 0 ? Number(sortOrder) : 1) * 1000 + 1;
+        }
+      }
 
       const category = await prisma.category.create({
         data: {
           name,
           icon: icon || 'Beer',
-          sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0
+          sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
+          codeStart: finalCodeStart
         }
       });
       res.status(201).json(category);
     } catch (error) {
       console.error('Erro ao criar categoria:', error);
       res.status(500).json({ error: 'Erro ao criar categoria' });
+    }
+  });
+
+  // Atualizar Categoria
+  router.put('/categories/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, icon, sortOrder, codeStart } = req.body;
+
+      const dataToUpdate: any = {};
+      if (name !== undefined) dataToUpdate.name = name;
+      if (icon !== undefined) dataToUpdate.icon = icon;
+      if (sortOrder !== undefined) dataToUpdate.sortOrder = Number(sortOrder);
+      if (codeStart !== undefined) dataToUpdate.codeStart = Number(codeStart);
+
+      const category = await prisma.category.update({
+        where: { id },
+        data: dataToUpdate
+      });
+      res.json(category);
+    } catch (error) {
+      console.error('Erro ao atualizar categoria:', error);
+      res.status(500).json({ error: 'Erro ao atualizar categoria' });
     }
   });
 

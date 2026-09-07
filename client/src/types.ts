@@ -9,6 +9,7 @@ export interface Category {
   name: string;
   icon?: string;
   sortOrder: number;
+  codeStart?: number | null;
   _count?: { products: number };
 }
 

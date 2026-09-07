@@ -216,6 +216,46 @@ function inferTaxAndClassification(name: string, brand?: string | null, categori
   };
 }
 
+// Função para calcular o próximo código numérico sequencial da categoria (ex: 5001 para bebidas, 6001 para doces/chicletes)
+export async function getNextSequentialCode(categoryId: string): Promise<string> {
+  const category = await prisma.category.findUnique({
+    where: { id: categoryId },
+    include: { products: { select: { code: true } } }
+  });
+
+  if (!category) return '1001';
+
+  let base = category.codeStart;
+  if (!base || base < 1) {
+    const catLower = category.name.toLowerCase();
+    if (/bebida|cerveja|chope|chopp|drink|dose|destilado|alco/.test(catLower)) {
+      base = 5001;
+    } else if (/trident|chiclete|bala|doce|sobremesa|tabaco|cigarro/.test(catLower)) {
+      base = 6001;
+    } else if (/cozinha|petisco|porcao|porção|lanche|burger|prato/.test(catLower)) {
+      base = 1001;
+    } else {
+      base = ((category.sortOrder || 1) > 0 ? category.sortOrder : 1) * 1000 + 1;
+    }
+  }
+
+  const rangeEnd = base + 999;
+  const existingCodes = category.products
+    .map((p) => {
+      if (!p.code) return NaN;
+      const match = p.code.match(/\d+/);
+      return match ? parseInt(match[0], 10) : NaN;
+    })
+    .filter((n) => !isNaN(n) && n >= base && n <= rangeEnd);
+
+  if (existingCodes.length === 0) {
+    return String(base);
+  }
+
+  const maxCode = Math.max(...existingCodes);
+  return String(maxCode + 1);
+}
+
 export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupResult> {
   const cleanEan = (rawEan || '').replace(/\D/g, '').trim();
 
@@ -398,7 +438,8 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
         tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
       );
 
-      const suggestedCode = `${tax.codePrefix}-${cleanEan.slice(-4)}`;
+      const targetCatId = matchedCat?.id || allCategories[0]?.id || null;
+      const suggestedCode = targetCatId ? await getNextSequentialCode(targetCatId) : `${tax.codePrefix}-${cleanEan.slice(-4)}`;
 
       return {
         found: true,
@@ -411,7 +452,7 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
         description: foundProduct.generic_name || (quantity ? `Embalagem ${quantity}` : null),
         costPrice: null,
         suggestedPrice: null,
-        suggestedCategoryId: matchedCat?.id || allCategories[0]?.id || null,
+        suggestedCategoryId: targetCatId,
         kdsStation: tax.kdsStation,
         ncm: tax.ncm,
         cfop: tax.cfop,
@@ -419,7 +460,7 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
         unit: 'un',
         stock: 100,
         minStock: 10,
-        message: 'Produto localizado no catálogo público com tributação brasileira sugerida!'
+        message: 'Produto localizado em catálogo público com tributação oficial sugerida e código sequencial gerado!'
       };
     }
   } catch (err) {

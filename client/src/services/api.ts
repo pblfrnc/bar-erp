@@ -243,6 +243,10 @@ export const api = {
     return fetchWithRetry(`${getApiUrl()}/products/lookup-ean/${encodeURIComponent(ean)}`).then(handleResponse<any>);
   },
 
+  getNextProductCode: async (categoryId: string): Promise<{ categoryId: string; nextCode: string }> => {
+    return fetchWithRetry(`${getApiUrl()}/products/categories/${encodeURIComponent(categoryId)}/next-code`).then(handleResponse<{ categoryId: string; nextCode: string }>);
+  },
+
   createProduct: async (data: Partial<Product>): Promise<Product> => {
     cachedProducts = null;
     return fetchWithRetry(`${getApiUrl()}/products`, {

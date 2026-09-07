@@ -75,6 +75,7 @@ model Category {
   name      String
   icon      String?   @default("Beer")
   sortOrder Int       @default(0)
+  codeStart Int?      @default(1001) // Início da numeração sequencial (ex: 5001 para bebidas, 6001 para doces/chicletes)
   products  Product[]
 }
 

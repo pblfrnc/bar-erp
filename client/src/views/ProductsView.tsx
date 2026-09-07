@@ -16,7 +16,8 @@ import {
   X,
   Barcode,
   Sparkles,
-  Loader2
+  Loader2,
+  Copy
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -56,6 +57,7 @@ export const ProductsView: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
   const [newCatName, setNewCatName] = useState<string>('');
   const [newCatIcon, setNewCatIcon] = useState<string>('Beer');
+  const [newCatCodeStart, setNewCatCodeStart] = useState<string>('');
 
   const loadData = async () => {
     try {
@@ -100,7 +102,58 @@ export const ProductsView: React.FC = () => {
     setLookupFeedback(null);
     setFormComponents([]);
     setIsComposed(false);
-    if (categories.length > 0) setFormCategoryId(categories[0].id);
+    const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0]?.id || '');
+    if (targetCat) {
+      setFormCategoryId(targetCat);
+      api.getNextProductCode(targetCat).then(res => {
+        if (res?.nextCode) setFormCode(res.nextCode);
+      }).catch(() => {});
+    }
+    setShowProductModal(true);
+  };
+
+  const handleDuplicateProduct = async (p: Product) => {
+    setEditingProduct(null); // Criação de novo item!
+    setFormName(`${p.name} (Cópia)`);
+    setFormEan(''); // Limpa o EAN para o usuário bipar o código novo
+    setFormBrand(p.brand || '');
+    setFormSupplier(p.supplier || '');
+    setFormDescription(p.description || '');
+    setFormPrice(p.price.toString());
+    setFormCostPrice(p.costPrice ? p.costPrice.toString() : '');
+    setFormCategoryId(p.categoryId);
+    setFormKdsStation(p.kdsStation);
+    setFormStock(p.stock.toString());
+    setFormMinStock(p.minStock.toString());
+    setFormNcm(p.ncm || '');
+    setFormCest(p.cest || '');
+    setFormCfop(p.cfop || '5102');
+    setFormUnit(p.unit || 'un');
+    if (p.components && p.components.length > 0) {
+      setIsComposed(true);
+      setFormComponents(p.components.map(c => ({ componentId: c.componentId, quantity: c.quantity.toString() })));
+    } else {
+      setIsComposed(false);
+      setFormComponents([]);
+    }
+
+    // Gerar novo código sequencial imediatamente para a categoria
+    try {
+      const codeRes = await api.getNextProductCode(p.categoryId);
+      if (codeRes?.nextCode) {
+        setFormCode(codeRes.nextCode);
+      } else {
+        setFormCode('');
+      }
+    } catch {
+      setFormCode('');
+    }
+
+    setLookupFeedback({
+      type: 'info',
+      message: `Item duplicado a partir de "${p.name}". Novo código interno sequencial gerado! Ajuste o nome e bipe o novo código de barras.`
+    });
+
     setShowProductModal(true);
   };
 
@@ -243,14 +296,18 @@ export const ProductsView: React.FC = () => {
     e.preventDefault();
     if (!newCatName.trim()) return;
     try {
-      await api.getCategories(); // check
       await fetch('/api/products/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCatName.trim(), icon: newCatIcon })
+        body: JSON.stringify({
+          name: newCatName.trim(),
+          icon: newCatIcon || 'Beer',
+          codeStart: newCatCodeStart ? parseInt(newCatCodeStart, 10) : undefined
+        })
       });
       setShowCategoryModal(false);
       setNewCatName('');
+      setNewCatCodeStart('');
       loadData();
     } catch (err: any) {
       alert(err.message || 'Erro ao criar categoria');
@@ -520,6 +577,13 @@ export const ProductsView: React.FC = () => {
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <button
+                          onClick={() => handleDuplicateProduct(p)}
+                          className="p-1.5 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-slate-800 transition"
+                          title="Duplicar Produto (Gera novo código sequencial)"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => openEditModal(p)}
                           className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                           title="Editar Produto"
@@ -727,7 +791,16 @@ export const ProductsView: React.FC = () => {
                   </label>
                   <select
                     value={formCategoryId}
-                    onChange={(e) => setFormCategoryId(e.target.value)}
+                    onChange={async (e) => {
+                      const newCatId = e.target.value;
+                      setFormCategoryId(newCatId);
+                      if (!editingProduct) {
+                        try {
+                          const res = await api.getNextProductCode(newCatId);
+                          if (res?.nextCode) setFormCode(res.nextCode);
+                        } catch {}
+                      }
+                    }}
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
                   >
                     {categories.map((c) => (
@@ -941,18 +1014,34 @@ export const ProductsView: React.FC = () => {
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div>
                 <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                  Nome da Categoria
+                  Nome da Categoria *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Sobremesas, Vinhos"
+                  placeholder="Ex: Doces & Balas, Sobremesas"
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
                   id="formNameInput"
                   autoFocus
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  Faixa Numérica do Código (Opcional)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ex: 5001 para bebidas, 6001 para chicletes/balas"
+                  value={newCatCodeStart}
+                  onChange={(e) => setNewCatCodeStart(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Os produtos desta categoria receberão códigos sequenciais automáticos a partir deste número (ex: 6001, 6002...).
+                </p>
               </div>
 
               <div className="pt-2 flex gap-2">
