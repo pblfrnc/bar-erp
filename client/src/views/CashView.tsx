@@ -17,8 +17,10 @@ import {
   Users,
   Plus,
   Minus,
-  RefreshCw
+  RefreshCw,
+  Zap
 } from 'lucide-react';
+import { QuickSaleModal } from '../components/QuickSaleModal';
 
 interface CashViewProps {
   onRefreshStatus: () => void;
@@ -49,6 +51,9 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
   const [finalCashCount, setFinalCashCount] = useState<string>('');
   const [closedBy, setClosedBy] = useState<string>('Operador de Caixa');
   const [closeReport, setCloseReport] = useState<any>(null);
+
+  // Estado de Venda Rápida de Balcão
+  const [showQuickSale, setShowQuickSale] = useState<boolean>(false);
 
   const loadCashData = async () => {
     try {
@@ -146,13 +151,25 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
           </div>
         </div>
 
-        <button
-          onClick={loadCashData}
-          title="Atualizar dados do caixa"
-          className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition cursor-pointer"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2.5">
+          {shiftData.isOpen && (
+            <button
+              onClick={() => setShowQuickSale(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition cursor-pointer"
+            >
+              <Zap className="w-4 h-4 fill-slate-950" />
+              <span>Venda Rápida (Balcão)</span>
+            </button>
+          )}
+
+          <button
+            onClick={loadCashData}
+            title="Atualizar dados do caixa"
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Se o caixa estiver FECHADO: Exibir tela de abertura */}
@@ -330,6 +347,14 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
                 </p>
 
                 <div className="space-y-2">
+                  <button
+                    onClick={() => setShowQuickSale(true)}
+                    className="w-full py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer mb-2.5"
+                  >
+                    <Zap className="w-4 h-4 fill-slate-950" />
+                    ⚡ Nova Venda de Balcão
+                  </button>
+
                   <button
                     onClick={() => {
                       setTxType('WITHDRAWAL');
@@ -672,6 +697,17 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal de Venda Rápida de Balcão (PDV Expresso) */}
+      {showQuickSale && (
+        <QuickSaleModal
+          onClose={() => setShowQuickSale(false)}
+          onSuccess={() => {
+            loadCashData();
+            onRefreshStatus();
+          }}
+        />
       )}
     </div>
   );

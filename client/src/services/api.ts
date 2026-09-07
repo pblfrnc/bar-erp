@@ -161,6 +161,21 @@ export const api = {
       return res.json();
     }),
 
+  quickSale: (data: {
+    items: { productId: string; quantity: number; notes?: string }[];
+    payment: { method: string; amount?: number; cashTendered?: number; notes?: string };
+    customerName?: string;
+    discount?: number;
+  }): Promise<{ success: boolean; order: Order; change: number; message: string }> =>
+    fetchWithRetry(`${getApiUrl()}/orders/quick-sale`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(res => {
+      if (!res.ok) return res.json().then(e => Promise.reject(e));
+      return res.json();
+    }),
+
   payOrder: (
     orderId: string,
     data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean; customerId?: string; paidItems?: { itemId: string; quantity: number }[] }

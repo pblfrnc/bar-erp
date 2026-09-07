@@ -21,9 +21,9 @@ export function createOrdersRouter(io: SocketIOServer) {
       if (order.status === 'CLOSED') return res.status(400).json({ error: 'Comanda já fechada.' });
 
       // Calcular o total e o saldo devedor
-      const itemsTotal = order.items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      const itemsTotal = order.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
       const fee = order.isServiceFeeActive ? itemsTotal * 0.1 : 0;
-      const discount = order.discountAmount || 0;
+      const discount = order.discount || 0;
       const total = itemsTotal + fee - discount;
       
       const paidTotal = order.payments.reduce((acc, p) => acc + p.amount, 0);
@@ -39,7 +39,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       if (order.tableId) {
         await prisma.table.update({
           where: { id: order.tableId },
-          data: { status: 'AVAILABLE', activeOrderId: null }
+          data: { status: 'AVAILABLE', currentOrderId: null }
         });
       }
 
@@ -64,6 +64,165 @@ export function createOrdersRouter(io: SocketIOServer) {
     }
   });
 
+  // ============================================================
+  // Venda Rápida de Balcão (PDV Direto - Sem Mesa)
+  // ============================================================
+  router.post('/quick-sale', async (req, res) => {
+    try {
+      const { items, payment, customerName, discount } = req.body;
+      // items: Array<{ productId: string, quantity: number, notes?: string }>
+      // payment: { method: string, amount?: number, cashTendered?: number, notes?: string }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Nenhum item informado para a venda rápida' });
+      }
+
+      if (!payment || !payment.method) {
+        return res.status(400).json({ error: 'Forma de pagamento não informada' });
+      }
+
+      // 1. Verificar turno de caixa aberto
+      const activeShift = await prisma.cashShift.findFirst({
+        where: { status: 'OPEN' },
+        orderBy: { openedAt: 'desc' }
+      });
+
+      if (!activeShift) {
+        return res.status(403).json({ error: 'O Caixa (PDV) está fechado! Abra o turno do caixa antes de realizar vendas.' });
+      }
+
+      // 2. Próximo número de comanda
+      const lastOrder = await prisma.order.findFirst({ orderBy: { orderNumber: 'desc' } });
+      const orderNumber = (lastOrder?.orderNumber || 100) + 1;
+
+      // 3. Verificar produtos e calcular subtotal
+      let subtotal = 0;
+      const verifiedItems: any[] = [];
+
+      for (const it of items) {
+        const product = await prisma.product.findUnique({
+          where: { id: it.productId },
+          include: { components: true }
+        });
+        if (!product) continue;
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        const unitPrice = product.price;
+        const totalPrice = unitPrice * qty;
+        subtotal += totalPrice;
+        verifiedItems.push({ product, quantity: qty, unitPrice, totalPrice, notes: it.notes });
+      }
+
+      if (verifiedItems.length === 0) {
+        return res.status(400).json({ error: 'Nenhum produto válido encontrado' });
+      }
+
+      const discountAmt = Math.min(Number(discount) || 0, subtotal);
+      const finalTotal = Math.max(0, subtotal - discountAmt);
+
+      // 4. Criar pedido já fechado (PAID) e sem mesa
+      const order = await prisma.order.create({
+        data: {
+          tableId: null,
+          orderNumber,
+          customerName: customerName || 'Cliente Balcão',
+          waiterName: 'Balcão / Caixa',
+          subtotal,
+          discount: discountAmt,
+          serviceFee: 0,
+          isServiceFeeActive: false,
+          total: finalTotal,
+          paidAmount: finalTotal,
+          status: 'PAID',
+          closedAt: new Date()
+        }
+      });
+
+      // 5. Criar OrderItems e dar baixa de estoque
+      const createdOrderItems: any[] = [];
+      for (const vi of verifiedItems) {
+        const orderItem = await prisma.orderItem.create({
+          data: {
+            orderId: order.id,
+            productId: vi.product.id,
+            quantity: vi.quantity,
+            unitPrice: vi.unitPrice,
+            totalPrice: vi.totalPrice,
+            notes: vi.notes || null,
+            kdsStatus: vi.product.kdsStation === 'NONE' ? 'DELIVERED' : 'PENDING',
+            kdsStation: vi.product.kdsStation,
+            paidQuantity: vi.quantity
+          },
+          include: { product: true }
+        });
+
+        // Baixa no estoque
+        if (vi.product.components && vi.product.components.length > 0) {
+          for (const comp of vi.product.components) {
+            await prisma.product.update({
+              where: { id: comp.componentId },
+              data: { stock: { decrement: comp.quantity * vi.quantity } }
+            });
+          }
+        } else if (vi.product.trackStock) {
+          await prisma.product.update({
+            where: { id: vi.product.id },
+            data: { stock: { decrement: vi.quantity } }
+          });
+        }
+
+        createdOrderItems.push(orderItem);
+      }
+
+      // 6. Criar pagamento associado ao turno de caixa
+      const paymentAmount = Number(payment.amount) || finalTotal;
+      const cashTendered = Number(payment.cashTendered) || paymentAmount;
+      const changeAmount = payment.method === 'CASH' && cashTendered > paymentAmount ? cashTendered - paymentAmount : 0;
+
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          amount: paymentAmount,
+          method: payment.method,
+          notes: changeAmount > 0 
+            ? `Troco: R$ ${changeAmount.toFixed(2)} (Recebido: R$ ${cashTendered.toFixed(2)})` 
+            : (payment.notes || null),
+          cashShiftId: activeShift.id
+        }
+      });
+
+      // 7. Notificar via WebSocket
+      io.emit('order:updated', { orderId: order.id, action: 'quick_sale' });
+      io.emit('cash:updated');
+
+      const kdsItems = createdOrderItems.filter(i => i.kdsStation !== 'NONE');
+      if (kdsItems.length > 0) {
+        io.emit('kds:new_order', {
+          items: kdsItems,
+          orderNumber: order.orderNumber,
+          tableName: 'Balcão',
+          waiterName: 'Balcão / Caixa'
+        });
+      }
+
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: {
+          items: { include: { product: true } },
+          payments: true
+        }
+      });
+
+      res.status(201).json({
+        success: true,
+        order: fullOrder,
+        change: changeAmount,
+        message: 'Venda de balcão concluída com sucesso!'
+      });
+    } catch (error: any) {
+      console.error('Erro na venda rápida:', error);
+      res.status(500).json({ error: error.message || 'Erro ao processar venda rápida' });
+    }
+  });
 
   // Buscar comanda por ID
   router.get('/:id', async (req, res) => {
