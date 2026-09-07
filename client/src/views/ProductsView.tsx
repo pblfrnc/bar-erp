@@ -22,7 +22,15 @@ import {
   Building2,
   Phone,
   Mail,
-  FileText
+  FileText,
+  ArrowLeft,
+  DollarSign,
+  TrendingUp,
+  Layers,
+  ShieldCheck,
+  Check,
+  HelpCircle,
+  Calculator
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -533,8 +541,804 @@ export const ProductsView: React.FC = () => {
     return matchCat && matchSearch;
   });
 
+  // Rentabilidade em Tempo Real
+  const vPrice = parseFloat(formPrice) || 0;
+  const cPrice = parseFloat(formCostPrice) || 0;
+  const grossProfit = vPrice - cPrice;
+  const profitMargin = vPrice > 0 ? ((vPrice - cPrice) / vPrice) * 100 : 0;
+  const markup = cPrice > 0 ? ((vPrice - cPrice) / cPrice) * 100 : 0;
+
+  // Custo Total Estimado da Ficha Técnica
+  const recipeCost = formComponents.reduce((acc, comp) => {
+    const prod = products.find(p => p.id === comp.componentId);
+    const qty = parseFloat(comp.quantity) || 0;
+    const unitCost = (prod?.costPrice && prod.costPrice > 0) ? prod.costPrice : (prod?.price || 0);
+    return acc + (unitCost * qty);
+  }, 0);
+
   return (
-    <div className="space-y-4 pb-20 max-w-6xl mx-auto">
+    <>
+      {showProductModal ? (
+        /* TELA INTEIRA DE CADASTRO / EDIÇÃO DE PRODUTO */
+        <div className="space-y-6 pb-28 max-w-6xl w-full mx-auto animate-in fade-in duration-200">
+          {/* Cabeçalho Superior */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl transition border border-slate-700/60 active:scale-95 group"
+                title="Voltar para a Lista de Produtos"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xl font-black text-white">
+                    {editingProduct ? `Editar: ${editingProduct.name}` : 'Cadastrar Novo Produto'}
+                  </h2>
+                  {editingProduct ? (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold">
+                      {editingProduct.code ? `#${editingProduct.code}` : 'SEM CÓDIGO'}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                      NOVO ITEM
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {editingProduct
+                    ? 'Atualize preços, custos, estoque, fornecedor e regras tributárias'
+                    : 'Preencha o cadastro completo com automação de código de barras, tributação e custos'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 justify-end">
+              {editingProduct && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
+                  className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                  title="Excluir este produto permanentemente"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProduct}
+                className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>Salvar Produto</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bloco de Busca Inteligente por EAN / Código de Barras */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <span>Preenchimento Automático por Código de Barras</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold font-mono">
+                      EAN / GTIN / SEFAZ
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Bipe com leitor USB ou digite o EAN para cruzar com notas recebidas na SEFAZ e catálogo nacional (nome, marca, fornecedor, NCM, CEST e custo).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <div className="relative flex-1">
+                <Barcode className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={formEan}
+                  onChange={(e) => setFormEan(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleLookupEan();
+                    }
+                  }}
+                  placeholder="Bipe com o leitor ou digite o código de barras EAN (ex: 7894900010015)..."
+                  className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleLookupEan()}
+                disabled={lookupLoading || !formEan.trim()}
+                className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-black text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-amber-500/20 whitespace-nowrap"
+              >
+                {lookupLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span>Puxar Dados Automáticos</span>
+              </button>
+            </div>
+
+            {lookupFeedback && (
+              <div
+                className={`text-xs p-3 rounded-xl border flex items-start gap-2.5 animate-in fade-in ${
+                  lookupFeedback.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : lookupFeedback.type === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                }`}
+              >
+                <span className="text-xs leading-relaxed">{lookupFeedback.message}</span>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSaveProduct} className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* COLUNA ESQUERDA (7 colunas) */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* Card 1: Identificação do Produto */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <Tag className="w-5 h-5 text-amber-400" />
+                    <h3 className="text-base font-black text-white">Identificação & Básico</h3>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      Nome do Item / Produto *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Cerveja Heineken Long Neck 330ml"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Código Interno (#)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 5001 ou BEB-01"
+                        value={formCode}
+                        onChange={(e) => setFormCode(e.target.value.toUpperCase())}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase placeholder:text-slate-600"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Sequencial por categoria ou código de referência interno.
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
+                          Categoria *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowCategoryModal(true)}
+                          className="text-xs text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition"
+                        >
+                          <Plus className="w-3 h-3" /> Nova
+                        </button>
+                      </div>
+                      <select
+                        value={formCategoryId}
+                        onChange={async (e) => {
+                          const newCatId = e.target.value;
+                          setFormCategoryId(newCatId);
+                          if (!editingProduct) {
+                            try {
+                              const res = await api.getNextProductCode(newCatId);
+                              if (res?.nextCode) setFormCode(res.nextCode);
+                            } catch {}
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                      >
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.codeStart ? `(Faixa #${c.codeStart})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Marca / Fabricante
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Heineken, Ambev, Coca-Cola"
+                        value={formBrand}
+                        onChange={(e) => setFormBrand(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Unidade de Medida
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="un, lata, garrafa, dose..."
+                        value={formUnit}
+                        onChange={(e) => setFormUnit(e.target.value.toLowerCase())}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase placeholder:text-slate-600"
+                      />
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Sugestões:</span>
+                        {['un', 'lata', 'garrafa', 'dose', 'copo', 'torre', 'porção', 'kg', 'l'].map(u => (
+                          <button
+                            key={u}
+                            type="button"
+                            onClick={() => setFormUnit(u)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                              formUnit.toLowerCase() === u
+                                ? 'bg-amber-500 text-slate-950'
+                                : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                            }`}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      Descrição / Ingredientes (Exibido no Cardápio)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Ex: Chopp puro malte artesanal com lúpulos aromáticos. Teor alcoólico 5.0%..."
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Card 2: Formação de Preço & Custos */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-base font-black text-white">Preços, Custos & Rentabilidade</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Preço de Venda (R$) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                          R$
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          placeholder="14.00"
+                          value={formPrice}
+                          onChange={(e) => setFormPrice(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Valor cobrado do cliente na comanda / mesa.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Preço de Custo (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                          R$
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="4.50"
+                          value={formCostPrice}
+                          onChange={(e) => setFormCostPrice(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Valor pago ao distribuidor ou soma dos insumos.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Widget de Rentabilidade em Tempo Real */}
+                  <div className="bg-slate-950/90 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        Simulador de Margem Comercial em Tempo Real
+                      </span>
+                      {isComposed && recipeCost > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFormCostPrice(recipeCost.toFixed(2))}
+                          className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
+                          title="Copiar custo calculado dos ingredientes da receita para o campo Preço de Custo"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" /> Usar Custo da Receita (R$ {recipeCost.toFixed(2)})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                          Lucro Bruto
+                        </span>
+                        <span className={`text-base font-black font-mono ${grossProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          R$ {grossProfit.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                          Margem de Lucro
+                        </span>
+                        <span className={`text-base font-black font-mono ${
+                          profitMargin >= 50 ? 'text-emerald-400' : profitMargin >= 25 ? 'text-amber-400' : profitMargin > 0 ? 'text-orange-400' : 'text-rose-400'
+                        }`}>
+                          {vPrice > 0 ? `${profitMargin.toFixed(1)}%` : '0.0%'}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                          Markup s/ Custo
+                        </span>
+                        <span className="text-base font-black font-mono text-slate-200">
+                          {cPrice > 0 ? `+${markup.toFixed(1)}%` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Ficha Técnica & Produto Composto */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <Layers className="w-5 h-5 text-indigo-400" />
+                      <h3 className="text-base font-black text-white">Ficha Técnica & Composição (Receita)</h3>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isComposed}
+                        onChange={(e) => setIsComposed(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Ative caso este item seja produzido no estabelecimento (ex: <strong>Torre de Chopp</strong> descontando litros do barril, <strong>Cocktails & Drinks</strong> descontando doses, <strong>Pizzas, Pratos e Porções</strong> descontando insumos).
+                  </p>
+
+                  {isComposed && (
+                    <div className="space-y-3 bg-slate-950/70 p-4 rounded-2xl border border-slate-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold uppercase text-slate-300">
+                          Ingredientes / Insumos que Compõem Este Item:
+                        </span>
+                        {recipeCost > 0 && (
+                          <span className="text-xs text-emerald-400 font-mono font-bold">
+                            Custo Somado: R$ {recipeCost.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {formComponents.map((comp, idx) => {
+                        const selProd = products.find(p => p.id === comp.componentId);
+                        const cCost = selProd?.costPrice || selProd?.price || 0;
+                        const cQty = parseFloat(comp.quantity) || 0;
+                        const subtotal = cCost * cQty;
+
+                        return (
+                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 bg-slate-900 border border-slate-800/80 rounded-xl">
+                            <select
+                              value={comp.componentId}
+                              onChange={(e) => {
+                                const newComps = [...formComponents];
+                                newComps[idx].componentId = e.target.value;
+                                setFormComponents(newComps);
+                              }}
+                              className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
+                            >
+                              <option value="">Selecione um insumo do estoque...</option>
+                              {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} (Estoque: {p.stock} {p.unit || 'un'}) {p.costPrice ? `• Custo R$ ${p.costPrice.toFixed(2)}` : ''}
+                                </option>
+                              ))}
+                            </select>
+
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                                <span className="text-[11px] text-slate-400 font-bold">Qtd:</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="1.0"
+                                  value={comp.quantity}
+                                  onChange={(e) => {
+                                    const newComps = [...formComponents];
+                                    newComps[idx].quantity = e.target.value;
+                                    setFormComponents(newComps);
+                                  }}
+                                  className="w-16 bg-transparent text-white font-mono text-xs focus:outline-none text-right font-bold"
+                                />
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  {selProd?.unit || 'un'}
+                                </span>
+                              </div>
+
+                              {subtotal > 0 && (
+                                <span className="text-[11px] text-slate-400 font-mono whitespace-nowrap min-w-16 text-right">
+                                  = R$ {subtotal.toFixed(2)}
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newComps = [...formComponents];
+                                  newComps.splice(idx, 1);
+                                  setFormComponents(newComps);
+                                }}
+                                className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                                title="Remover este insumo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() => setFormComponents([...formComponents, { componentId: '', quantity: '1' }])}
+                        className="w-full py-2.5 border border-dashed border-slate-700 hover:border-amber-500/50 text-slate-400 hover:text-amber-300 rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center justify-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Adicionar Insumo / Ingrediente
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* COLUNA DIREITA (5 colunas) */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* Card 4: Fornecedor & Distribuidora */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <Truck className="w-5 h-5 text-emerald-400" />
+                      <h3 className="text-base font-black text-white">Fornecedor & Compras</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickSupplierModal(true)}
+                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Novo
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      Selecionar Fornecedor Cadastrado
+                    </label>
+                    <select
+                      value={formSupplierId}
+                      onChange={(e) => {
+                        const supId = e.target.value;
+                        setFormSupplierId(supId);
+                        const found = suppliers.find(s => s.id === supId);
+                        if (found) {
+                          setFormSupplier(found.tradeName || found.name);
+                        } else if (!supId) {
+                          setFormSupplier('');
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="">Nenhum fornecedor vinculado</option>
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.tradeName ? `${s.tradeName} (${s.name})` : s.name} {s.document ? `• ${s.document}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {formSupplierId && (() => {
+                    const sel = suppliers.find(s => s.id === formSupplierId);
+                    if (!sel) return null;
+                    return (
+                      <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs text-slate-400">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-xs">{sel.tradeName || sel.name}</span>
+                          {sel.document && (
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
+                              {sel.document}
+                            </span>
+                          )}
+                        </div>
+                        {sel.contactName && (
+                          <p className="text-[11px] text-slate-400">Contato: {sel.contactName}</p>
+                        )}
+                        {sel.phone && (
+                          <a
+                            href={`https://wa.me/55${sel.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold text-xs mt-1"
+                          >
+                            <Phone className="w-3.5 h-3.5" /> Falar no WhatsApp ({sel.phone})
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {!formSupplierId && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                        Ou Nome Avulso do Fornecedor
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Distribuidora Central, Padaria São Paulo..."
+                        value={formSupplier}
+                        onChange={(e) => setFormSupplier(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Card 5: Estoque & Destino no KDS */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
+                    <Package className="w-5 h-5 text-amber-400" />
+                    <h3 className="text-base font-black text-white">Estoque & Destino KDS</h3>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      Destino da Comanda no KDS
+                    </label>
+                    <select
+                      value={formKdsStation}
+                      onChange={(e) => setFormKdsStation(e.target.value as KdsStation)}
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="BAR">🍺 Barman / Balcão (Bebidas, Chopp, Doses)</option>
+                      <option value="KITCHEN">🍳 Cozinha (Pratos, Petiscos, Pizzas, Lanches)</option>
+                      <option value="NONE">📦 Direto / Sem KDS (Entrega imediata)</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Estoque Atual
+                      </label>
+                      <input
+                        type="number"
+                        value={formStock}
+                        onChange={(e) => setFormStock(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        Estoque Mínimo
+                      </label>
+                      <input
+                        type="number"
+                        value={formMinStock}
+                        onChange={(e) => setFormMinStock(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Alerta de reposição.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 6: Dados Fiscais (NFC-e / SAT) */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                      <h3 className="text-base font-black text-white">Tributação Fiscal (NFC-e / SAT)</h3>
+                    </div>
+                    <span className="text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                      SEFAZ
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400">
+                    Estes códigos fiscais são transmitidos à SEFAZ em cada venda na NFC-e para evitar bitributação e rejeições.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        NCM (8 dígitos)
+                      </label>
+                      <input
+                        type="text"
+                        value={formNcm}
+                        onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Ex: 22030000"
+                        maxLength={8}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        CEST (Subst. Tributária)
+                      </label>
+                      <input
+                        type="text"
+                        value={formCest}
+                        onChange={(e) => setFormCest(e.target.value)}
+                        placeholder="Ex: 03.001.00"
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      CFOP
+                    </label>
+                    <input
+                      type="text"
+                      value={formCfop}
+                      onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
+                      placeholder="5102 / 5405 / 5101"
+                      maxLength={4}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Padrões:</span>
+                      {[
+                        { code: '5102', label: '5102 (Revenda Normal)' },
+                        { code: '5405', label: '5405 (Subst. Tributária ST)' },
+                        { code: '5101', label: '5101 (Produção Própria)' }
+                      ].map(item => (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => setFormCfop(item.code)}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                            formCfop === item.code
+                              ? 'bg-amber-500 text-slate-950'
+                              : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé Fixo de Ações (Sticky Bottom Bar) */}
+            <div className="sticky bottom-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-800 p-4 rounded-3xl shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-black">
+                  R$
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white truncate max-w-xs">
+                      {formName || 'Novo Produto'}
+                    </span>
+                    {formCode && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                        #{formCode}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                    <span>Venda: <strong className="text-white">R$ {vPrice.toFixed(2)}</strong></span>
+                    {cPrice > 0 && (
+                      <span>Custo: <strong className="text-slate-300">R$ {cPrice.toFixed(2)}</strong></span>
+                    )}
+                    {vPrice > 0 && cPrice > 0 && (
+                      <span className={profitMargin >= 50 ? 'text-emerald-400 font-bold' : profitMargin >= 20 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'}>
+                        Margem: {profitMargin.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 justify-end">
+                {editingProduct && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
+                    className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Excluir</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowProductModal(false)}
+                  className="py-2.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-sm font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>{editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="space-y-4 pb-20 max-w-6xl mx-auto">
       {/* Cabeçalho */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -796,437 +1600,9 @@ export const ProductsView: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
+  )}
 
-      {/* Modal Criar/Editar Produto */}
-      {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-white mb-4">
-              {editingProduct ? 'Editar Produto' : 'Cadastrar Novo Produto'}
-            </h3>
-
-            {/* Bloco de Busca Inteligente por EAN / Código de Barras */}
-            <div className="mb-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900 border border-amber-500/30 rounded-2xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide text-amber-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Preenchimento Automático por Código de Barras
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  EAN / GTIN / NF-e
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={formEan}
-                    onChange={(e) => setFormEan(e.target.value.replace(/\D/g, ''))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleLookupEan();
-                      }
-                    }}
-                    placeholder="Bipe ou digite o EAN (ex: 7894900010015)"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleLookupEan()}
-                  disabled={lookupLoading || !formEan.trim()}
-                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 transition active:scale-95 whitespace-nowrap shadow-sm shadow-amber-500/20"
-                >
-                  {lookupLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  )}
-                  <span>Puxar Dados</span>
-                </button>
-              </div>
-
-              {lookupFeedback && (
-                <div
-                  className={`text-xs p-2.5 rounded-xl border flex items-start gap-2 ${
-                    lookupFeedback.type === 'success'
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                      : lookupFeedback.type === 'error'
-                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                      : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                  }`}
-                >
-                  <span className="text-xs leading-relaxed">{lookupFeedback.message}</span>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSaveProduct} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Nome do Item *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Cerveja Heineken Long Neck 330ml"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Código Interno
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: BEB-01"
-                    value={formCode}
-                    onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Marca / Fabricante
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Heineken, Ambev, Coca-Cola"
-                    value={formBrand}
-                    onChange={(e) => setFormBrand(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold uppercase text-slate-400">
-                      Fornecedor
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowQuickSupplierModal(true)}
-                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition"
-                    >
-                      <Plus className="w-3 h-3" /> Novo
-                    </button>
-                  </div>
-                  <select
-                    value={formSupplierId}
-                    onChange={(e) => {
-                      const supId = e.target.value;
-                      setFormSupplierId(supId);
-                      const found = suppliers.find(s => s.id === supId);
-                      if (found) {
-                        setFormSupplier(found.tradeName || found.name);
-                      } else if (!supId) {
-                        setFormSupplier('');
-                      }
-                    }}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value="">Selecione da lista cadastrada...</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.tradeName ? `${s.tradeName} (${s.name})` : s.name} {s.document ? `• ${s.document}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {!formSupplierId && (
-                    <input
-                      type="text"
-                      placeholder="Ou digite o nome avulso..."
-                      value={formSupplier}
-                      onChange={(e) => setFormSupplier(e.target.value)}
-                      className="w-full mt-1.5 px-3 py-1.5 bg-slate-950/70 border border-slate-800/80 rounded-lg text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                  Descrição (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Refrescante, puro malte, colarinho cremoso..."
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Preço Venda (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="14.00"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Preço Custo (R$)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="4.50"
-                    value={formCostPrice}
-                    onChange={(e) => setFormCostPrice(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Unidade
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="un, lata, kg"
-                    value={formUnit}
-                    onChange={(e) => setFormUnit(e.target.value.toLowerCase())}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Categoria *
-                  </label>
-                  <select
-                    value={formCategoryId}
-                    onChange={async (e) => {
-                      const newCatId = e.target.value;
-                      setFormCategoryId(newCatId);
-                      if (!editingProduct) {
-                        try {
-                          const res = await api.getNextProductCode(newCatId);
-                          if (res?.nextCode) setFormCode(res.nextCode);
-                        } catch {}
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Destino no KDS
-                  </label>
-                  <select
-                    value={formKdsStation}
-                    onChange={(e) => setFormKdsStation(e.target.value as KdsStation)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value="BAR">🍺 Barman (Bebidas)</option>
-                    <option value="KITCHEN">🍳 Cozinha (Pratos/Petiscos)</option>
-                    <option value="NONE">Nenhum (Direto)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Estoque Inicial
-                  </label>
-                  <input
-                    type="number"
-                    value={formStock}
-                    onChange={(e) => setFormStock(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Estoque Mínimo (Alerta)
-                  </label>
-                  <input
-                    type="number"
-                    value={formMinStock}
-                    onChange={(e) => setFormMinStock(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Dados Fiscais */}
-              <div className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-2xl space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wide text-slate-300">
-                    Dados Fiscais (NFC-e / Tributação)
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    Preenchimento automático via API
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                      NCM
-                    </label>
-                    <input
-                      type="text"
-                      value={formNcm}
-                      onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
-                      placeholder="8 dígitos"
-                      maxLength={8}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                      CEST
-                    </label>
-                    <input
-                      type="text"
-                      value={formCest}
-                      onChange={(e) => setFormCest(e.target.value)}
-                      placeholder="Ex: 03.001.00"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                      CFOP
-                    </label>
-                    <input
-                      type="text"
-                      value={formCfop}
-                      onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
-                      placeholder="5102 / 5405"
-                      maxLength={4}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-800">
-                <label className="flex items-center gap-2 cursor-pointer mb-3">
-                  <input
-                    type="checkbox"
-                    checked={isComposed}
-                    onChange={(e) => setIsComposed(e.target.checked)}
-                    className="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500 focus:ring-offset-slate-900"
-                  />
-                  <span className="text-sm font-bold text-slate-300">
-                    Produto Composto (Ficha Técnica)
-                  </span>
-                </label>
-
-                {isComposed && (
-                  <div className="space-y-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400">
-                      Quando este item for vendido, o estoque dos componentes abaixo será descontado em vez do estoque deste produto.
-                    </p>
-                    
-                    {formComponents.map((comp, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <select
-                          value={comp.componentId}
-                          onChange={(e) => {
-                            const newComps = [...formComponents];
-                            newComps[idx].componentId = e.target.value;
-                            setFormComponents(newComps);
-                          }}
-                          className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
-                        >
-                          <option value="">Selecione um ingrediente...</option>
-                          {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
-                            <option key={p.id} value={p.id}>{p.name} (Estoque: {p.stock})</option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Qtd"
-                          value={comp.quantity}
-                          onChange={(e) => {
-                            const newComps = [...formComponents];
-                            newComps[idx].quantity = e.target.value;
-                            setFormComponents(newComps);
-                          }}
-                          className="w-20 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newComps = [...formComponents];
-                            newComps.splice(idx, 1);
-                            setFormComponents(newComps);
-                          }}
-                          className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    
-                    <button
-                      type="button"
-                      onClick={() => setFormComponents([...formComponents, { componentId: '', quantity: '1' }])}
-                      className="w-full py-2 border border-dashed border-slate-700 text-slate-400 rounded-lg text-xs hover:bg-slate-800 hover:text-white transition"
-                    >
-                      + Adicionar Componente
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-3 flex gap-2">
-                {editingProduct && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
-                    className="py-3 px-4 rounded-xl font-bold text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition flex items-center gap-1.5 active:scale-95"
-                    title="Excluir este produto"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Excluir</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowProductModal(false)}
-                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition font-black active:scale-95"
-                >
-                  Salvar Produto
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal Criar Categoria */}
       {showCategoryModal && (
@@ -1728,6 +2104,6 @@ export const ProductsView: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
