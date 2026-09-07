@@ -298,10 +298,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <span className="text-slate-300">Desconto:</span>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    placeholder="0.00"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0,00"
                     value={discountValue}
-                    onChange={(e) => setDiscountValue(e.target.value)}
+                    onChange={(e) => setDiscountValue(e.target.value.replace(',', '.'))}
+                    onFocus={(e) => e.target.select()}
                     className="w-20 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-right font-mono"
                   />
                   <button
@@ -509,10 +511,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </label>
               <div className="flex gap-2">
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
+                  onChange={(e) => setPayAmount(e.target.value.replace(',', '.'))}
+                  onFocus={(e) => e.target.select()}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
                 />
                 <button
@@ -532,11 +535,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   Valor Entregue pelo Cliente (R$)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex: 100.00"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 100,00"
                   value={cashTendered}
-                  onChange={(e) => setCashTendered(e.target.value)}
+                  onChange={(e) => setCashTendered(e.target.value.replace(',', '.'))}
+                  onFocus={(e) => e.target.select()}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none"
                 />
                 {cashGiven > 0 && (
