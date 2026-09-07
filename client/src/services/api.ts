@@ -151,6 +151,16 @@ export const api = {
       body: JSON.stringify({ discount })
     }).then(handleResponse<Order>),
 
+  
+  markAsLoss: (orderId: string): Promise<{ success: boolean; message: string; lostAmount: number }> =>
+    fetchWithRetry(`${getApiUrl()}/orders/${orderId}/loss`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }).then(res => {
+      if (!res.ok) return res.json().then(e => Promise.reject(e));
+      return res.json();
+    }),
+
   payOrder: (
     orderId: string,
     data: { payments: { amount: number; method: string; notes?: string }[]; closeOrder?: boolean; customerId?: string; paidItems?: { itemId: string; quantity: number }[] }
