@@ -1,0 +1,99 @@
+import React, { useState } from 'react';
+import { ArrowLeft, Printer, Search, FileText, Loader } from 'lucide-react';
+import { api } from '../services/api';
+
+export const NfceReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const [referencia, setReferencia] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const handleConsult = async () => {
+    if (!referencia) return alert('Digite a referência da nota.');
+    setIsLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch(\`\${api.getApiUrl()}/fiscal/reprint/\${referencia}\`);
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || 'Erro ao consultar a Sefaz.');
+      
+      setResult(data);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto pt-4 pb-20">
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition">
+          <ArrowLeft className="w-4 h-4" /> Voltar ao Painel
+        </button>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-sky-500/10 rounded-full blur-3xl"></div>
+        
+        <div className="flex items-center gap-4 mb-8">
+          <Printer className="w-10 h-10 text-sky-500" />
+          <div>
+            <h2 className="text-2xl font-black text-white">Reimprimir NFC-e</h2>
+            <p className="text-slate-400 text-sm mt-1">Gere o cupom fiscal (DANFE) novamente em caso de erro na impressora.</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Referência da Nota (ID do Pedido)</label>
+            <div className="flex gap-3">
+              <input 
+                type="text" 
+                placeholder="Ex: ref_12345"
+                value={referencia}
+                onChange={e => setReferencia(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-sky-500 outline-none transition font-mono"
+              />
+              <button 
+                onClick={handleConsult}
+                disabled={isLoading || !referencia}
+                className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {isLoading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                Consultar
+              </button>
+            </div>
+          </div>
+
+          {result && result.success && (
+            <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-start gap-3">
+                <FileText className="w-6 h-6 text-emerald-400 mt-1" />
+                <div>
+                  <h3 className="text-lg font-bold text-emerald-400">Nota Localizada!</h3>
+                  <p className="text-xs text-emerald-500/70 mt-1 break-all font-mono">
+                    Chave: {result.chaveAcesso}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center gap-3">
+                <a 
+                  href={result.caminhoDanfe}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                >
+                  <Printer className="w-5 h-5" />
+                  Visualizar / Imprimir PDF
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
