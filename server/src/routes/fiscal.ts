@@ -358,7 +358,10 @@ export function createFiscalRouter() {
           quantidade_comercial: String(i.quantity),
           valor_unitario_comercial: String(i.price),
           valor_bruto: String((i.quantity * i.price).toFixed(2)),
-          icms_situacao_tributaria: (i.cfop === '5405') ? '500' : '102', // 500 = ICMS cobrado ant por ST. 102 = Simples Nacional sem permissão de crédito
+          // CRT: 1 = Simples Nacional, 3 = Regime Normal
+          icms_situacao_tributaria: (settings.crt === '3') 
+            ? (i.cfop === '5405' ? '60' : '00')  // Regime Normal: 60 = ST, 00 = Tributada Integralmente
+            : (i.cfop === '5405' ? '500' : '102'), // Simples Nacional: 500 = ST, 102 = Tributada
           icms_origem: '0',
           pis_situacao_tributaria: '08', // Operação sem incidência
           cofins_situacao_tributaria: '08'

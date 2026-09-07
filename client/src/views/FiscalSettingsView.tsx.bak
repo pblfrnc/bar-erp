@@ -220,7 +220,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Token da API (Focus NFe)</label>
             <input
-              type="password"
+              type="text"
               value={settings.apiToken || ''}
               onChange={e => handleChange('apiToken', e.target.value)}
               placeholder="Cole o token da Focus NFe aqui..."
@@ -340,7 +340,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Código CSC (SEFAZ)</label>
               <input
-                type="password"
+                type="text"
                 value={settings.cscSecret || ''}
                 onChange={e => handleChange('cscSecret', e.target.value)}
                 placeholder="Alfanumérico..."
