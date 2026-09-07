@@ -60,6 +60,28 @@ export const DashboardView: React.FC = () => {
         </button>
       </div>
 
+      
+      {/* Abas */}
+      <div className="flex items-center gap-2 mb-4 bg-slate-900 border border-slate-800 p-1.5 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'overview' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          Visão Geral
+        </button>
+        <button
+          onClick={() => setActiveTab('audit')}
+          className={`px-4 py-2 flex items-center gap-2 rounded-xl text-xs font-bold transition ${activeTab === 'audit' ? 'bg-rose-500/20 text-rose-400' : 'text-slate-500 hover:text-rose-400/70'}`}
+        >
+          <ShieldAlert className="w-4 h-4" /> Monitoramento Cego
+        </button>
+      </div>
+
+      {activeTab === 'audit' ? (
+        <AuditView />
+      ) : (
+        <>
+
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -282,6 +304,8 @@ export const DashboardView: React.FC = () => {
 
       </div>
 
+        </>
+      )}
     </div>
   );
 };
