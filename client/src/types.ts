@@ -23,12 +23,32 @@ export interface ProductComponent {
 
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  tradeName?: string | null;
+  document?: string | null;
+  ie?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  contactName?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { products: number };
+}
+
 export interface Product {
   id: string;
   name: string;
   code?: string | null;
   ean?: string | null;
   supplier?: string | null;
+  supplierId?: string | null;
+  supplierRel?: Supplier;
   brand?: string | null;
   description?: string | null;
   price: number;

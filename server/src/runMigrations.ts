@@ -92,6 +92,32 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       )
     `);
 
+    // Tabela de Fornecedores (Módulo de Fornecedores)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Supplier" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "tradeName" TEXT,
+        "document" TEXT,
+        "ie" TEXT,
+        "phone" TEXT,
+        "email" TEXT,
+        "city" TEXT,
+        "state" TEXT,
+        "address" TEXT,
+        "contactName" TEXT,
+        "notes" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    try {
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Supplier_document_key" ON "Supplier"("document")`);
+    } catch (e) {}
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "supplierId" TEXT REFERENCES "Supplier"("id")`);
+    } catch (e) {}
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {

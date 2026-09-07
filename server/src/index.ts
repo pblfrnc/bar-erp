@@ -19,6 +19,7 @@ import { createSettingsRouter } from './routes/settings.js';
 import { createAuditLogsRouter } from './routes/auditLogs.js';
 import { createCustomersRouter } from './routes/customers.js';
 import { createSystemRouter } from './routes/system.js';
+import { createSuppliersRouter } from './routes/suppliers.js';
 
 
 
@@ -114,6 +115,7 @@ app.use('/api/cash', createCashRouter(io));
 app.use('/api/dashboard', createDashboardRouter());
 app.use('/api/waiters', createWaitersRouter());
 app.use('/api/fiscal', createFiscalRouter());
+app.use('/api/suppliers', createSuppliersRouter());
 
 app.get('/api/network/devices', (req, res) => {
   res.json(Array.from(activeDevices.values()));

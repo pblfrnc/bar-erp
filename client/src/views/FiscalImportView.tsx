@@ -218,7 +218,9 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       const keyToSend = (confirmChave || chaveAcesso || xmlData?.accessKey || '').replace(/\D/g, '');
       const res = await api.applyXmlImport({
         items: validMatches,
-        chaveAcesso: keyToSend || undefined
+        chaveAcesso: keyToSend || undefined,
+        supplierId: xmlData?.vendor?.id || undefined,
+        vendorName: xmlData?.vendor?.name || undefined
       });
 
       if (res.error) {

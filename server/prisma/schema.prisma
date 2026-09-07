@@ -82,7 +82,9 @@ model Category {
 model Product {
   code        String?     // Código interno (ex: BEB-001)
   ean         String?     // Código de Barras EAN / GTIN
-  supplier    String?     // Fornecedor
+  supplier    String?     // Fornecedor (texto livre para compatibilidade)
+  supplierId  String?     // ID do fornecedor vinculado
+  supplierRel Supplier?   @relation(fields: [supplierId], references: [id])
   ncm         String?     // Nomenclatura Comum do Mercosul
   cfop        String?     // Código Fiscal de Operações
   cest        String?     // Código Especificador da Substituição Tributária
@@ -254,4 +256,22 @@ model NotaEmitida {
   xmlUrl       String?
   pdfUrl       String?
   createdAt    DateTime @default(now())
+}
+
+model Supplier {
+  id          String    @id @default(cuid())
+  name        String    // Razão Social ou Nome Principal
+  tradeName   String?   // Nome Fantasia
+  document    String?   @unique // CNPJ ou CPF
+  ie          String?   // Inscrição Estadual
+  phone       String?
+  email       String?
+  city        String?
+  state       String?
+  address     String?
+  contactName String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 }

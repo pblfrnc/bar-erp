@@ -47,13 +47,15 @@ export function createProductsRouter() {
           { code: { contains: s } },
           { ean: { contains: s } },
           { brand: { contains: s } },
-          { supplier: { contains: s } }
+          { supplier: { contains: s } },
+          { supplierRel: { name: { contains: s } } },
+          { supplierRel: { tradeName: { contains: s } } }
         ];
       }
 
       const products = await prisma.product.findMany({
         where: whereClause,
-        include: { category: true, components: { include: { component: true } } },
+        include: { category: true, supplierRel: true, components: { include: { component: true } } },
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }]
       });
 
@@ -72,6 +74,7 @@ export function createProductsRouter() {
         code,
         ean,
         supplier,
+        supplierId,
         brand,
         ncm,
         cfop,
@@ -102,6 +105,7 @@ export function createProductsRouter() {
           code: finalCode,
           ean: ean ? String(ean).trim() : null,
           supplier: supplier ? String(supplier).trim() : null,
+          supplierId: supplierId ? String(supplierId).trim() : null,
           brand: brand ? String(brand).trim() : null,
           ncm: ncm ? String(ncm).trim() : null,
           cfop: cfop ? String(cfop).trim() : null,
@@ -123,7 +127,7 @@ export function createProductsRouter() {
             }
           } : {})
         },
-        include: { category: true, components: { include: { component: true } } }
+        include: { category: true, supplierRel: true, components: { include: { component: true } } }
       });
 
       res.status(201).json(product);
@@ -142,6 +146,7 @@ export function createProductsRouter() {
         code,
         ean,
         supplier,
+        supplierId,
         brand,
         ncm,
         cfop,
@@ -163,6 +168,7 @@ export function createProductsRouter() {
       if (code !== undefined) dataToUpdate.code = code ? String(code).trim() : null;
       if (ean !== undefined) dataToUpdate.ean = ean ? String(ean).trim() : null;
       if (supplier !== undefined) dataToUpdate.supplier = supplier ? String(supplier).trim() : null;
+      if (supplierId !== undefined) dataToUpdate.supplierId = supplierId ? String(supplierId).trim() : null;
       if (brand !== undefined) dataToUpdate.brand = brand ? String(brand).trim() : null;
       if (ncm !== undefined) dataToUpdate.ncm = ncm ? String(ncm).trim() : null;
       if (cfop !== undefined) dataToUpdate.cfop = cfop ? String(cfop).trim() : null;
@@ -190,7 +196,7 @@ export function createProductsRouter() {
       const product = await prisma.product.update({
         where: { id },
         data: dataToUpdate,
-        include: { category: true, components: { include: { component: true } } }
+        include: { category: true, supplierRel: true, components: { include: { component: true } } }
       });
 
       res.json(product);

@@ -94,6 +94,45 @@ export function createFiscalRouter() {
       }
 
       const emit = nfe.emit;
+      const emitCnpj = (emit?.CNPJ || emit?.CPF || '').toString().replace(/\D/g, '');
+      const emitNome = emit?.xNome || 'Fornecedor sem nome';
+      const emitFant = emit?.xFant ? String(emit.xFant) : null;
+      const emitIe = emit?.IE ? String(emit.IE) : null;
+      const emitFone = emit?.enderEmit?.fone ? String(emit.enderEmit.fone) : null;
+      const emitAddress = [emit?.enderEmit?.xLgr, emit?.enderEmit?.nro, emit?.enderEmit?.xBairro].filter(Boolean).join(', ') || null;
+      const emitMun = emit?.enderEmit?.xMun ? String(emit.enderEmit.xMun) : null;
+      const emitUf = emit?.enderEmit?.UF ? String(emit.enderEmit.UF) : null;
+
+      let supplierRecord: any = null;
+      if (emitCnpj) {
+        try {
+          supplierRecord = await prisma.supplier.upsert({
+            where: { document: emitCnpj },
+            update: {
+              name: emitNome,
+              ...(emitFant ? { tradeName: emitFant } : {}),
+              ...(emitIe ? { ie: emitIe } : {}),
+              ...(emitFone ? { phone: emitFone } : {}),
+              ...(emitAddress ? { address: emitAddress } : {}),
+              ...(emitMun ? { city: emitMun } : {}),
+              ...(emitUf ? { state: emitUf } : {})
+            },
+            create: {
+              name: emitNome,
+              tradeName: emitFant,
+              document: emitCnpj,
+              ie: emitIe,
+              phone: emitFone,
+              address: emitAddress,
+              city: emitMun,
+              state: emitUf
+            }
+          });
+        } catch (supErr) {
+          console.warn('[Fiscal] Erro ao sincronizar fornecedor:', supErr);
+        }
+      }
+
       let det = nfe.det;
       if (!Array.isArray(det)) det = [det]; // Pode ser apenas 1 item
 
@@ -101,20 +140,23 @@ export function createFiscalRouter() {
         const prod = d.prod;
         return {
           id: `xml_item_${index}`,
-          code: prod.cProd,
+          code: prod.cProd ? String(prod.cProd) : undefined,
+          ean: (prod.cEAN && prod.cEAN !== 'SEM GTIN') ? String(prod.cEAN) : undefined,
           name: prod.xProd,
           quantity: parseFloat(prod.qCom),
           unitCost: parseFloat(prod.vUnCom),
-          ncm: prod.NCM,
-          cfop: prod.CFOP,
-          unit: prod.uCom
+          ncm: prod.NCM ? String(prod.NCM) : undefined,
+          cfop: prod.CFOP ? String(prod.CFOP) : undefined,
+          unit: prod.uCom || 'un'
         };
       });
 
       res.json({
         vendor: {
-          name: emit.xNome,
-          cnpj: emit.CNPJ
+          id: supplierRecord?.id,
+          name: emitNome,
+          tradeName: emitFant,
+          cnpj: emitCnpj
         },
         items,
         accessKey: nfe['@_Id']?.replace('NFe', '')
@@ -206,6 +248,9 @@ export function createFiscalRouter() {
     try {
       const items = Array.isArray(req.body) ? req.body : req.body?.items;
       const chaveAcesso = Array.isArray(req.body) ? undefined : req.body?.chaveAcesso;
+      const supplierId = Array.isArray(req.body) ? undefined : req.body?.supplierId;
+      const vendorName = Array.isArray(req.body) ? undefined : req.body?.vendorName;
+
       if (!items || !Array.isArray(items)) {
         return res.status(400).json({ error: 'Nenhum item para importar.' });
       }
@@ -213,23 +258,39 @@ export function createFiscalRouter() {
       const results = { updated: 0, created: 0 };
 
       for (const item of items) {
-        // item: { xmlItem: { name, quantity, unitCost }, action: 'LINK' | 'NEW', productId?: string, categoryId?: string }
-        
+        // item: { xmlItem: { name, quantity, unitCost, ncm, cfop, ean, code, unit }, action: 'LINK' | 'NEW', productId?: string, categoryId?: string, supplierId?: string }
+        const effectiveSupplierId = item.supplierId || supplierId || null;
+        const effectiveSupplierName = item.supplierName || vendorName || null;
+
         if (item.action === 'LINK' && item.productId) {
           // Atualiza produto existente
+          const updateData: any = {
+            stock: { increment: item.xmlItem.quantity },
+            costPrice: item.xmlItem.unitCost
+          };
+          if (effectiveSupplierId) updateData.supplierId = effectiveSupplierId;
+          if (effectiveSupplierName) updateData.supplier = effectiveSupplierName;
+          if (item.xmlItem.ncm) updateData.ncm = item.xmlItem.ncm;
+          if (item.xmlItem.cfop) updateData.cfop = item.xmlItem.cfop;
+          if (item.xmlItem.ean) updateData.ean = item.xmlItem.ean;
+
           await prisma.product.update({
             where: { id: item.productId },
-            data: {
-              stock: { increment: item.xmlItem.quantity },
-              costPrice: item.xmlItem.unitCost
-            }
+            data: updateData
           });
           results.updated++;
         } else if (item.action === 'NEW' && item.categoryId) {
-          // Cria novo produto
+          // Cria novo produto com dados fiscais e fornecedor herdados da nota
           await prisma.product.create({
             data: {
               name: item.xmlItem.name,
+              code: item.xmlItem.code || null,
+              ean: item.xmlItem.ean || null,
+              supplier: effectiveSupplierName,
+              supplierId: effectiveSupplierId,
+              ncm: item.xmlItem.ncm || null,
+              cfop: item.xmlItem.cfop || null,
+              unit: item.xmlItem.unit || 'un',
               price: item.xmlItem.unitCost * 2, // Sugestão: markup de 100%
               costPrice: item.xmlItem.unitCost,
               stock: item.xmlItem.quantity,
@@ -735,6 +796,25 @@ export function createFiscalRouter() {
         xmlData.caminho_xml_nota_fiscal ? JSON.stringify({ url: xmlData.caminho_xml_nota_fiscal }) : null,
         now
       );
+
+      // Sincronizar fornecedor no banco de dados automaticamente
+      if (xmlData.cnpj_emitente) {
+        const cleanCnpj = xmlData.cnpj_emitente.replace(/\D/g, '');
+        try {
+          await prisma.supplier.upsert({
+            where: { document: cleanCnpj },
+            update: {
+              name: xmlData.nome_emitente || 'Fornecedor sem nome'
+            },
+            create: {
+              name: xmlData.nome_emitente || 'Fornecedor sem nome',
+              document: cleanCnpj
+            }
+          });
+        } catch (supErr) {
+          console.warn('[Bip] Erro ao sincronizar fornecedor:', supErr);
+        }
+      }
 
       res.json({
         success: true,

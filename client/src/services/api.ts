@@ -9,7 +9,8 @@ import {
   DashboardData,
   KdsStatus,
   KdsItem,
-  Waiter
+  Waiter,
+  Supplier
 } from '../types';
 
 import { getServerBaseUrl } from './socket';
@@ -285,6 +286,35 @@ export const api = {
     cachedCategories = null;
     cachedProducts = null;
     return fetchWithRetry(`${getApiUrl()}/products/categories/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message: string }>);
+  },
+
+  // Fornecedores
+  getSuppliers: async (search?: string): Promise<Supplier[]> => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    return fetchWithRetry(`${getApiUrl()}/suppliers?${params.toString()}`).then(handleResponse<Supplier[]>);
+  },
+
+  createSupplier: async (data: Partial<Supplier>): Promise<Supplier> => {
+    return fetchWithRetry(`${getApiUrl()}/suppliers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Supplier>);
+  },
+
+  updateSupplier: async (id: string, data: Partial<Supplier>): Promise<Supplier> => {
+    return fetchWithRetry(`${getApiUrl()}/suppliers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Supplier>);
+  },
+
+  deleteSupplier: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return fetchWithRetry(`${getApiUrl()}/suppliers/${id}`, {
       method: 'DELETE'
     }).then(handleResponse<{ success: boolean; message: string }>);
   },
