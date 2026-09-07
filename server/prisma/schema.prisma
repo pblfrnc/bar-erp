@@ -218,3 +218,31 @@ model FiscalSettings {
   addressInfo String?
   updatedAt   DateTime @updatedAt
 }
+
+model NotaRecebida {
+  id           String   @id
+  chave        String   @unique
+  emitente     String?
+  cnpjEmitente String?
+  numero       String?
+  serie        String?
+  dataEmissao  String?
+  valorTotal   Float?
+  status       String   @default("recebida")
+  xmlContent   String?
+  createdAt    DateTime @default(now())
+}
+
+model NotaEmitida {
+  id           String   @id @default(cuid())
+  referencia   String   @unique
+  chave        String?
+  numero       String?
+  serie        String?
+  dataEmissao  String?
+  valorTotal   Float?
+  status       String   @default("autorizado")
+  xmlUrl       String?
+  pdfUrl       String?
+  createdAt    DateTime @default(now())
+}

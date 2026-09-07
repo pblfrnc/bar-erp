@@ -7,9 +7,10 @@ import { NfReceivingView } from './NfReceivingView';
 import { api } from '../services/api';
 
 import { NfceCancelView } from './NfceCancelView';
+import { AccountantPanelView } from './AccountantPanelView';
 
 export const FiscalHubView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings' | 'cancel'>('hub');
+  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings' | 'cancel' | 'accountant'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
 
   // Ao clicar em "Importar Itens" na lista de recebidos, abre import com XML já baixado
@@ -38,6 +39,10 @@ export const FiscalHubView: React.FC = () => {
 
   if (activeTab === 'emit') {
     return <ManualNfceView onBack={() => setActiveTab('hub')} />;
+  }
+
+  if (activeTab === 'accountant') {
+    return <AccountantPanelView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'cancel') {
@@ -111,6 +116,25 @@ export const FiscalHubView: React.FC = () => {
           </p>
         </button>
 
+        
+        {/* Card: Painel do Contador */}
+        <button
+          onClick={() => setActiveTab('accountant')}
+          className="md:col-span-2 bg-slate-900 border border-slate-800 hover:border-sky-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-40 h-40 bg-sky-500/5 rounded-full blur-3xl group-hover:bg-sky-500/20 transition"></div>
+          <div className="flex items-center gap-4 mb-3">
+             <div className="w-10 h-10 text-sky-400 flex items-center justify-center bg-sky-500/10 rounded-xl border border-sky-500/20">
+               <span className="font-bold">ZIP</span>
+             </div>
+             <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">Contabilidade</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Painel do Contador (SPED/XMLs)</h3>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Fechamento do mês: Exporte todos os XMLs de notas de Entrada e Saída compactados em um único arquivo .ZIP com a planilha de resumo para enviar ao contador.
+          </p>
+        </button>
+  
         {/* Card: Configurações Fiscais */}
         <button
           onClick={() => setActiveTab('settings')}

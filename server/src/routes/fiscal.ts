@@ -388,7 +388,38 @@ export function createFiscalRouter() {
       }
 
       // Se a nota já voltar autorizada de cara
+
+      const focusDataRef = data.ref;
+      const focusDataChave = data.chave_nfe;
+      const focusDataNumero = data.numero;
+      const focusDataSerie = data.serie;
+      const focusDataValor = items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+      const focusDataStatus = data.status;
+
       if (data.status === 'autorizado') {
+        
+        // Salva Nota Emitida no DB
+        try {
+          const NotaEmitida = (prisma as any).notaEmitida;
+          if (NotaEmitida) {
+            await NotaEmitida.create({
+              data: {
+                referencia: data.ref,
+                chave: data.chave_nfe,
+                numero: data.numero,
+                serie: data.serie,
+                dataEmissao: new Date().toISOString(),
+                valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
+                status: data.status,
+                xmlUrl: baseURL + '/' + data.ref + '.xml',
+                pdfUrl: baseURL + '/' + data.ref + '/danfe.pdf'
+              }
+            });
+          }
+        } catch (e) {
+          console.error("Erro ao salvar NotaEmitida", e);
+        }
+
         return res.json({
           success: true,
           status: data.status,
@@ -405,7 +436,31 @@ export function createFiscalRouter() {
         });
         const checkData = await checkRes.json();
         
+
         if (checkData.status === 'autorizado') {
+          
+        // Salva Nota Emitida no DB
+        try {
+          const NotaEmitida = (prisma as any).notaEmitida;
+          if (NotaEmitida) {
+            await NotaEmitida.create({
+              data: {
+                referencia: checkData.ref,
+                chave: checkData.chave_nfe,
+                numero: checkData.numero,
+                serie: checkData.serie,
+                dataEmissao: new Date().toISOString(),
+                valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
+                status: checkData.status,
+                xmlUrl: baseURL + '/' + checkData.ref + '.xml',
+                pdfUrl: baseURL + '/' + checkData.ref + '/danfe.pdf'
+              }
+            });
+          }
+        } catch (e) {
+          console.error("Erro ao salvar NotaEmitida", e);
+        }
+
           return res.json({
             success: true,
             status: checkData.status,
