@@ -320,6 +320,12 @@ export const api = {
       body: JSON.stringify({ finalCashCount, closedBy, notes })
     }).then(handleResponse<any>),
 
+  reopenLastCashShift: (): Promise<any> =>
+    fetchWithRetry(`${getApiUrl()}/cash/reopen-last`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).then(handleResponse<any>),
+
   // Dashboard
   getAuditLogs: () => fetchWithRetry(`${getApiUrl()}/audit-logs`).then(handleResponse<any[]>),
 

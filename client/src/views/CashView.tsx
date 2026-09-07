@@ -19,7 +19,11 @@ import {
   Minus,
   RefreshCw,
   Zap,
-  FileText
+  FileText,
+  RotateCcw,
+  ArrowLeft,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { QuickSaleModal } from '../components/QuickSaleModal';
 import { OrderHistoryModal } from '../components/OrderHistoryModal';
@@ -48,11 +52,18 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
   const [txAmount, setTxAmount] = useState<string>('');
   const [txReason, setTxReason] = useState<string>('');
 
-  // Estados de Fechamento de Caixa
+  // Estados de Fechamento de Caixa com Conferência e Opção de Voltar
   const [showCloseModal, setShowCloseModal] = useState<boolean>(false);
+  const [closingStep, setClosingStep] = useState<'COUNT' | 'VERIFY' | 'DONE'>('COUNT');
   const [finalCashCount, setFinalCashCount] = useState<string>('');
   const [closedBy, setClosedBy] = useState<string>('Operador de Caixa');
   const [closeReport, setCloseReport] = useState<any>(null);
+  const [previewCheck, setPreviewCheck] = useState<{
+    counted: number;
+    expected: number;
+    difference: number;
+  } | null>(null);
+  const [isSubmittingClose, setIsSubmittingClose] = useState<boolean>(false);
 
   // Estado de Venda Rápida de Balcão
   const [showQuickSale, setShowQuickSale] = useState<boolean>(false);
@@ -110,19 +121,61 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
     }
   };
 
-  const handleCloseShift = async (e: React.FormEvent) => {
+  // Etapa 1: Valida o valor digitado e avança para a conferência sem fechar o caixa
+  const handleProceedToVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalCount = parseFloat(finalCashCount);
-    if (isNaN(finalCount)) {
-      alert('Informe o valor total em dinheiro contado na gaveta');
+    const count = parseFloat(finalCashCount);
+    if (isNaN(count) || count < 0) {
+      alert('Informe um valor válido em dinheiro contado na gaveta');
       return;
     }
+    const expected = shiftData.summary?.expectedCashInDrawer ?? 0;
+    const difference = count - expected;
+
+    setPreviewCheck({
+      counted: count,
+      expected,
+      difference
+    });
+    setClosingStep('VERIFY');
+  };
+
+  // Etapa 2: Volta para a tela de contagem para corrigir erro de digitação
+  const handleBackToEditCount = () => {
+    setClosingStep('COUNT');
+  };
+
+  // Etapa 2: Efetiva o fechamento do caixa após confirmação
+  const handleConfirmFinalClose = async () => {
+    if (!previewCheck) return;
     try {
-      const result = await api.closeCashShift(finalCount, closedBy);
+      setIsSubmittingClose(true);
+      const result = await api.closeCashShift(previewCheck.counted, closedBy);
       setCloseReport(result.report);
+      setClosingStep('DONE');
       loadCashData();
     } catch (err: any) {
       alert(err.message || 'Erro ao fechar caixa');
+    } finally {
+      setIsSubmittingClose(false);
+    }
+  };
+
+  // Reabrir o último turno fechado caso tenha sido encerrado por engano
+  const handleReopenLastShift = async () => {
+    if (!window.confirm('Tem certeza que deseja reabrir o último turno de caixa fechado para corrigir valores?')) {
+      return;
+    }
+    try {
+      await api.reopenLastCashShift();
+      setShowCloseModal(false);
+      setCloseReport(null);
+      setClosingStep('COUNT');
+      setPreviewCheck(null);
+      loadCashData();
+      alert('Turno de caixa reaberto com sucesso! O caixa está aberto para correções.');
+    } catch (err: any) {
+      alert(err.message || 'Erro ao reabrir caixa');
     }
   };
 
@@ -245,6 +298,17 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
               Confirmar Abertura de Caixa
             </button>
           </form>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={handleReopenLastShift}
+              className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-bold flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Fechou o caixa anterior com erro de digitação? Reabrir último turno
+            </button>
+          </div>
         </div>
       ) : (
         /* Se o caixa estiver ABERTO: Resumo do Turno */
@@ -394,7 +458,12 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
               </div>
 
               <button
-                onClick={() => setShowCloseModal(true)}
+                onClick={() => {
+                  setClosingStep('COUNT');
+                  setPreviewCheck(null);
+                  setCloseReport(null);
+                  setShowCloseModal(true);
+                }}
                 className="w-full py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
               >
                 <Lock className="w-4 h-4" />
@@ -581,17 +650,198 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
         </div>
       )}
 
-      {/* Modal de Fechamento de Turno (Conferência Cega) */}
+      {/* Modal de Fechamento de Turno (Conferência com Opção de Voltar para Corrigir) */}
       {showCloseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Fechamento de Turno</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Conte o dinheiro físico em espécie presente na gaveta e confirme o encerramento do expediente.
-            </p>
+            
+            {/* ETAPA 1: DIGITAÇÃO DA CONTAGEM (Cega) */}
+            {closingStep === 'COUNT' && (
+              <>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Fechamento de Turno</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Etapa 1 de 2: Informe a contagem física da gaveta
+                    </p>
+                  </div>
+                </div>
 
-            {closeReport ? (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+                  Conte o dinheiro em espécie na gaveta. Na próxima etapa você verá a conferência do sistema e <strong>poderá voltar para corrigir</strong> se houver qualquer erro de digitação.
+                </p>
+
+                <form onSubmit={handleProceedToVerify} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                      Valor Total em Dinheiro Contado na Gaveta (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="0.00"
+                      value={finalCashCount}
+                      onChange={(e) => setFinalCashCount(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-2xl font-black focus:border-amber-500 focus:outline-none transition"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                      Conferido Por
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={closedBy}
+                      onChange={(e) => setClosedBy(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCloseModal(false)}
+                      className="flex-1 py-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5"
+                    >
+                      <span>Avançar e Conferir</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* ETAPA 2: CONFERÊNCIA COM POSSIBILIDADE DE VOLTAR E CORRIGIR */}
+            {closingStep === 'VERIFY' && previewCheck && (
               <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                    previewCheck.difference === 0
+                      ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                      : 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                  }`}>
+                    {previewCheck.difference === 0 ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Conferência do Caixa</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Etapa 2 de 2: Revise os valores antes de encerrar
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card Comparativo de Valores */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                    <span>Dinheiro Esperado pelo Sistema:</span>
+                    <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-200">
+                      R$ {previewCheck.expected.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                    <span>Valor Digitado (Contagem Física):</span>
+                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                      R$ {previewCheck.counted.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-800 font-bold">
+                    <span>Diferença Apurada:</span>
+                    <span
+                      className={`font-mono text-base font-black ${
+                        previewCheck.difference === 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : previewCheck.difference > 0
+                          ? 'text-sky-500'
+                          : 'text-red-500'
+                      }`}
+                    >
+                      {previewCheck.difference > 0 ? '+' : ''} R$ {previewCheck.difference.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mensagens de Feedback */}
+                {previewCheck.difference === 0 ? (
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                    <div>
+                      <p className="font-bold">Caixa 100% Exato!</p>
+                      <p className="text-[11px] opacity-90">O valor digitado bateu com o esperado pelo sistema.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl space-y-1.5 text-xs text-amber-700 dark:text-amber-300">
+                    <div className="flex items-center gap-2 font-black text-sm text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>
+                        {previewCheck.difference < 0 ? 'Falta no Caixa Detectada' : 'Sobra no Caixa Detectada'}
+                      </span>
+                    </div>
+                    <p className="leading-relaxed">
+                      O valor digitado (<strong>R$ {previewCheck.counted.toFixed(2)}</strong>) é diferente do esperado (<strong>R$ {previewCheck.expected.toFixed(2)}</strong>).
+                    </p>
+                    <p className="font-bold text-slate-900 dark:text-white bg-amber-500/20 p-2 rounded-xl border border-amber-500/30">
+                      👉 Errou a digitação de alguma nota ou moeda? Clique em <u className="underline font-black">Voltar e Corrigir Valor</u> abaixo para ajustar a contagem antes de fechar.
+                    </p>
+                  </div>
+                )}
+
+                {/* BOTÕES DE AÇÃO: VOLTAR PARA CORRIGIR OU CONFIRMAR FECHAMENTO */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleBackToEditCount}
+                    className="flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wide bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-2 border-slate-300 dark:border-slate-700 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Voltar e Corrigir Valor</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmFinalClose}
+                    disabled={isSubmittingClose}
+                    className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wide text-white transition flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 ${
+                      previewCheck.difference === 0
+                        ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+                        : 'bg-red-600 hover:bg-red-500 shadow-red-600/20'
+                    }`}
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>{isSubmittingClose ? 'Fechando...' : 'Confirmar Fechamento'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ETAPA 3: FECHAMENTO CONCLUÍDO (COMPROVANTE FINAL) */}
+            {closingStep === 'DONE' && closeReport && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Caixa Encerrado com Sucesso</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Resumo oficial do turno arquivado no sistema
+                    </p>
+                  </div>
+                </div>
+
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                   <div className="flex justify-between text-slate-700 dark:text-slate-300">
                     <span>Dinheiro Esperado na Gaveta:</span>
@@ -602,7 +852,7 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
                     <span className="font-mono font-bold">R$ {closeReport.countedCash.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-800 font-bold">
-                    <span>Diferença (Sobra/Falta):</span>
+                    <span>Diferença Registrada:</span>
                     <span
                       className={`font-mono ${
                         closeReport.difference >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
@@ -651,63 +901,29 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
                   )}
                 </div>
 
-                <button
-                  onClick={() => {
-                    setShowCloseModal(false);
-                    setCloseReport(null);
-                  }}
-                  className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition cursor-pointer shadow-lg shadow-emerald-500/20"
-                >
-                  Concluir Fechamento
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleCloseShift} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                    Valor Total em Dinheiro Contado (R$)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={finalCashCount}
-                    onChange={(e) => setFinalCashCount(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xl font-bold focus:border-amber-500 focus:outline-none transition"
-                    autoFocus
-                  />
-                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setShowCloseModal(false);
+                      setCloseReport(null);
+                      setClosingStep('COUNT');
+                      setPreviewCheck(null);
+                    }}
+                    className="w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition cursor-pointer shadow-lg shadow-emerald-500/20"
+                  >
+                    Concluir e Fechar Janela
+                  </button>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                    Conferido Por
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={closedBy}
-                    onChange={(e) => setClosedBy(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none transition"
-                  />
-                </div>
-
-                <div className="pt-2 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowCloseModal(false)}
-                    className="flex-1 py-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                    onClick={handleReopenLastShift}
+                    className="w-full py-2.5 rounded-xl font-bold text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 rounded-xl font-bold text-xs bg-red-600 hover:bg-red-500 text-white transition cursor-pointer shadow-lg shadow-red-600/20"
-                  >
-                    Encerrar Caixa
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Fechou errado mesmo assim? Reabrir caixa para correção</span>
                   </button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
         </div>

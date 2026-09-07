@@ -282,6 +282,48 @@ export function createCashRouter(io: SocketIOServer) {
     }
   });
 
+  // Reabrir último turno fechado para correção de digitação
+  router.post('/reopen-last', async (req, res) => {
+    try {
+      const activeShift = await prisma.cashShift.findFirst({
+        where: { status: 'OPEN' }
+      });
+      if (activeShift) {
+        return res.status(400).json({ error: 'Já existe um turno de caixa aberto no momento.' });
+      }
+
+      const lastShift = await prisma.cashShift.findFirst({
+        where: { status: 'CLOSED' },
+        orderBy: { closedAt: 'desc' }
+      });
+
+      if (!lastShift) {
+        return res.status(404).json({ error: 'Nenhum turno fechado encontrado para reabrir.' });
+      }
+
+      const reopened = await prisma.cashShift.update({
+        where: { id: lastShift.id },
+        data: {
+          status: 'OPEN',
+          closedAt: null,
+          closedBy: null,
+          finalBalance: null,
+          difference: null
+        }
+      });
+
+      io.emit('cash:updated');
+      res.json({
+        success: true,
+        shift: reopened,
+        message: 'Turno de caixa reaberto com sucesso para correção!'
+      });
+    } catch (error) {
+      console.error('Erro ao reabrir caixa:', error);
+      res.status(500).json({ error: 'Erro ao reabrir caixa' });
+    }
+  });
+
   // Histórico de turnos anteriores
   router.get('/history', async (req, res) => {
     try {
