@@ -25,12 +25,17 @@ export interface ProductComponent {
 export interface Product {
   id: string;
   name: string;
+  code?: string | null;
+  ean?: string | null;
+  supplier?: string | null;
+  brand?: string | null;
   description?: string | null;
   price: number;
   costPrice?: number | null;
   categoryId: string;
-  ncm?: string;
-  cfop?: string;
+  ncm?: string | null;
+  cfop?: string | null;
+  cest?: string | null;
   category?: Category;
   kdsStation: KdsStation;
   stock: number;
@@ -39,7 +44,6 @@ export interface Product {
   unit: string;
   isActive: boolean;
   components?: ProductComponent[];
-
 }
 
 export interface OrderItem {

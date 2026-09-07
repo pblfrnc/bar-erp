@@ -12,7 +12,11 @@ import {
   Tag,
   Beer,
   ChefHat,
-  Trash2, X
+  Trash2,
+  X,
+  Barcode,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -26,6 +30,10 @@ export const ProductsView: React.FC = () => {
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formName, setFormName] = useState<string>('');
+  const [formCode, setFormCode] = useState<string>('');
+  const [formEan, setFormEan] = useState<string>('');
+  const [formBrand, setFormBrand] = useState<string>('');
+  const [formSupplier, setFormSupplier] = useState<string>('');
   const [formDescription, setFormDescription] = useState<string>('');
   const [formPrice, setFormPrice] = useState<string>('');
   const [formCostPrice, setFormCostPrice] = useState<string>('');
@@ -34,9 +42,15 @@ export const ProductsView: React.FC = () => {
   const [formStock, setFormStock] = useState<string>('100');
   const [formMinStock, setFormMinStock] = useState<string>('10');
   const [formNcm, setFormNcm] = useState<string>('');
-  const [formCfop, setFormCfop] = useState<string>('');
+  const [formCfop, setFormCfop] = useState<string>('5102');
+  const [formCest, setFormCest] = useState<string>('');
+  const [formUnit, setFormUnit] = useState<string>('un');
   const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
   const [isComposed, setIsComposed] = useState<boolean>(false);
+
+  // EAN Lookup API
+  const [lookupLoading, setLookupLoading] = useState<boolean>(false);
+  const [lookupFeedback, setLookupFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Modal Categoria
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -47,7 +61,7 @@ export const ProductsView: React.FC = () => {
     try {
       setLoading(true);
       const [prods, cats] = await Promise.all([
-        api.getProducts(),
+        api.getProducts(undefined, undefined, true),
         api.getCategories()
       ]);
       setProducts(prods);
@@ -69,6 +83,10 @@ export const ProductsView: React.FC = () => {
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormName('');
+    setFormCode('');
+    setFormEan('');
+    setFormBrand('');
+    setFormSupplier('');
     setFormDescription('');
     setFormPrice('');
     setFormCostPrice('');
@@ -76,7 +94,10 @@ export const ProductsView: React.FC = () => {
     setFormStock('100');
     setFormMinStock('10');
     setFormNcm('');
-    setFormCfop('');
+    setFormCfop('5102');
+    setFormCest('');
+    setFormUnit('un');
+    setLookupFeedback(null);
     setFormComponents([]);
     setIsComposed(false);
     if (categories.length > 0) setFormCategoryId(categories[0].id);
@@ -86,6 +107,10 @@ export const ProductsView: React.FC = () => {
   const openEditModal = (p: Product) => {
     setEditingProduct(p);
     setFormName(p.name);
+    setFormCode(p.code || '');
+    setFormEan(p.ean || '');
+    setFormBrand(p.brand || '');
+    setFormSupplier(p.supplier || '');
     setFormDescription(p.description || '');
     setFormPrice(p.price.toString());
     setFormCostPrice(p.costPrice ? p.costPrice.toString() : '');
@@ -94,7 +119,10 @@ export const ProductsView: React.FC = () => {
     setFormStock(p.stock.toString());
     setFormMinStock(p.minStock.toString());
     setFormNcm(p.ncm || '');
-    setFormCfop(p.cfop || '');
+    setFormCfop(p.cfop || '5102');
+    setFormCest(p.cest || '');
+    setFormUnit(p.unit || 'un');
+    setLookupFeedback(null);
     if (p.components && p.components.length > 0) {
       setIsComposed(true);
       setFormComponents(p.components.map(c => ({ componentId: c.componentId, quantity: c.quantity.toString() })));
@@ -103,6 +131,61 @@ export const ProductsView: React.FC = () => {
       setFormComponents([]);
     }
     setShowProductModal(true);
+  };
+
+  const handleLookupEan = async (eanToSearch?: string) => {
+    const targetEan = (eanToSearch || formEan || '').trim();
+    if (!targetEan) {
+      setLookupFeedback({ type: 'error', message: 'Digite ou bipe o Código de Barras (EAN).' });
+      return;
+    }
+
+    try {
+      setLookupLoading(true);
+      setLookupFeedback(null);
+      const res = await api.lookupProductByEan(targetEan);
+
+      if (res.found) {
+        if (res.name) setFormName(res.name);
+        if (res.code && !formCode) setFormCode(res.code);
+        if (res.ean) setFormEan(res.ean);
+        if (res.brand) setFormBrand(res.brand);
+        if (res.supplier) setFormSupplier(res.supplier);
+        if (res.ncm) setFormNcm(res.ncm);
+        if (res.cest) setFormCest(res.cest);
+        if (res.cfop) setFormCfop(res.cfop);
+        if (res.unit) setFormUnit(res.unit);
+        if (res.description && !formDescription) setFormDescription(res.description);
+        if (res.kdsStation) setFormKdsStation(res.kdsStation);
+        if (res.suggestedCategoryId) setFormCategoryId(res.suggestedCategoryId);
+        if (res.costPrice !== undefined && res.costPrice !== null) {
+          setFormCostPrice(String(res.costPrice));
+        }
+        if (res.suggestedPrice !== undefined && res.suggestedPrice !== null && !formPrice) {
+          setFormPrice(String(res.suggestedPrice));
+        }
+
+        setLookupFeedback({
+          type: 'success',
+          message: res.message || `Produto "${res.name}" localizado com sucesso! Tributação e cadastro preenchidos.`
+        });
+      } else {
+        if (res.code && !formCode) setFormCode(res.code);
+        if (res.ncm && !formNcm) setFormNcm(res.ncm);
+        if (res.cfop && !formCfop) setFormCfop(res.cfop);
+        setLookupFeedback({
+          type: 'info',
+          message: res.message || 'Código válido. Complete os dados para cadastrar.'
+        });
+      }
+    } catch (err: any) {
+      setLookupFeedback({
+        type: 'error',
+        message: err.message || 'Falha ao consultar base tributária e de produtos.'
+      });
+    } finally {
+      setLookupLoading(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -116,6 +199,10 @@ export const ProductsView: React.FC = () => {
     try {
       const payload: any = {
         name: formName.trim(),
+        code: formCode.trim() || null,
+        ean: formEan.trim() || null,
+        brand: formBrand.trim() || null,
+        supplier: formSupplier.trim() || null,
         description: formDescription.trim() || null,
         price,
         costPrice: formCostPrice ? parseFloat(formCostPrice) : null,
@@ -125,6 +212,8 @@ export const ProductsView: React.FC = () => {
         minStock: parseInt(formMinStock) || 5,
         ncm: formNcm.trim() || null,
         cfop: formCfop.trim() || null,
+        cest: formCest.trim() || null,
+        unit: formUnit.trim() || 'un',
         components: isComposed ? formComponents.filter(c => c.componentId && parseFloat(c.quantity) > 0) : []
       };
 
@@ -205,10 +294,15 @@ export const ProductsView: React.FC = () => {
 
   const filteredProducts = products.filter((p) => {
     const matchCat = selectedCategory === 'ALL' || p.categoryId === selectedCategory;
+    const term = search.trim().toLowerCase();
     const matchSearch =
-      search.trim() === '' ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
+      term === '' ||
+      p.name.toLowerCase().includes(term) ||
+      (p.code && p.code.toLowerCase().includes(term)) ||
+      (p.ean && p.ean.toLowerCase().includes(term)) ||
+      (p.brand && p.brand.toLowerCase().includes(term)) ||
+      (p.supplier && p.supplier.toLowerCase().includes(term)) ||
+      (p.description && p.description.toLowerCase().includes(term));
     return matchCat && matchSearch;
   });
 
@@ -223,7 +317,7 @@ export const ProductsView: React.FC = () => {
           <div>
             <h2 className="text-xl font-black text-white">Cardápio & Estoque</h2>
             <p className="text-xs text-slate-400">
-              Controle de preços, insumos, ficha e baixa automática
+              Controle de preços, códigos internos, EAN de barras e tributação fiscal
             </p>
           </div>
         </div>
@@ -253,7 +347,7 @@ export const ProductsView: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Buscar por nome do produto..."
+            placeholder="Buscar por nome, código interno (#BEB-01), EAN/barras, marca ou fornecedor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -330,12 +424,32 @@ export const ProductsView: React.FC = () => {
                 return (
                   <tr key={p.id} className="hover:bg-slate-850/50 transition">
                     <td className="py-3 px-4">
-                      <div className="font-bold text-white text-sm">{p.name}</div>
-                      {p.description && (
-                        <div className="text-[11px] text-slate-500 truncate max-w-xs">
-                          {p.description}
-                        </div>
-                      )}
+                      <div className="font-bold text-white text-sm flex items-center gap-2 flex-wrap">
+                        <span>{p.name}</span>
+                        {p.code && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono" title="Código Interno">
+                            #{p.code}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {p.brand && (
+                          <span className="text-[11px] text-amber-400 font-medium">
+                            {p.brand}
+                          </span>
+                        )}
+                        {p.ean && (
+                          <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-800" title="Código de Barras EAN">
+                            <Barcode className="w-3 h-3 text-slate-500" />
+                            {p.ean}
+                          </span>
+                        )}
+                        {p.description && (
+                          <span className="text-[11px] text-slate-500 truncate max-w-xs">
+                            • {p.description}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-[11px]">
@@ -437,40 +551,137 @@ export const ProductsView: React.FC = () => {
               {editingProduct ? 'Editar Produto' : 'Cadastrar Novo Produto'}
             </h3>
 
+            {/* Bloco de Busca Inteligente por EAN / Código de Barras */}
+            <div className="mb-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900 border border-amber-500/30 rounded-2xl p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-amber-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Preenchimento Automático por Código de Barras
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  EAN / GTIN / NF-e
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={formEan}
+                    onChange={(e) => setFormEan(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLookupEan();
+                      }
+                    }}
+                    placeholder="Bipe ou digite o EAN (ex: 7894900010015)"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleLookupEan()}
+                  disabled={lookupLoading || !formEan.trim()}
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 transition active:scale-95 whitespace-nowrap shadow-sm shadow-amber-500/20"
+                >
+                  {lookupLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>Puxar Dados</span>
+                </button>
+              </div>
+
+              {lookupFeedback && (
+                <div
+                  className={`text-xs p-2.5 rounded-xl border flex items-start gap-2 ${
+                    lookupFeedback.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : lookupFeedback.type === 'error'
+                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  }`}
+                >
+                  <span className="text-xs leading-relaxed">{lookupFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
             <form onSubmit={handleSaveProduct} className="space-y-4">
-              <div>
-                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                  Nome do Item
-                </label>
-                <input
-                  type="text"
-                  required
-                  id="formNameInput"
-                  autoFocus
-                  placeholder="Ex: Chope Pilsen 500ml"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Nome do Item *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Cerveja Heineken Long Neck 330ml"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Código Interno
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: BEB-01"
+                    value={formCode}
+                    onChange={(e) => setFormCode(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Marca / Fabricante
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Heineken, Ambev, Coca-Cola"
+                    value={formBrand}
+                    onChange={(e) => setFormBrand(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Fornecedor
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Distribuidora Central Ltda"
+                    value={formSupplier}
+                    onChange={(e) => setFormSupplier(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>
-                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Descrição (Opcional)
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: Refrescante, colarinho cremoso..."
+                  placeholder="Ex: Refrescante, puro malte, colarinho cremoso..."
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Preço de Venda (R$)
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Preço Venda (R$) *
                   </label>
                   <input
                     type="number"
@@ -483,8 +694,8 @@ export const ProductsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Preço de Custo (R$)
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Preço Custo (R$)
                   </label>
                   <input
                     type="number"
@@ -495,12 +706,24 @@ export const ProductsView: React.FC = () => {
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Unidade
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="un, lata, kg"
+                    value={formUnit}
+                    onChange={(e) => setFormUnit(e.target.value.toLowerCase())}
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    Categoria
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                    Categoria *
                   </label>
                   <select
                     value={formCategoryId}
@@ -515,7 +738,7 @@ export const ProductsView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Destino no KDS
                   </label>
                   <select
@@ -532,7 +755,7 @@ export const ProductsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Estoque Inicial
                   </label>
                   <input
@@ -543,7 +766,7 @@ export const ProductsView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Estoque Mínimo (Alerta)
                   </label>
                   <input
@@ -554,32 +777,56 @@ export const ProductsView: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    NCM (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={formNcm}
-                    onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
-                    placeholder="8 dígitos numéricos"
-                    maxLength={8}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
+
+              {/* Dados Fiscais */}
+              <div className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                    Dados Fiscais (NFC-e / Tributação)
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    Preenchimento automático via API
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    CFOP (Padrão 5102)
-                  </label>
-                  <input
-                    type="text"
-                    value={formCfop}
-                    onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Ex: 5102 ou 5405"
-                    maxLength={4}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                      NCM
+                    </label>
+                    <input
+                      type="text"
+                      value={formNcm}
+                      onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
+                      placeholder="8 dígitos"
+                      maxLength={8}
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                      CEST
+                    </label>
+                    <input
+                      type="text"
+                      value={formCest}
+                      onChange={(e) => setFormCest(e.target.value)}
+                      placeholder="Ex: 03.001.00"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                      CFOP
+                    </label>
+                    <input
+                      type="text"
+                      value={formCfop}
+                      onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
+                      placeholder="5102 / 5405"
+                      maxLength={4}
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

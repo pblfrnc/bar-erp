@@ -239,6 +239,10 @@ export const api = {
     return data;
   },
 
+  lookupProductByEan: async (ean: string): Promise<any> => {
+    return fetchWithRetry(`${getApiUrl()}/products/lookup-ean/${encodeURIComponent(ean)}`).then(handleResponse<any>);
+  },
+
   createProduct: async (data: Partial<Product>): Promise<Product> => {
     cachedProducts = null;
     return fetchWithRetry(`${getApiUrl()}/products`, {

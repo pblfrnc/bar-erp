@@ -79,8 +79,13 @@ model Category {
 }
 
 model Product {
-  ncm         String?
-  cfop        String?
+  code        String?     // Código interno (ex: BEB-001)
+  ean         String?     // Código de Barras EAN / GTIN
+  supplier    String?     // Fornecedor
+  ncm         String?     // Nomenclatura Comum do Mercosul
+  cfop        String?     // Código Fiscal de Operações
+  cest        String?     // Código Especificador da Substituição Tributária
+  brand       String?     // Marca
 
   components  ProductComponent[] @relation("ParentProduct")
   usedIn      ProductComponent[] @relation("ComponentProduct")

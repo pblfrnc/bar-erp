@@ -1,8 +1,21 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
+import { lookupEanCatalog } from '../services/catalogService.js';
 
 export function createProductsRouter() {
   const router = Router();
+
+  // Buscar informações fiscais e cadastrais por Código de Barras (EAN / GTIN)
+  router.get('/lookup-ean/:ean', async (req, res) => {
+    try {
+      const { ean } = req.params;
+      const result = await lookupEanCatalog(ean);
+      res.json(result);
+    } catch (error: any) {
+      console.error('Erro na consulta de EAN:', error);
+      res.status(500).json({ error: error.message || 'Erro ao consultar código de barras' });
+    }
+  });
 
   // Listar produtos
   router.get('/', async (req, res) => {
@@ -17,7 +30,14 @@ export function createProductsRouter() {
         whereClause.categoryId = String(categoryId);
       }
       if (search) {
-        whereClause.name = { contains: String(search) };
+        const s = String(search).trim();
+        whereClause.OR = [
+          { name: { contains: s } },
+          { code: { contains: s } },
+          { ean: { contains: s } },
+          { brand: { contains: s } },
+          { supplier: { contains: s } }
+        ];
       }
 
       const products = await prisma.product.findMany({
@@ -36,7 +56,25 @@ export function createProductsRouter() {
   // Criar produto
   router.post('/', async (req, res) => {
     try {
-      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock, components } = req.body;
+      const {
+        name,
+        code,
+        ean,
+        supplier,
+        brand,
+        ncm,
+        cfop,
+        cest,
+        unit,
+        description,
+        price,
+        costPrice,
+        categoryId,
+        kdsStation,
+        stock,
+        minStock,
+        components
+      } = req.body;
 
       if (!name || price === undefined || !categoryId) {
         return res.status(400).json({ error: 'Nome, preço e categoria são obrigatórios' });
@@ -44,10 +82,18 @@ export function createProductsRouter() {
 
       const product = await prisma.product.create({
         data: {
-          name,
+          name: name.trim(),
+          code: code ? String(code).trim() : null,
+          ean: ean ? String(ean).trim() : null,
+          supplier: supplier ? String(supplier).trim() : null,
+          brand: brand ? String(brand).trim() : null,
+          ncm: ncm ? String(ncm).trim() : null,
+          cfop: cfop ? String(cfop).trim() : null,
+          cest: cest ? String(cest).trim() : null,
+          unit: unit ? String(unit).trim() : 'un',
           description: description || null,
           price: Number(price),
-          costPrice: costPrice ? Number(costPrice) : null,
+          costPrice: costPrice !== undefined && costPrice !== null && costPrice !== '' ? Number(costPrice) : null,
           categoryId,
           kdsStation: kdsStation || 'BAR',
           stock: stock !== undefined ? Number(stock) : 100,
@@ -75,13 +121,40 @@ export function createProductsRouter() {
   router.put('/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, price, costPrice, categoryId, kdsStation, stock, minStock, isActive, components } = req.body;
+      const {
+        name,
+        code,
+        ean,
+        supplier,
+        brand,
+        ncm,
+        cfop,
+        cest,
+        unit,
+        description,
+        price,
+        costPrice,
+        categoryId,
+        kdsStation,
+        stock,
+        minStock,
+        isActive,
+        components
+      } = req.body;
 
       const dataToUpdate: any = {};
-      if (name !== undefined) dataToUpdate.name = name;
+      if (name !== undefined) dataToUpdate.name = name.trim();
+      if (code !== undefined) dataToUpdate.code = code ? String(code).trim() : null;
+      if (ean !== undefined) dataToUpdate.ean = ean ? String(ean).trim() : null;
+      if (supplier !== undefined) dataToUpdate.supplier = supplier ? String(supplier).trim() : null;
+      if (brand !== undefined) dataToUpdate.brand = brand ? String(brand).trim() : null;
+      if (ncm !== undefined) dataToUpdate.ncm = ncm ? String(ncm).trim() : null;
+      if (cfop !== undefined) dataToUpdate.cfop = cfop ? String(cfop).trim() : null;
+      if (cest !== undefined) dataToUpdate.cest = cest ? String(cest).trim() : null;
+      if (unit !== undefined) dataToUpdate.unit = unit ? String(unit).trim() : 'un';
       if (description !== undefined) dataToUpdate.description = description;
       if (price !== undefined) dataToUpdate.price = Number(price);
-      if (costPrice !== undefined) dataToUpdate.costPrice = Number(costPrice);
+      if (costPrice !== undefined) dataToUpdate.costPrice = costPrice !== null && costPrice !== '' ? Number(costPrice) : null;
       if (categoryId !== undefined) dataToUpdate.categoryId = categoryId;
       if (kdsStation !== undefined) dataToUpdate.kdsStation = kdsStation;
       if (stock !== undefined) dataToUpdate.stock = Number(stock);
