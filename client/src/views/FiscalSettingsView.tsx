@@ -218,13 +218,14 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <h3 className="text-lg font-bold text-white">Token da API de Emissão</h3>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Token da API (Focus NFe)</label>
+            <label htmlFor="fisc-token" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Token da API (Focus NFe)</label>
             <input
+              id="fisc-token"
               type="password"
               value={settings.apiToken || ''}
               onChange={e => handleChange('apiToken', e.target.value)}
               placeholder="Cole o token da Focus NFe aqui..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition cursor-text"
             />
           </div>
         </div>
@@ -238,23 +239,25 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Razão Social</label>
+              <label htmlFor="fisc-razao" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Razão Social</label>
               <input
+                id="fisc-razao"
                 type="text"
                 value={settings.razaoSocial || ''}
                 onChange={e => handleChange('razaoSocial', e.target.value)}
                 placeholder="Razão Social exata do CNPJ"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition cursor-text"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Nome Fantasia</label>
+              <label htmlFor="fisc-fantasia" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Nome Fantasia</label>
               <input
+                id="fisc-fantasia"
                 type="text"
                 value={settings.nomeFantasia || ''}
                 onChange={e => handleChange('nomeFantasia', e.target.value)}
                 placeholder="Opcional"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition cursor-text"
               />
             </div>
           </div>
@@ -263,7 +266,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">CNPJ</label>
+                  <label htmlFor="fisc-cnpj" className="text-xs font-bold text-slate-400 uppercase cursor-pointer">CNPJ</label>
                   {isFetchingCnpj && (
                     <span className="flex items-center gap-1 text-[10px] text-sky-400 font-bold">
                       <Loader2 className="w-3 h-3 animate-spin" /> Buscando dados...
@@ -282,12 +285,13 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                 )}
               </div>
               <input
+                id="fisc-cnpj"
                 type="text"
                 value={settings.cnpj || ''}
                 onChange={e => handleCnpjChange(e.target.value)}
                 placeholder="00.000.000/0000-00"
                 maxLength={18}
-                className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white font-mono outline-none transition ${
+                className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white font-mono outline-none transition cursor-text ${
                   cnpjValid === true
                     ? 'border-emerald-500 focus:border-emerald-400'
                     : cnpjValid === false

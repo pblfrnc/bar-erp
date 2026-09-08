@@ -23,8 +23,12 @@ import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
 import { ManageWaitersModal } from './components/ManageWaitersModal';
+import { ManageStaffModal } from './components/ManageStaffModal';
+import { LoginScreen } from './components/LoginScreen';
 import { ConnectMobileModal } from './components/ConnectMobileModal';
 import { playKitchenChime } from './utils/sound';
+import { LoggedUser } from './types';
+
 
 export function App() {
   // Perfil do App: 'waiter' (Comanda do Garçom no Celular/Tablet) ou 'admin' (Painel do PC)
@@ -49,10 +53,45 @@ export function App() {
   // Gerenciamento de Garçons no Modal
   const [showWaitersModal, setShowWaitersModal] = useState<boolean>(false);
 
+  // Modal de Gestão de Funcionários & Permissões
+  const [showStaffModal, setShowStaffModal] = useState<boolean>(false);
+
+  // Usuário / Operador logado
+  const [currentUser, setCurrentUser] = useState<LoggedUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('bar_logged_staff');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem('bar_logged_staff');
+    setCurrentUser(null);
+  };
+
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
   const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce'>('tables');
+
+  // Redireciona automaticamente se a tela atual não for permitida para o usuário
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'ADMIN' && currentUser.permissions?.length) {
+      // Mapeamento de sub-views para módulo pai
+      const requiredModule = 
+        currentView === 'fiscalSettings' || currentView === 'manualNfce' ? 'fiscal' :
+        currentView === 'audit' ? 'dashboard' : currentView;
+
+      if (!currentUser.permissions.includes(requiredModule)) {
+        const firstAllowed = currentUser.permissions[0] as any;
+        if (firstAllowed) {
+          setCurrentView(firstAllowed);
+        }
+      }
+    }
+  }, [currentUser, currentView]);
+
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
   const [kdsCount, setKdsCount] = useState<number>(0);
@@ -286,6 +325,11 @@ export function App() {
     return <LicenseModal machineId={machineId} onSuccess={loadSettings} />;
   }
 
+  // Tela de Login obrigatória no modo computador / gestão
+  if (appMode === 'admin' && !currentUser) {
+    return <LoginScreen onLoginSuccess={(u) => setCurrentUser(u)} />;
+  }
+
   if (appMode === 'waiter') {
 
     return (
@@ -327,7 +371,10 @@ export function App() {
         onChangeFontScale={handleFontScaleChange}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
+
 
       {/* Conteúdo da View Ativa no Painel do PC */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
@@ -362,6 +409,7 @@ export function App() {
         {currentView === 'settings' && (
           <SettingsView 
             onOpenWaitersModal={() => setShowWaitersModal(true)}
+            onOpenStaffModal={() => setShowStaffModal(true)}
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
             onOpenSuppliers={() => setCurrentView('suppliers')}
@@ -379,6 +427,13 @@ export function App() {
         )}
       </main>
 
+      {/* Modal de Gestão de Colaboradores & Permissões */}
+      {showStaffModal && (
+        <ManageStaffModal
+          onClose={() => setShowStaffModal(false)}
+        />
+      )}
+
       {/* Modal de Gestão de Garçons */}
       {showWaitersModal && (
         <ManageWaitersModal
@@ -386,6 +441,7 @@ export function App() {
           onWaitersChanged={loadTables}
         />
       )}
+
 
       {/* Modal de Conexão com Dispositivos Móveis (IP & QR Code) */}
       {showConnectMobileModal && (

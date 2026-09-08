@@ -415,43 +415,48 @@ export const TablesView: React.FC<TablesViewProps> = ({
             <h2 className="text-xl font-black text-white mb-4">Adicionar Nova Mesa</h2>
             <form onSubmit={handleCreateNewTable} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                  Número da Mesa
+                <label htmlFor="tbl-num" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  Número da Mesa *
                 </label>
                 <input
-                  type="number"
+                  id="tbl-num"
+                  type="text"
+                  inputMode="numeric"
                   required
                   placeholder="Ex: 13"
                   value={newTableNumber}
                   onChange={(e) => setNewTableNumber(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-bold"
+                  autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="tbl-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Nome / Identificação (Opcional)
                 </label>
                 <input
+                  id="tbl-name"
                   type="text"
                   placeholder="Ex: Mesa 13, Bistrô 01, VIP 02"
                   value={newTableName}
                   onChange={(e) => setNewTableName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="tbl-cap" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Capacidade (Lugares)
                 </label>
                 <input
+                  id="tbl-cap"
                   type="number"
                   min="1"
                   max="30"
                   value={newTableCapacity}
                   onChange={(e) => setNewTableCapacity(parseInt(e.target.value) || 4)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text"
                 />
               </div>
 

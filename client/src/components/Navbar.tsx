@@ -14,8 +14,11 @@ import { FileText,
   Moon,
   Users,
   Smartphone,
-  Truck
+  Truck,
+  LogOut
 } from 'lucide-react';
+import { LoggedUser } from '../types';
+
 
 interface NavbarProps {
   currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce';
@@ -27,6 +30,8 @@ interface NavbarProps {
   onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  currentUser?: LoggedUser | null;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -39,6 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onChangeFontScale,
   theme,
   onToggleTheme,
+  currentUser,
+  onLogout
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -60,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const navItems = [
+  const rawNavItems = [
     {
       id: 'tables' as const,
       label: 'Mesas & Salão',
@@ -95,7 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     {
       id: 'settings' as const,
-      label: 'Configurações',
+      label: 'Retaguarda',
       icon: Settings,
       badge: null
     },
@@ -106,6 +113,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       badge: null
     }
   ];
+
+  // Filtra itens conforme permissões do usuário logado
+  const navItems = rawNavItems.filter((item) => {
+    if (!currentUser || !currentUser.permissions) return true;
+    if (currentUser.role === 'ADMIN') return true;
+    return currentUser.permissions.includes(item.id);
+  });
+
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 select-none shadow-sm dark:shadow-none transition-colors">
@@ -219,7 +234,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
+
+            {/* Operador Ativo & Logout */}
+            {currentUser && (
+              <div className="flex items-center gap-1 sm:gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+                <div className="hidden lg:flex flex-col items-end">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                    {currentUser.name}
+                  </span>
+                  <span className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 leading-tight">
+                    {currentUser.role}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                  title={`Operador: ${currentUser.name} (${currentUser.role}) — Clique para Sair / Trocar`}
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
+
         </div>
       </div>
 

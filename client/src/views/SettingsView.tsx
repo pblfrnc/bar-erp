@@ -9,6 +9,7 @@ interface SettingsViewProps {
   onOpenConnectMobile: () => void;
   onOpenCustomers: () => void;
   onOpenSuppliers?: () => void;
+  onOpenStaffModal?: () => void;
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
 }
@@ -18,6 +19,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenConnectMobile,
   onOpenCustomers,
   onOpenSuppliers,
+  onOpenStaffModal,
   autoPrintKitchen,
   onToggleAutoPrintKitchen
 }) => {
@@ -50,17 +52,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Cabeçalho */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
             <Settings className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">Painel Administrativo</h2>
+            <h2 className="text-xl font-black text-white">Retaguarda & Gestão do Sistema</h2>
             <p className="text-xs text-slate-400">
-              Gerencie garçons, conexões de dispositivos e impressoras térmicas.
+              Gerencie colaboradores, permissões por função, fornecedores, conexões e impressoras.
             </p>
           </div>
         </div>
       </div>
+
 
       {/* Grid de Opções */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mb-4 flex items-center justify-between">
@@ -81,23 +84,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        
-        
-        {/* Configurações Fiscais */}
-        
-
-        {/* Emissor Manual */}
-        
-
-        {/* Importação XML */}
-        
+        {/* Equipe & Funcionários */}
+        {onOpenStaffModal && (
+          <button
+            onClick={onOpenStaffModal}
+            className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-amber-400 transition">Equipe & Colaboradores</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Cadastrar funcionários, senhas e liberar funções</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-amber-400 transition" />
+          </button>
+        )}
 
         {/* Clientes Fiado */}
         <button
           onClick={onOpenCustomers}
           className="bg-slate-900 hover:bg-slate-800 transition border border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group"
         >
+
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
               <Users className="w-6 h-6" />

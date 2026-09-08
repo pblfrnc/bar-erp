@@ -10,8 +10,12 @@ import {
   KdsStatus,
   KdsItem,
   Waiter,
-  Supplier
+  Supplier,
+  StaffPublicUser,
+  StaffMember,
+  LoggedUser
 } from '../types';
+
 
 import { getServerBaseUrl } from './socket';
 
@@ -396,5 +400,49 @@ export const api = {
   deleteWaiter: (id: string): Promise<{ success: boolean; message?: string; waiter?: Waiter }> =>
     fetchWithRetry(`${getApiUrl()}/waiters/${id}`, {
       method: 'DELETE'
-    }).then(handleResponse<{ success: boolean; message?: string; waiter?: Waiter }>)
+    }).then(handleResponse<{ success: boolean; message?: string; waiter?: Waiter }>),
+
+  // Gestão de Funcionários & Autenticação
+  getStaffPublicList: (): Promise<StaffPublicUser[]> =>
+    fetchWithRetry(`${getApiUrl()}/staff/public-list`).then(handleResponse<StaffPublicUser[]>),
+
+  loginStaff: async (userId: string, password: string): Promise<{ success: boolean; user: LoggedUser }> => {
+    const res = await fetch(`${getApiUrl()}/staff/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err: any = new Error(data.error || 'Erro ao realizar login');
+      err.lockedOut = data.lockedOut;
+      err.remainingSeconds = data.remainingSeconds;
+      err.attempts = data.attempts;
+      throw err;
+    }
+    return data;
+  },
+
+  getStaffList: (): Promise<StaffMember[]> =>
+    fetchWithRetry(`${getApiUrl()}/staff`).then(handleResponse<StaffMember[]>),
+
+  createStaff: (data: { name: string; role: string; password: string; permissions: string[]; active?: boolean }): Promise<StaffMember> =>
+    fetchWithRetry(`${getApiUrl()}/staff`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<StaffMember>),
+
+  updateStaff: (id: string, data: Partial<StaffMember & { password?: string }>): Promise<StaffMember> =>
+    fetchWithRetry(`${getApiUrl()}/staff/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<StaffMember>),
+
+  deleteStaff: (id: string): Promise<{ success: boolean; message: string }> =>
+    fetchWithRetry(`${getApiUrl()}/staff/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse<{ success: boolean; message: string }>)
 };
+

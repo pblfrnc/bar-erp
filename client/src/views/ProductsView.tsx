@@ -1655,15 +1655,17 @@ export const ProductsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="cat-code-start" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Faixa Numérica do Código (Opcional)
                 </label>
                 <input
-                  type="number"
+                  id="cat-code-start"
+                  type="text"
+                  inputMode="numeric"
                   placeholder="Ex: 5001 para bebidas, 6001 para chicletes/balas"
                   value={newCatCodeStart}
                   onChange={(e) => setNewCatCodeStart(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
                   Os produtos desta categoria receberão códigos sequenciais automáticos a partir deste número (ex: 6001, 6002...).
@@ -1877,139 +1879,149 @@ export const ProductsView: React.FC = () => {
 
             <form onSubmit={handleSaveSupplier} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="pv-sup-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome Principal *
                 </label>
                 <input
+                  id="pv-sup-name"
                   type="text"
                   required
                   placeholder="Ex: Cervejaria Ambev S.A. ou Distribuidora Modelo"
                   value={supplierFormName}
                   onChange={(e) => setSupplierFormName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   autoFocus
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-trade" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Nome Fantasia
                   </label>
                   <input
+                    id="pv-sup-trade"
                     type="text"
                     placeholder="Ex: Ambev Chopp"
                     value={supplierFormTradeName}
                     onChange={(e) => setSupplierFormTradeName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     CNPJ ou CPF
                   </label>
                   <input
+                    id="pv-sup-doc"
                     type="text"
                     placeholder="00.000.000/0000-00"
                     value={supplierFormDocument}
                     onChange={(e) => setSupplierFormDocument(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Telefone / WhatsApp
                   </label>
                   <input
+                    id="pv-sup-phone"
                     type="text"
                     placeholder="(11) 98888-7777"
                     value={supplierFormPhone}
                     onChange={(e) => setSupplierFormPhone(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-ie" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Inscrição Estadual (IE)
                   </label>
                   <input
+                    id="pv-sup-ie"
                     type="text"
                     placeholder="Ex: 123456789"
                     value={supplierFormIe}
                     onChange={(e) => setSupplierFormIe(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-email" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     E-mail
                   </label>
                   <input
+                    id="pv-sup-email"
                     type="email"
                     placeholder="pedidos@fornecedor.com.br"
                     value={supplierFormEmail}
                     onChange={(e) => setSupplierFormEmail(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-contact" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Contato / Vendedor
                   </label>
                   <input
+                    id="pv-sup-contact"
                     type="text"
                     placeholder="Ex: Carlos Representante"
                     value={supplierFormContactName}
                     onChange={(e) => setSupplierFormContactName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-city" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     Cidade
                   </label>
                   <input
+                    id="pv-sup-city"
                     type="text"
                     placeholder="Ex: São Paulo"
                     value={supplierFormCity}
                     onChange={(e) => setSupplierFormCity(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                  <label htmlFor="pv-sup-uf" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                     UF
                   </label>
                   <input
+                    id="pv-sup-uf"
                     type="text"
                     placeholder="SP"
                     maxLength={2}
                     value={supplierFormState}
                     onChange={(e) => setSupplierFormState(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="pv-sup-addr" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Endereço
                 </label>
                 <input
+                  id="pv-sup-addr"
                   type="text"
                   placeholder="Rua, número, bairro..."
                   value={supplierFormAddress}
                   onChange={(e) => setSupplierFormAddress(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none"
+                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
                 />
               </div>
 
@@ -2060,56 +2072,60 @@ export const ProductsView: React.FC = () => {
 
             <form onSubmit={handleSaveQuickSupplier} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="quick-sup-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome *
                 </label>
                 <input
+                  id="quick-sup-name"
                   type="text"
                   required
                   placeholder="Ex: Cervejaria Heineken do Brasil"
                   value={quickSupplierName}
                   onChange={(e) => setQuickSupplierName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="quick-sup-trade" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Nome Fantasia
                 </label>
                 <input
+                  id="quick-sup-trade"
                   type="text"
                   placeholder="Ex: Heineken"
                   value={quickSupplierTradeName}
                   onChange={(e) => setQuickSupplierTradeName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="quick-sup-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   CNPJ ou CPF (Opcional)
                 </label>
                 <input
+                  id="quick-sup-doc"
                   type="text"
                   placeholder="00.000.000/0000-00"
                   value={quickSupplierDoc}
                   onChange={(e) => setQuickSupplierDoc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label htmlFor="quick-sup-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
                   Telefone / WhatsApp (Opcional)
                 </label>
                 <input
+                  id="quick-sup-phone"
                   type="text"
                   placeholder="(11) 99999-8888"
                   value={quickSupplierPhone}
                   onChange={(e) => setQuickSupplierPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
                 />
               </div>
 

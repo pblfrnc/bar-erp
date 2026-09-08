@@ -275,3 +275,17 @@ model Supplier {
   updatedAt   DateTime  @updatedAt
   products    Product[]
 }
+
+model Staff {
+  id             String    @id @default(cuid())
+  name           String
+  role           String    @default("OPERADOR") // ADMIN, GERENTE, CAIXA, GARCOM, COZINHA, ESTOQUISTA
+  password       String
+  permissions    String    @default("[\"tables\",\"cash\"]") // JSON com ids das abas/módulos permitidos
+  active         Boolean   @default(true)
+  failedAttempts Int       @default(0)
+  lockoutUntil   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+

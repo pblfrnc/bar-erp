@@ -117,20 +117,49 @@ export const CustomersView: React.FC = () => {
             <h3 className="text-lg font-black text-white mb-4">Cadastrar Cliente</h3>
             <form onSubmit={handleCreateCustomer} className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome Completo</label>
-                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" />
+                <label htmlFor="cust-name" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block cursor-pointer">
+                  Nome Completo *
+                </label>
+                <input
+                  id="cust-name"
+                  required
+                  type="text"
+                  autoFocus
+                  placeholder="Ex: Carlos Eduardo"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 focus:outline-none cursor-text transition"
+                />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Telefone / WhatsApp</label>
-                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" />
+                <label htmlFor="cust-phone" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block cursor-pointer">
+                  Telefone / WhatsApp
+                </label>
+                <input
+                  id="cust-phone"
+                  type="text"
+                  placeholder="(11) 98888-7777"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 focus:outline-none cursor-text transition"
+                />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Documento (Opcional)</label>
-                <input type="text" value={document} onChange={e => setDocument(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white" />
+                <label htmlFor="cust-doc" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block cursor-pointer">
+                  Documento CPF / CNPJ (Opcional)
+                </label>
+                <input
+                  id="cust-doc"
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={document}
+                  onChange={e => setDocument(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:border-amber-500 focus:outline-none cursor-text transition"
+                />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-black rounded-xl transition">Salvar</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition cursor-pointer">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-black rounded-xl transition cursor-pointer">Salvar Cliente</button>
               </div>
             </form>
           </div>

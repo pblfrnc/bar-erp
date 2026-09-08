@@ -215,3 +215,26 @@ export interface DashboardData {
   lowMarginProducts: { id: string; name: string; margin: number; price: number; cost: number }[];
 
 }
+
+export interface StaffPublicUser {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: string;
+  permissions: string[];
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LoggedUser {
+  id: string;
+  name: string;
+  role: string;
+  permissions: string[];
+}

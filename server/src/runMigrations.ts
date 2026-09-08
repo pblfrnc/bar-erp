@@ -125,6 +125,45 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "supplierId" TEXT REFERENCES "Supplier"("id")`);
     } catch (e) {}
 
+    // Tabela de Funcionários / Usuários do Sistema (Staff)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Staff" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "role" TEXT NOT NULL DEFAULT 'OPERADOR',
+        "password" TEXT NOT NULL,
+        "permissions" TEXT NOT NULL DEFAULT '["tables","cash"]',
+        "active" INTEGER NOT NULL DEFAULT 1,
+        "failedAttempts" INTEGER NOT NULL DEFAULT 0,
+        "lockoutUntil" DATETIME,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Criar Administrador Padrão se não houver nenhum colaborador cadastrado
+    const staffCount: any = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "Staff"`);
+    const totalStaff = Number(staffCount[0]?.count || 0);
+    if (totalStaff === 0) {
+      console.log('[Migrations] Criando usuário Administrador inicial...');
+      const allPermissions = JSON.stringify([
+        'tables',
+        'kds',
+        'cash',
+        'products',
+        'fiscal',
+        'settings',
+        'dashboard',
+        'customers',
+        'suppliers'
+      ]);
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "Staff" ("id", "name", "role", "password", "permissions", "active", "failedAttempts", "createdAt", "updatedAt")
+        VALUES ('admin_root', 'Administrador', 'ADMIN', '1234', '${allPermissions}', 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `);
+      console.log('[Migrations] Usuário Administrador criado com senha padrão "1234".');
+    }
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {

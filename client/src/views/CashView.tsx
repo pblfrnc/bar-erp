@@ -252,42 +252,47 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
 
           <form onSubmit={handleOpenShift} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                Fundo de Troco Inicial (R$)
+              <label htmlFor="cash-initial-balance" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                Fundo de Troco Inicial (R$) *
               </label>
               <input
-                type="number"
-                step="0.01"
+                id="cash-initial-balance"
+                type="text"
+                inputMode="decimal"
                 required
+                placeholder="0.00"
                 value={initialBalance}
-                onChange={(e) => setInitialBalance(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-lg font-mono font-bold focus:border-amber-500 focus:outline-none transition"
+                onChange={(e) => setInitialBalance(e.target.value.replace(',', '.'))}
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-lg font-mono font-bold focus:border-amber-500 focus:outline-none cursor-text transition"
+                autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                Operador / Responsável
+              <label htmlFor="cash-opened-by" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                Operador / Responsável *
               </label>
               <input
+                id="cash-opened-by"
                 type="text"
                 required
                 value={openedBy}
                 onChange={(e) => setOpenedBy(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none transition"
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text transition font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+              <label htmlFor="cash-open-notes" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
                 Observações do Turno (Opcional)
               </label>
               <input
+                id="cash-open-notes"
                 type="text"
-                placeholder="Ex: Turno Noturno"
+                placeholder="Ex: Turno Noturno, Gaveta 01"
                 value={openNotes}
                 onChange={(e) => setOpenNotes(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none transition"
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text transition"
               />
             </div>
 
@@ -601,32 +606,34 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
             </h3>
             <form onSubmit={handleAddTransaction} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  Valor (R$)
+                <label htmlFor="tx-amount-input" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                  Valor (R$) *
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
+                  id="tx-amount-input"
+                  type="text"
+                  inputMode="decimal"
                   required
                   placeholder="0.00"
                   value={txAmount}
-                  onChange={(e) => setTxAmount(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none transition"
+                  onChange={(e) => setTxAmount(e.target.value.replace(',', '.'))}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text transition"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                  Motivo / Justificativa
+                <label htmlFor="tx-reason-input" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                  Motivo / Justificativa *
                 </label>
                 <input
+                  id="tx-reason-input"
                   type="text"
                   required
                   placeholder={txType === 'WITHDRAWAL' ? 'Ex: Pagamento fornecedor de gelo' : 'Ex: Troco extra para notas'}
                   value={txReason}
                   onChange={(e) => setTxReason(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none transition"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-text transition font-medium"
                 />
               </div>
 
@@ -676,31 +683,33 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
 
                 <form onSubmit={handleProceedToVerify} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                      Valor Total em Dinheiro Contado na Gaveta (R$)
+                    <label htmlFor="close-final-cash-count" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                      Valor Total em Dinheiro Contado na Gaveta (R$) *
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
+                      id="close-final-cash-count"
+                      type="text"
+                      inputMode="decimal"
                       required
                       placeholder="0.00"
                       value={finalCashCount}
-                      onChange={(e) => setFinalCashCount(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-2xl font-black focus:border-amber-500 focus:outline-none transition"
+                      onChange={(e) => setFinalCashCount(e.target.value.replace(',', '.'))}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-2xl font-black focus:border-amber-500 focus:outline-none cursor-text transition"
                       autoFocus
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                      Conferido Por
+                    <label htmlFor="close-by-name" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
+                      Conferido Por *
                     </label>
                     <input
+                      id="close-by-name"
                       type="text"
                       required
                       value={closedBy}
                       onChange={(e) => setClosedBy(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none transition"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-text transition font-medium"
                     />
                   </div>
 

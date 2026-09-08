@@ -167,46 +167,50 @@ export const ManageWaitersModal: React.FC<ManageWaitersModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div className="sm:col-span-2">
-              <label className="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+              <label htmlFor="waiter-name-input" className="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
                 Nome do Garçom *
               </label>
               <input
+                id="waiter-name-input"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Carlos Silva"
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-medium cursor-text"
                 required
+                autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+              <label htmlFor="waiter-code-input" className="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1 cursor-pointer">
                 Crachá / Cód.
               </label>
               <input
+                id="waiter-code-input"
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Ex: 01"
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold text-center"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold text-center cursor-text"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+              <label htmlFor="waiter-commission-input" className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1 cursor-pointer">
                 <Percent className="w-3.5 h-3.5 text-amber-500" />
                 Taxa de Serviço:
               </label>
               <input
+                id="waiter-commission-input"
                 type="number"
                 min="0"
                 max="30"
                 value={commissionRate}
                 onChange={(e) => setCommissionRate(Number(e.target.value))}
-                className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-slate-900 dark:text-white"
+                className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-slate-900 dark:text-white cursor-text"
               />
               <span className="text-xs text-slate-400 font-bold">%</span>
             </div>
