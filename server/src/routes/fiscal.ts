@@ -815,10 +815,12 @@ export function createFiscalRouter() {
       const data = await focusRes.json();
       
       if (!focusRes.ok) {
-        throw new Error(JSON.stringify(data.erros || data.mensagem || data));
+        const errosFormatados = Array.isArray(data.erros)
+          ? data.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo || JSON.stringify(e)}`).join('\n')
+          : data.mensagem || JSON.stringify(data);
+        console.error('[emit-nfce] Focus NFe recusou:', focusRes.status, JSON.stringify(data, null, 2));
+        return res.status(400).json({ error: `Focus NFe (${focusRes.status}): ${errosFormatados}` });
       }
-
-      // Se a nota já voltar autorizada de cara
 
       const focusDataRef = data.ref;
       const focusDataChave = data.chave_nfe;
@@ -833,8 +835,6 @@ export function createFiscalRouter() {
         try {
           const NotaEmitida = (prisma as any).notaEmitida;
           
-          // Arquivamento Físico de 5 anos
-          // O XML real na API da Focus NFe seria baixado e guardado. Como é um teste, guardaremos o JSON de requisição assinado ou mock
           const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
           secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
           
@@ -865,56 +865,52 @@ export function createFiscalRouter() {
         });
       }
 
-      // Caso seja 'processando', aguardamos 2s e tentamos buscar 1x pra ver se autorizou rápido
+      // Caso seja 'processando', aguardamos 2.5s e tentamos buscar 1x
       if (data.status === 'processando') {
         await new Promise(resolve => setTimeout(resolve, 2500));
         const checkRes = await fetch(baseURL + '/' + data.ref + '?cnpj_emitente=' + settings.cnpj.replace(/\D/g, ''), {
           headers: { 'Authorization': 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64') }
         });
         const checkData = await checkRes.json();
-        
 
         if (checkData.status === 'autorizado') {
-          
-        // Salva Nota Emitida no DB
-        try {
-          const NotaEmitida = (prisma as any).notaEmitida;
-          
-          // Arquivamento Físico de 5 anos
-          // O XML real na API da Focus NFe seria baixado e guardado. Como é um teste, guardaremos o JSON de requisição assinado ou mock
-          const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
-          secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
-          
-          if (NotaEmitida) {
-            await NotaEmitida.create({
-              data: {
-                referencia: checkData.ref,
-                chave: checkData.chave_nfe,
-                numero: checkData.numero,
-                serie: checkData.serie,
-                dataEmissao: new Date().toISOString(),
-                valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
-                status: checkData.status,
-                xmlUrl: baseURL + '/' + checkData.ref + '.xml',
-                pdfUrl: baseURL + '/' + checkData.ref + '/danfe.pdf'
-              }
-            });
+          try {
+            const NotaEmitida = (prisma as any).notaEmitida;
+            const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
+            secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
+            if (NotaEmitida) {
+              await NotaEmitida.create({
+                data: {
+                  referencia: checkData.ref,
+                  chave: checkData.chave_nfe,
+                  numero: checkData.numero,
+                  serie: checkData.serie,
+                  dataEmissao: new Date().toISOString(),
+                  valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
+                  status: checkData.status,
+                  xmlUrl: baseURL + '/' + checkData.ref + '.xml',
+                  pdfUrl: baseURL + '/' + checkData.ref + '/danfe.pdf'
+                }
+              });
+            }
+          } catch (e) {
+            console.error("Erro ao salvar NotaEmitida", e);
           }
-        } catch (e) {
-          console.error("Erro ao salvar NotaEmitida", e);
-        }
 
           return res.json({
             success: true,
             status: checkData.status,
             chaveAcesso: checkData.chave_nfe,
-            caminhoDanfe: baseURL + '/' + data.ref + '/danfe.pdf' // Note que o PDF real pode vir no json, usamos a URL direta da API Focus
+            caminhoDanfe: baseURL + '/' + data.ref + '/danfe.pdf'
           });
         }
         
-        // Se ainda não estiver pronto, retorna o status para o usuário ver
         if (checkData.status === 'erro_autorizacao') {
-           throw new Error(JSON.stringify(checkData.erros || checkData.mensagem));
+          const errMsg = Array.isArray(checkData.erros)
+            ? checkData.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join('\n')
+            : checkData.mensagem || JSON.stringify(checkData);
+          console.error('[emit-nfce] erro_autorizacao:', JSON.stringify(checkData, null, 2));
+          return res.status(400).json({ error: `SEFAZ recusou a nota: ${errMsg}` });
         }
 
         return res.json({
@@ -927,7 +923,8 @@ export function createFiscalRouter() {
 
       res.json(data);
     } catch (err: any) {
-      res.status(500).json({ error: 'Erro ao conectar com API Fiscal.' });
+      console.error('[emit-nfce] Exceção:', err);
+      res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal.' });
     }
   });
 
