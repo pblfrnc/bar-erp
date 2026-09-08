@@ -187,7 +187,8 @@ export function createFiscalRouter() {
         ? 'https://api.focusnfe.com.br'
         : 'https://homologacao.focusnfe.com.br';
 
-      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+      const cleanToken = (settings.apiToken || '').trim();
+      const authHeader = 'Basic ' + Buffer.from(cleanToken + ':').toString('base64');
 
       const cnpjLimpo = (settings.cnpj || '').replace(/\D/g, '');
       let empresaCadastrada: any = null;
@@ -202,7 +203,7 @@ export function createFiscalRouter() {
           if (directRes.status === 401) {
             return res.json({
               ok: false,
-              error: 'Token inválido ou sem permissão. Verifique se o Token está correto e é de produção/homologação conforme o ambiente configurado.',
+              error: `Token não reconhecido pela Focus NFe (401 Não Autorizado).\n\nVerifique se o token é do ambiente de ${isProducao ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO'}. Se o token foi gerado no portal de ${isProducao ? 'Homologação' : 'Produção'}, ajuste o campo "Ambiente SEFAZ" para coincidir.`,
               status: 401,
               ambiente: isProducao ? 'Produção' : 'Homologação'
             });
@@ -505,6 +506,7 @@ export function createFiscalRouter() {
       
       // Cria ou Atualiza a empresa na Focus NFe (Software House Model)
       if (data.apiToken && data.cnpj) {
+        data.apiToken = String(data.apiToken).trim();
         const cleanCnpj = data.cnpj.replace(/\D/g, '');
         const isProducao = data.environment === 'producao';
         const baseURL = isProducao 
