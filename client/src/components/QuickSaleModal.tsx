@@ -75,7 +75,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   // Funções do Carrinho
   const handleAddToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
     const isBox = unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
-    const price = isBox ? Number(product.boxPrice) : product.price;
+    const price = isBox ? Number(product.boxPrice) : Number(product.price || 0);
 
     setCart(prev => {
       const idx = prev.findIndex(item => item.product.id === product.id && item.unitType === unitType);
@@ -123,25 +123,42 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   // Filtragem de Produtos (Iniciais, Nome, Código Interno # e EAN)
   const filteredProducts = products.filter(p => {
     const matchesCat = selectedCategory === 'ALL' || p.categoryId === selectedCategory;
-    const term = search.trim().toLowerCase();
-    const matchesSearch = !term || 
-      Boolean(p.name && p.name.toLowerCase().includes(term)) ||
-      Boolean(p.code && p.code.toLowerCase().includes(term)) ||
-      Boolean(p.ean && p.ean.toLowerCase().includes(term)) ||
-      Boolean(p.brand && p.brand.toLowerCase().includes(term)) ||
-      Boolean(p.description && p.description.toLowerCase().includes(term));
+    const rawTerm = search.trim().toLowerCase();
+    if (!rawTerm) return matchesCat;
+
+    const cleanTerm = rawTerm.startsWith('#') ? rawTerm.slice(1) : rawTerm;
+    const pName = p.name ? String(p.name).toLowerCase() : '';
+    const pCode = p.code ? String(p.code).toLowerCase() : '';
+    const pEan = p.ean ? String(p.ean).toLowerCase() : '';
+    const pBoxEan = p.boxEan ? String(p.boxEan).toLowerCase() : '';
+    const pBrand = p.brand ? String(p.brand).toLowerCase() : '';
+    const pDesc = p.description ? String(p.description).toLowerCase() : '';
+
+    const matchesSearch =
+      pName.includes(rawTerm) ||
+      (cleanTerm !== '' && pCode.includes(cleanTerm)) ||
+      (cleanTerm !== '' && pEan.includes(cleanTerm)) ||
+      (cleanTerm !== '' && pBoxEan.includes(cleanTerm)) ||
+      pBrand.includes(rawTerm) ||
+      pDesc.includes(rawTerm);
+
     return matchesCat && matchesSearch;
   });
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const term = search.trim().toLowerCase();
-      if (!term) return;
+      const rawTerm = search.trim().toLowerCase();
+      if (!rawTerm) return;
+
+      const cleanTerm = rawTerm.startsWith('#') ? rawTerm.slice(1) : rawTerm;
 
       // 1. Tenta correspondência exata por código de barras de caixa (DUN-14 / boxEan)
       const exactBox = products.find(p => 
-        p.hasBoxPrice && p.boxEan && p.boxEan.toLowerCase() === term
+        p.hasBoxPrice && p.boxEan && (
+          String(p.boxEan).toLowerCase() === rawTerm ||
+          String(p.boxEan).toLowerCase() === cleanTerm
+        )
       );
 
       if (exactBox) {
@@ -152,8 +169,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
       // 2. Tenta correspondência exata por código de barras EAN ou código interno (#5001)
       const exact = products.find(p => 
-        (p.ean && p.ean.toLowerCase() === term) ||
-        (p.code && p.code.toLowerCase() === term)
+        (p.ean && (String(p.ean).toLowerCase() === rawTerm || String(p.ean).toLowerCase() === cleanTerm)) ||
+        (p.code && (String(p.code).toLowerCase() === rawTerm || String(p.code).toLowerCase() === cleanTerm))
       );
 
       if (exact) {
@@ -272,17 +289,35 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
           <div className="flex-1 flex flex-col border-r border-slate-800 overflow-hidden bg-slate-900/50">
             {/* Barra de Pesquisa e Categorias */}
             <div className="p-4 border-b border-slate-800 space-y-3 bg-slate-900">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                 <input
                   ref={searchInputRef}
+                  autoFocus
                   type="text"
+                  id="quick-sale-search"
+                  name="quickSaleSearch"
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="Digite iniciais (ex: HEIN, AGUA), código (#5001) ou bipe o código de barras + Enter..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text"
+                  className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text select-text"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      searchInputRef.current?.focus();
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer z-10"
+                    title="Limpar busca"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Categorias Pills */}
@@ -381,7 +416,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                                   Unidade
                                 </span>
                                 <span className="text-[11px] font-black font-mono text-emerald-400 group-hover/btn:text-slate-950">
-                                  R$ {product.price.toFixed(2)}
+                                  R$ {Number(product.price || 0).toFixed(2)}
                                 </span>
                                 {cartUnits && (
                                   <span className="text-[9px] font-bold text-amber-400 group-hover/btn:text-slate-950">
@@ -430,7 +465,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                             className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/50 w-full hover:text-amber-400 transition cursor-pointer"
                           >
                             <span className="text-xs font-black text-emerald-400 font-mono">
-                              R$ {product.price.toFixed(2)}
+                              R$ {Number(product.price || 0).toFixed(2)}
                             </span>
 
                             {product.trackStock && (
