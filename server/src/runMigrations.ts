@@ -164,6 +164,75 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       console.log('[Migrations] Usuário Administrador criado com senha padrão "1234".');
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // Reclassificação Automática: Migrar produtos de "IMPORTADOS" para "Bar" (volume em ml) e "Cozinha"
+    // ─────────────────────────────────────────────────────────────────
+    try {
+      const catImportados: any = await (prisma as any).category.findFirst({
+        where: { name: { in: ['IMPORTADOS', 'Importados', 'importados'] } },
+        include: { products: true }
+      });
+
+      if (catImportados && catImportados.products && catImportados.products.length > 0) {
+        console.log(`[Migrations] Detectados ${catImportados.products.length} produtos na categoria IMPORTADOS. Reclassificando...`);
+
+        let catBar = await (prisma as any).category.findFirst({
+          where: { name: { in: ['Bar', 'BAR', 'bar'] } }
+        });
+        if (!catBar) {
+          catBar = await (prisma as any).category.create({
+            data: { name: 'Bar', icon: 'Beer', sortOrder: 1, codeStart: 5001 }
+          });
+        }
+
+        let catCozinha = await (prisma as any).category.findFirst({
+          where: { name: { in: ['Cozinha', 'COZINHA', 'cozinha'] } }
+        });
+        if (!catCozinha) {
+          catCozinha = await (prisma as any).category.create({
+            data: { name: 'Cozinha', icon: 'UtensilsCrossed', sortOrder: 2, codeStart: 1001 }
+          });
+        }
+
+        let movedBar = 0;
+        let movedCozinha = 0;
+
+        for (const prod of catImportados.products) {
+          const text = `${prod.name || ''} ${prod.description || ''}`.toLowerCase();
+          const u = String(prod.unit || '').trim().toUpperCase();
+
+          const hasMl = /\b\d+(?:[.,]\d+)?\s*(?:ml|m\.l\.)\b/i.test(text);
+          const hasL = /\b\d+(?:[.,]\d+)?\s*(?:l|lt|litro|litros)\b/i.test(text);
+          const isMlUnit = u === 'ML' || u === 'L' || u === 'LT' || u === 'LTS';
+          const isDrink = /cervej|chopp|chope|beer|refrigerante|coca[-\s]?cola|pepsi|guaran[aá]|fanta|sprite|schweppes|vodka|whisky|whiskey|gin\b|cacha[cç]a|pinga|rum\b|tequila|licor|vinho|espumante|champagne|suco|energ[eé]tico|red bull|monster|água|agua mineral|long neck|lat[aã]o|ice\b|campari|aperol|conhaque|sake|saqu[eê]|destilado|dose\b|coquetel|drink/i.test(text);
+
+          const isBar = hasMl || hasL || isMlUnit || isDrink;
+
+          await (prisma as any).product.update({
+            where: { id: prod.id },
+            data: {
+              categoryId: isBar ? catBar.id : catCozinha.id,
+              kdsStation: isBar ? 'BAR' : 'KITCHEN'
+            }
+          });
+
+          if (isBar) movedBar++;
+          else movedCozinha++;
+        }
+
+        console.log(`[Migrations] Reclassificação concluída: ${movedBar} produtos movidos para Bar e ${movedCozinha} para Cozinha.`);
+
+        // Deleta a categoria IMPORTADOS que ficou esvaziada
+        await (prisma as any).category.delete({ where: { id: catImportados.id } });
+        console.log(`[Migrations] Categoria IMPORTADOS esvaziada e removida com sucesso.`);
+      } else if (catImportados) {
+        // Categoria IMPORTADOS existe mas já está sem produtos
+        await (prisma as any).category.delete({ where: { id: catImportados.id } });
+      }
+    } catch (e: any) {
+      console.error('[Migrations] Erro ao reclassificar produtos de IMPORTADOS:', e.message);
+    }
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {

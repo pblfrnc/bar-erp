@@ -204,6 +204,18 @@ function inferTaxAndClassification(name: string, brand?: string | null, categori
     };
   }
 
+  // 15. Volume em ML ou Litros (Direcionamento automático para Bar)
+  if (/\b\d+(?:[.,]\d+)?\s*(?:ml|m\.l\.)\b/i.test(combined) || /\b\d+(?:[.,]\d+)?\s*(?:l|lt|litro|litros)\b/i.test(combined)) {
+    return {
+      ncm: '22029900',
+      cest: '03.010.00',
+      cfop: '5405',
+      kdsStation: 'BAR',
+      categoryKeywords: ['bar', 'bebida', 'chope', 'cerveja'],
+      codePrefix: 'BAR'
+    };
+  }
+
   // Padrão Geral
   const isBeverage = /bebida|drink|dose|dose|garrafa|lata|long neck/.test(combined);
   return {
@@ -211,8 +223,8 @@ function inferTaxAndClassification(name: string, brand?: string | null, categori
     cest: null,
     cfop: '5102',
     kdsStation: isBeverage ? 'BAR' : 'NONE',
-    categoryKeywords: isBeverage ? ['bebida'] : ['geral'],
-    codePrefix: 'PRD'
+    categoryKeywords: isBeverage ? ['bar', 'bebida'] : ['geral'],
+    codePrefix: isBeverage ? 'BAR' : 'PRD'
   };
 }
 
@@ -348,11 +360,10 @@ export async function lookupEanCatalog(
 
             const tax = inferTaxAndClassification(rawName);
 
-            // Buscar categoria compatível no banco
+            // Buscar categoria compatível no banco (prioriza "Bar" se kdsStation for BAR)
             const allCategories = await prisma.category.findMany();
-            const matchedCat = allCategories.find(c => 
-              tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
-            );
+            const matchedCat = (tax.kdsStation === 'BAR' ? allCategories.find(c => c.name.toLowerCase() === 'bar') : null) ||
+              allCategories.find(c => tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw)));
 
             return {
               found: true,
@@ -465,11 +476,10 @@ export async function lookupEanCatalog(
           formattedCest = `${formattedCest.slice(0, 2)}.${formattedCest.slice(2, 5)}.${formattedCest.slice(5)}`;
         }
 
-        // Buscar categoria compatível no banco
+        // Buscar categoria compatível no banco (prioriza "Bar" se kdsStation for BAR)
         const allCategories = await prisma.category.findMany();
-        const matchedCat = allCategories.find(c =>
-          tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
-        );
+        const matchedCat = (tax.kdsStation === 'BAR' ? allCategories.find(c => c.name.toLowerCase() === 'bar') : null) ||
+          allCategories.find(c => tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw)));
 
         const targetCatId = matchedCat?.id || allCategories[0]?.id || null;
         const suggestedCode = targetCatId ? await getNextSequentialCode(targetCatId) : `${tax.codePrefix}-${cleanEan.slice(-4)}`;

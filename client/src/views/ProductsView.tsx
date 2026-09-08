@@ -31,8 +31,10 @@ import {
   Check,
   HelpCircle,
   Calculator,
-  Globe
+  Globe,
+  UploadCloud
 } from 'lucide-react';
+import { ImportXmlModal } from '../components/ImportXmlModal';
 
 export const ProductsView: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +42,8 @@ export const ProductsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [showImportXmlModal, setShowImportXmlModal] = useState<boolean>(false);
+  const [organizingLoading, setOrganizingLoading] = useState<boolean>(false);
 
   // Modal Produto
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
@@ -123,6 +127,27 @@ export const ProductsView: React.FC = () => {
       console.error('Erro ao carregar dados:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOrganizeBarKitchen = async () => {
+    try {
+      setOrganizingLoading(true);
+      const res = await fetch(api.getApiUrl() + '/products/organize-bar-kitchen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadData();
+        alert(`✅ ${data.message || 'Produtos organizados com sucesso!'}`);
+      } else {
+        alert(`Erro: ${data.error || 'Falha ao organizar produtos'}`);
+      }
+    } catch (err: any) {
+      alert(`Falha ao conectar com o servidor: ${err.message}`);
+    } finally {
+      setOrganizingLoading(false);
     }
   };
 
@@ -784,7 +809,18 @@ export const ProductsView: React.FC = () => {
                       autoFocus
                       placeholder="Ex: Cerveja Heineken Long Neck 330ml"
                       value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormName(val);
+                        // Auto-direcionar para o Bar se o item contiver volume em ml ou litros
+                        if (/\b\d+(?:[.,]\d+)?\s*(?:ml|m\.l\.)\b/i.test(val) || /\b\d+(?:[.,]\d+)?\s*(?:l|lt|litro|litros)\b/i.test(val)) {
+                          setFormKdsStation('BAR');
+                          const barCat = categories.find(c => c.name.toLowerCase() === 'bar');
+                          if (barCat && (!formCategoryId || categories.find(c => c.id === formCategoryId)?.name.toLowerCase() === 'cozinha')) {
+                            setFormCategoryId(barCat.id);
+                          }
+                        }
+                      }}
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
                     />
                   </div>
@@ -1554,10 +1590,33 @@ export const ProductsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <button
+            onClick={() => setShowImportXmlModal(true)}
+            className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 cursor-pointer"
+            title="Importar produtos, categorias e fornecedores de arquivo XML"
+          >
+            <UploadCloud className="w-4 h-4 text-sky-400" />
+            <span>Importar XML</span>
+          </button>
+
+          <button
+            onClick={handleOrganizeBarKitchen}
+            disabled={organizingLoading}
+            className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 disabled:opacity-50 cursor-pointer"
+            title="Classifica automaticamente produtos com volume em ml para o Bar e alimentos para a Cozinha"
+          >
+            {organizingLoading ? (
+              <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 text-amber-400" />
+            )}
+            <span>Organizar Bar (ml) / Cozinha</span>
+          </button>
+
           <button
             onClick={() => setShowSuppliersModal(true)}
-            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50"
+            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 cursor-pointer"
             title="Gerenciar Fornecedores Cadastrados"
           >
             <Truck className="w-4 h-4 text-emerald-400" />
@@ -1571,7 +1630,7 @@ export const ProductsView: React.FC = () => {
 
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <Tag className="w-4 h-4 text-purple-400" />
             <span>Nova Categoria</span>
@@ -1579,7 +1638,7 @@ export const ProductsView: React.FC = () => {
 
           <button
             onClick={openCreateModal}
-            className="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95"
+            className="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Novo Produto</span>
@@ -2368,6 +2427,16 @@ export const ProductsView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showImportXmlModal && (
+        <ImportXmlModal
+          onClose={() => setShowImportXmlModal(false)}
+          onSuccess={() => {
+            loadData();
+            setShowImportXmlModal(false);
+          }}
+        />
       )}
     </>
   );

@@ -1,9 +1,77 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { lookupEanCatalog, getNextSequentialCode } from '../services/catalogService.js';
+import { isBarProduct } from './importXml.js';
 
 export function createProductsRouter() {
   const router = Router();
+
+  // Reorganizar produtos entre Bar (volume em ml) e Cozinha sob demanda
+  router.post('/organize-bar-kitchen', async (_req, res) => {
+    try {
+      let catBar = await (prisma as any).category.findFirst({
+        where: { name: { in: ['Bar', 'BAR', 'bar'] } }
+      });
+      if (!catBar) {
+        catBar = await (prisma as any).category.create({
+          data: { name: 'Bar', icon: 'Beer', sortOrder: 1, codeStart: 5001 }
+        });
+      }
+
+      let catCozinha = await (prisma as any).category.findFirst({
+        where: { name: { in: ['Cozinha', 'COZINHA', 'cozinha'] } }
+      });
+      if (!catCozinha) {
+        catCozinha = await (prisma as any).category.create({
+          data: { name: 'Cozinha', icon: 'UtensilsCrossed', sortOrder: 2, codeStart: 1001 }
+        });
+      }
+
+      const allProducts = await (prisma as any).product.findMany({
+        include: { category: true }
+      });
+
+      let barCount = 0;
+      let cozinhaCount = 0;
+
+      for (const prod of allProducts) {
+        const catName = prod.category?.name || '';
+        const isFromImportados = catName.toUpperCase().includes('IMPORTAD');
+        const isBar = isBarProduct(prod.name, prod.description, prod.unit);
+
+        if (isFromImportados || (isBar && (prod.categoryId === catCozinha.id || prod.kdsStation !== 'BAR'))) {
+          await (prisma as any).product.update({
+            where: { id: prod.id },
+            data: {
+              categoryId: isBar ? catBar.id : (isFromImportados ? catCozinha.id : prod.categoryId),
+              kdsStation: isBar ? 'BAR' : (isFromImportados ? 'KITCHEN' : prod.kdsStation)
+            }
+          });
+          if (isBar) barCount++;
+          else if (isFromImportados) cozinhaCount++;
+        }
+      }
+
+      // Deleta categoria IMPORTADOS se estiver vazia
+      const catImportados = await (prisma as any).category.findFirst({
+        where: { name: { in: ['IMPORTADOS', 'Importados', 'importados'] } },
+        include: { _count: { select: { products: true } } }
+      });
+      if (catImportados && catImportados._count.products === 0) {
+        await (prisma as any).category.delete({ where: { id: catImportados.id } });
+      }
+
+      res.json({
+        ok: true,
+        barCount,
+        cozinhaCount,
+        message: `Organização concluída: ${barCount} produtos no Bar e ${cozinhaCount} na Cozinha.`
+      });
+    } catch (error: any) {
+      console.error('Erro ao organizar produtos:', error);
+      res.status(500).json({ error: 'Erro ao reorganizar categorias de produtos' });
+    }
+  });
 
   // Obter próximo código numérico sequencial da categoria (ex: 5001 para bebidas, 6001 para chicletes)
   router.get('/categories/:id/next-code', async (req, res) => {

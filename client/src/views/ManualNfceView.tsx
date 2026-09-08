@@ -225,6 +225,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
         paymentMethod,
         items: items.map((i) => ({
           productId: i.product.id,
+          ean: i.product.ean,
           code: i.product.code,
           quantity: i.quantity,
           price: i.product.price,

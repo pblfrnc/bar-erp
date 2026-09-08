@@ -827,9 +827,16 @@ export function createFiscalRouter() {
           const grossValue = (qty * price).toFixed(2);
           const unit = (i.unit || 'UN').toUpperCase().slice(0, 6);
 
+          // codigo_produto: EAN > código interno > número sequencial (NUNCA o CUID do banco)
+          const eanClean = String(i.ean || '').replace(/\D/g, '');
+          const eanValido = eanClean.length >= 8 ? eanClean : '';
+          const codigoInterno = String(i.code || '').trim();
+          const codigoProduto = (eanValido || codigoInterno || String(index + 1)).slice(0, 60);
+
           return {
             numero_item: String(index + 1),
-            codigo_produto: String(i.code || i.productId || index + 1).slice(0, 60),
+            codigo_produto: codigoProduto,
+            ...(eanValido ? { codigo_barras: eanValido } : {}),
             descricao: String(i.name || 'Produto').trim().slice(0, 120),
             cfop: cleanCfop,
             codigo_ncm: cleanNcm,
@@ -842,11 +849,11 @@ export function createFiscalRouter() {
             quantidade_tributavel: qty.toFixed(4),
             valor_unitario_tributavel: price.toFixed(2),
             inclui_no_total: '1',
-            icms_origem: '0', // 0 = Nacional
+            icms_origem: '0',
             icms_situacao_tributaria: (settings.crt === '3') 
               ? (cleanCfop === '5405' ? '60' : '00')
               : (cleanCfop === '5405' ? '500' : '102'),
-            pis_situacao_tributaria: '07', // 07 = Operação Isenta
+            pis_situacao_tributaria: '07',
             cofins_situacao_tributaria: '07'
           };
         }),

@@ -8,7 +8,7 @@ interface ImportResult {
   resumo?: {
     categorias: { importadas: number; ignoradas: number };
     fornecedores: { importados: number; ignorados: number; duplicados: number };
-    produtos: { importados: number; ignorados: number; atualizados: number };
+    produtos: { importados: number; ignorados: number; atualizados: number; bar?: number; cozinha?: number };
     erros: string[];
   };
   error?: string;
@@ -148,6 +148,12 @@ export function ImportXmlModal({ onClose, onSuccess }: Props) {
                             <p className="text-slate-400">Produtos atualizados</p>
                             <p className="text-white font-black text-lg">{result.resumo.produtos.atualizados}</p>
                           </div>
+                          {(result.resumo.produtos.bar !== undefined || result.resumo.produtos.cozinha !== undefined) && (
+                            <div className="col-span-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-xs flex justify-between items-center">
+                              <span className="text-amber-200">🍺 <b>Bar (ml / bebidas):</b> {result.resumo.produtos.bar || 0}</span>
+                              <span className="text-amber-200">🍳 <b>Cozinha:</b> {result.resumo.produtos.cozinha || 0}</span>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
