@@ -20,7 +20,8 @@ export function createProductsRouter() {
   router.get('/lookup-ean/:ean', async (req, res) => {
     try {
       const { ean } = req.params;
-      const result = await lookupEanCatalog(ean);
+      const mode = (req.query.mode as 'all' | 'xml' | 'global') || 'all';
+      const result = await lookupEanCatalog(ean, mode);
       res.json(result);
     } catch (error: any) {
       console.error('Erro na consulta de EAN:', error);

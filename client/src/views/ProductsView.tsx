@@ -30,7 +30,8 @@ import {
   ShieldCheck,
   Check,
   HelpCircle,
-  Calculator
+  Calculator,
+  Globe
 } from 'lucide-react';
 
 export const ProductsView: React.FC = () => {
@@ -230,7 +231,9 @@ export const ProductsView: React.FC = () => {
     setShowProductModal(true);
   };
 
-  const handleLookupEan = async (eanToSearch?: string) => {
+  const [lookupLoadingMode, setLookupLoadingMode] = useState<'all' | 'xml' | 'global' | null>(null);
+
+  const handleLookupEan = async (eanToSearch?: string, mode: 'all' | 'xml' | 'global' = 'all') => {
     const targetEan = (eanToSearch || formEan || '').trim();
     if (!targetEan) {
       setLookupFeedback({ type: 'error', message: 'Digite ou bipe o Código de Barras (EAN).' });
@@ -239,8 +242,9 @@ export const ProductsView: React.FC = () => {
 
     try {
       setLookupLoading(true);
+      setLookupLoadingMode(mode);
       setLookupFeedback(null);
-      const res = await api.lookupProductByEan(targetEan);
+      const res = await api.lookupProductByEan(targetEan, mode);
 
       if (res.found) {
         if (res.name) setFormName(res.name);
@@ -291,6 +295,7 @@ export const ProductsView: React.FC = () => {
       });
     } finally {
       setLookupLoading(false);
+      setLookupLoadingMode(null);
     }
   };
 
@@ -654,8 +659,8 @@ export const ProductsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="relative w-full">
                 <Barcode className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="prod-form-ean"
@@ -665,26 +670,63 @@ export const ProductsView: React.FC = () => {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleLookupEan();
+                      handleLookupEan(undefined, 'all');
                     }
                   }}
-                  placeholder="Bipe com o leitor ou digite o código de barras EAN (ex: 7894900010015)..."
-                  className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                  placeholder="Bipe com o leitor ou digite o código de barras EAN (ex: 7896045506040)..."
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-950 border border-slate-700 rounded-2xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text shadow-inner"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleLookupEan()}
-                disabled={lookupLoading || !formEan.trim()}
-                className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-black text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-amber-500/20 whitespace-nowrap"
-              >
-                {lookupLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                <span>Puxar Dados Automáticos</span>
-              </button>
+
+              <div className="flex flex-wrap sm:flex-nowrap gap-2.5">
+                {/* Botão 1: Notas Fiscais Importadas (XML) */}
+                <button
+                  type="button"
+                  onClick={() => handleLookupEan(undefined, 'xml')}
+                  disabled={lookupLoading || !formEan.trim()}
+                  title="Puxa nome, fornecedor, NCM, CEST e preço de custo real das notas XML já importadas no sistema"
+                  className="flex-1 min-w-[200px] py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
+                >
+                  {lookupLoading && lookupLoadingMode === 'xml' ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-emerald-200" />
+                  )}
+                  <span>Puxar das Notas (XML)</span>
+                </button>
+
+                {/* Botão 2: Catálogo Global / GTIN */}
+                <button
+                  type="button"
+                  onClick={() => handleLookupEan(undefined, 'global')}
+                  disabled={lookupLoading || !formEan.trim()}
+                  title="Puxa nome de produto e infere tributação oficial (NCM, CEST, CFOP) do catálogo nacional e global"
+                  className="flex-1 min-w-[200px] py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-blue-600/20 cursor-pointer"
+                >
+                  {lookupLoading && lookupLoadingMode === 'global' ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Globe className="w-4 h-4 text-blue-200" />
+                  )}
+                  <span>Puxar Catálogo Global</span>
+                </button>
+
+                {/* Botão 3: Busca Inteligente Combinada */}
+                <button
+                  type="button"
+                  onClick={() => handleLookupEan(undefined, 'all')}
+                  disabled={lookupLoading || !formEan.trim()}
+                  title="Procura primeiro nas notas recebidas e, caso não encontre, recorre ao catálogo global"
+                  className="px-4 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-500/20 whitespace-nowrap cursor-pointer"
+                >
+                  {lookupLoading && lookupLoadingMode === 'all' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>Busca Geral</span>
+                </button>
+              </div>
             </div>
 
             {lookupFeedback && (

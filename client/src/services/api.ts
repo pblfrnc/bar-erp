@@ -244,8 +244,9 @@ export const api = {
     return data;
   },
 
-  lookupProductByEan: async (ean: string): Promise<any> => {
-    return fetchWithRetry(`${getApiUrl()}/products/lookup-ean/${encodeURIComponent(ean)}`).then(handleResponse<any>);
+  lookupProductByEan: async (ean: string, mode: 'all' | 'xml' | 'global' = 'all'): Promise<any> => {
+    const qmode = mode !== 'all' ? `?mode=${mode}` : '';
+    return fetchWithRetry(`${getApiUrl()}/products/lookup-ean/${encodeURIComponent(ean)}${qmode}`).then(handleResponse<any>);
   },
 
   getNextProductCode: async (categoryId: string): Promise<{ categoryId: string; nextCode: string }> => {

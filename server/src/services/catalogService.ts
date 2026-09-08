@@ -256,7 +256,10 @@ export async function getNextSequentialCode(categoryId: string): Promise<string>
   return String(maxCode + 1);
 }
 
-export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupResult> {
+export async function lookupEanCatalog(
+  rawEan: string,
+  mode: 'all' | 'xml' | 'global' = 'all'
+): Promise<CatalogLookupResult> {
   const cleanEan = (rawEan || '').replace(/\D/g, '').trim();
 
   if (!cleanEan || cleanEan.length < 7) {
@@ -268,219 +271,243 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
   }
 
   // 1. Procurar produto já existente no ERP
-  const existingProduct = await prisma.product.findFirst({
-    where: { ean: cleanEan },
-    include: { category: true }
-  });
+  if (mode !== 'xml' && mode !== 'global') {
+    const existingProduct = await prisma.product.findFirst({
+      where: { ean: cleanEan },
+      include: { category: true }
+    });
 
-  if (existingProduct) {
-    return {
-      found: true,
-      source: 'LOCAL_PRODUCT',
-      name: existingProduct.name,
-      code: existingProduct.code,
-      ean: existingProduct.ean || cleanEan,
-      brand: existingProduct.brand,
-      supplier: existingProduct.supplier,
-      description: existingProduct.description,
-      price: existingProduct.price,
-      costPrice: existingProduct.costPrice,
-      suggestedPrice: existingProduct.price,
-      categoryId: existingProduct.categoryId,
-      suggestedCategoryId: existingProduct.categoryId,
-      kdsStation: existingProduct.kdsStation as any,
-      ncm: existingProduct.ncm,
-      cfop: existingProduct.cfop,
-      cest: existingProduct.cest,
-      unit: existingProduct.unit || 'un',
-      stock: existingProduct.stock,
-      minStock: existingProduct.minStock,
-      message: 'Produto já cadastrado no seu banco de dados!'
-    };
+    if (existingProduct) {
+      return {
+        found: true,
+        source: 'LOCAL_PRODUCT',
+        name: existingProduct.name,
+        code: existingProduct.code,
+        ean: existingProduct.ean || cleanEan,
+        brand: existingProduct.brand,
+        supplier: existingProduct.supplier,
+        description: existingProduct.description,
+        price: existingProduct.price,
+        costPrice: existingProduct.costPrice,
+        suggestedPrice: existingProduct.price,
+        categoryId: existingProduct.categoryId,
+        suggestedCategoryId: existingProduct.categoryId,
+        kdsStation: existingProduct.kdsStation as any,
+        ncm: existingProduct.ncm,
+        cfop: existingProduct.cfop,
+        cest: existingProduct.cest,
+        unit: existingProduct.unit || 'un',
+        stock: existingProduct.stock,
+        minStock: existingProduct.minStock,
+        message: 'Produto já cadastrado no seu banco de dados!'
+      };
+    }
   }
 
   // 2. Procurar em Notas Fiscais Recebidas (XML) no banco local
-  try {
-    const invoices = await prisma.notaRecebida.findMany({
-      where: { xmlContent: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      take: 40
-    });
+  if (mode === 'all' || mode === 'xml') {
+    try {
+      const invoices = await prisma.notaRecebida.findMany({
+        where: { xmlContent: { not: null } },
+        orderBy: { createdAt: 'desc' },
+        take: 100
+      });
 
-    for (const inv of invoices) {
-      if (!inv.xmlContent) continue;
-      const xml = inv.xmlContent;
-      if (xml.includes(cleanEan)) {
-        // Encontra o bloco <det> que contém o EAN
-        const detRegex = new RegExp(`<det[\\s\\S]*?<cEAN>${cleanEan}<\\/cEAN>[\\s\\S]*?<\\/det>|<det[\\s\\S]*?<cEANTrib>${cleanEan}<\\/cEANTrib>[\\s\\S]*?<\\/det>`, 'i');
-        const detMatch = xml.match(detRegex);
+      for (const inv of invoices) {
+        if (!inv.xmlContent) continue;
+        const xml = inv.xmlContent;
+        if (xml.includes(cleanEan)) {
+          // Encontra o bloco <det> que contém o EAN
+          const detRegex = new RegExp(`<det[\\s\\S]*?<cEAN>${cleanEan}<\\/cEAN>[\\s\\S]*?<\\/det>|<det[\\s\\S]*?<cEANTrib>${cleanEan}<\\/cEANTrib>[\\s\\S]*?<\\/det>`, 'i');
+          const detMatch = xml.match(detRegex);
 
-        const targetXml = detMatch ? detMatch[0] : xml;
+          const targetXml = detMatch ? detMatch[0] : xml;
 
-        const xProdMatch = targetXml.match(/<xProd>([^<]+)<\/xProd>/i);
-        const cProdMatch = targetXml.match(/<cProd>([^<]+)<\/cProd>/i);
-        const ncmMatch = targetXml.match(/<NCM>([^<]+)<\/NCM>/i);
-        const cestMatch = targetXml.match(/<CEST>([^<]+)<\/CEST>/i);
-        const cfopMatch = targetXml.match(/<CFOP>([^<]+)<\/CFOP>/i);
-        const uComMatch = targetXml.match(/<uCom>([^<]+)<\/uCom>/i);
-        const vUnComMatch = targetXml.match(/<vUnCom>([^<]+)<\/vUnCom>/i);
-        const emitNomeMatch = xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/i);
+          const xProdMatch = targetXml.match(/<xProd>([^<]+)<\/xProd>/i);
+          const cProdMatch = targetXml.match(/<cProd>([^<]+)<\/cProd>/i);
+          const ncmMatch = targetXml.match(/<NCM>([^<]+)<\/NCM>/i);
+          const cestMatch = targetXml.match(/<CEST>([^<]+)<\/CEST>/i);
+          const cfopMatch = targetXml.match(/<CFOP>([^<]+)<\/CFOP>/i);
+          const uComMatch = targetXml.match(/<uCom>([^<]+)<\/uCom>/i);
+          const vUnComMatch = targetXml.match(/<vUnCom>([^<]+)<\/vUnCom>/i);
+          const emitNomeMatch = xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/i);
 
-        if (xProdMatch && xProdMatch[1]) {
-          const rawName = xProdMatch[1].trim();
-          const costPrice = vUnComMatch ? parseFloat(vUnComMatch[1]) : null;
-          const ncm = ncmMatch ? ncmMatch[1].trim() : null;
-          const cest = cestMatch ? cestMatch[1].trim() : null;
-          let cfop = cfopMatch ? cfopMatch[1].trim() : '5102';
-          if (cfop.startsWith('1') || cfop.startsWith('2')) {
-            // Converte CFOP de entrada para saída: 1403/1405 -> 5405; 1102 -> 5102
-            cfop = cest || (cfop.includes('403') || cfop.includes('405')) ? '5405' : '5102';
+          if (xProdMatch && xProdMatch[1]) {
+            const rawName = xProdMatch[1].trim();
+            const costPrice = vUnComMatch ? parseFloat(vUnComMatch[1]) : null;
+            const ncm = ncmMatch ? ncmMatch[1].trim() : null;
+            const cest = cestMatch ? cestMatch[1].trim() : null;
+            let cfop = cfopMatch ? cfopMatch[1].trim() : '5102';
+            if (cfop.startsWith('1') || cfop.startsWith('2')) {
+              // Converte CFOP de entrada para saída: 1403/1405 -> 5405; 1102 -> 5102
+              cfop = cest || (cfop.includes('403') || cfop.includes('405')) ? '5405' : '5102';
+            }
+            const unit = uComMatch ? uComMatch[1].trim().toLowerCase() : 'un';
+            const supplier = emitNomeMatch ? emitNomeMatch[1].trim() : inv.emitente || null;
+            const code = cProdMatch ? cProdMatch[1].trim() : `NF-${cleanEan.slice(-4)}`;
+
+            const tax = inferTaxAndClassification(rawName);
+
+            // Buscar categoria compatível no banco
+            const allCategories = await prisma.category.findMany();
+            const matchedCat = allCategories.find(c => 
+              tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
+            );
+
+            return {
+              found: true,
+              source: 'NOTA_FISCAL_XML',
+              name: rawName,
+              code,
+              ean: cleanEan,
+              brand: null,
+              supplier,
+              costPrice,
+              suggestedPrice: costPrice ? Number((costPrice * 2.2).toFixed(2)) : null,
+              suggestedCategoryId: matchedCat?.id || allCategories[0]?.id || null,
+              kdsStation: tax.kdsStation,
+              ncm: ncm || tax.ncm,
+              cfop: cfop || tax.cfop,
+              cest: cest || tax.cest,
+              unit,
+              stock: 100,
+              minStock: 10,
+              message: `[Nota Fiscal/SEFAZ] Produto localizado nas notas recebidas do fornecedor "${supplier || 'Distribuidora'}". Custo real: R$ ${costPrice?.toFixed(2) || '0.00'}.`
+            };
           }
-          const unit = uComMatch ? uComMatch[1].trim().toLowerCase() : 'un';
-          const supplier = emitNomeMatch ? emitNomeMatch[1].trim() : inv.emitente || null;
-          const code = cProdMatch ? cProdMatch[1].trim() : `NF-${cleanEan.slice(-4)}`;
-
-          const tax = inferTaxAndClassification(rawName);
-
-          // Buscar categoria compatível no banco
-          const allCategories = await prisma.category.findMany();
-          const matchedCat = allCategories.find(c => 
-            tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
-          );
-
-          return {
-            found: true,
-            source: 'NOTA_FISCAL_XML',
-            name: rawName,
-            code,
-            ean: cleanEan,
-            brand: null,
-            supplier,
-            costPrice,
-            suggestedPrice: costPrice ? Number((costPrice * 2.2).toFixed(2)) : null,
-            suggestedCategoryId: matchedCat?.id || allCategories[0]?.id || null,
-            kdsStation: tax.kdsStation,
-            ncm: ncm || tax.ncm,
-            cfop: cfop || tax.cfop,
-            cest: cest || tax.cest,
-            unit,
-            stock: 100,
-            minStock: 10,
-            message: `Dados fiscais e custo puxados diretamente da NF-e do fornecedor (${supplier || 'Importado'})!`
-          };
         }
       }
+
+      if (mode === 'xml') {
+        return {
+          found: false,
+          ean: cleanEan,
+          source: 'NOTA_FISCAL_XML',
+          message: `Código ${cleanEan} não foi encontrado em nenhuma Nota Fiscal de entrada importada no sistema.`
+        };
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar notas fiscais locais por EAN:', err);
     }
-  } catch (err) {
-    console.warn('Erro ao consultar notas fiscais locais por EAN:', err);
   }
 
   // 3. Consultar Open Food Facts (v2 World e v0 BR)
-  try {
-    const urls = [
-      `https://world.openfoodfacts.org/api/v2/product/${cleanEan}.json`,
-      `https://br.openfoodfacts.org/api/v0/product/${cleanEan}.json`
-    ];
+  if (mode === 'all' || mode === 'global') {
+    try {
+      const urls = [
+        `https://world.openfoodfacts.org/api/v2/product/${cleanEan}.json`,
+        `https://br.openfoodfacts.org/api/v0/product/${cleanEan}.json`
+      ];
 
-    let foundProduct: any = null;
+      let foundProduct: any = null;
 
-    for (const url of urls) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      for (const url of urls) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-      try {
-        const resp = await fetch(url, {
-          headers: {
-            'User-Agent': 'BarErpPro/1.0 (bar-erp-pro@local)'
-          },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+        try {
+          const resp = await fetch(url, {
+            headers: {
+              'User-Agent': 'BarErpPro/1.0 (bar-erp-pro@local)'
+            },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
 
-        if (resp.ok) {
-          const json = await resp.json();
-          if (json.status === 1 && json.product) {
-            foundProduct = json.product;
-            break;
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json.status === 1 && json.product) {
+              foundProduct = json.product;
+              break;
+            }
+          }
+        } catch {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      if (foundProduct) {
+        const rawName =
+          foundProduct.product_name_pt ||
+          foundProduct.product_name ||
+          foundProduct.product_name_en ||
+          foundProduct.generic_name_pt ||
+          foundProduct.generic_name ||
+          '';
+
+        const brand = foundProduct.brands || (foundProduct.brands_tags && foundProduct.brands_tags[0]) || null;
+        let quantity = (foundProduct.quantity || '').trim();
+        const categoriesTags = Array.isArray(foundProduct.categories_tags) ? foundProduct.categories_tags : [];
+        const categoriesStr = foundProduct.categories || '';
+
+        // Formatar quantidade inteligentemente (ex: '330' em cervejas vira '330ml')
+        let cleanName = rawName.trim();
+        if (quantity) {
+          if (/^\d+$/.test(quantity)) {
+            if (/cervej|refrig|bebida|água|agua|suco|chopp|chope|heineken|coca|pepsi|guaran/i.test(cleanName)) {
+              quantity = quantity + 'ml';
+            } else {
+              quantity = quantity + 'g';
+            }
+          }
+          if (!cleanName.toLowerCase().includes(quantity.toLowerCase())) {
+            cleanName = `${cleanName} ${quantity}`;
           }
         }
-      } catch {
-        clearTimeout(timeoutId);
-      }
-    }
 
-    if (foundProduct) {
-      const rawName =
-        foundProduct.product_name_pt ||
-        foundProduct.product_name ||
-        foundProduct.product_name_en ||
-        foundProduct.generic_name_pt ||
-        foundProduct.generic_name ||
-        '';
+        const fullName = cleanName || rawName;
 
-      const brand = foundProduct.brands || (foundProduct.brands_tags && foundProduct.brands_tags[0]) || null;
-      let quantity = (foundProduct.quantity || '').trim();
-      const categoriesTags = Array.isArray(foundProduct.categories_tags) ? foundProduct.categories_tags : [];
-      const categoriesStr = foundProduct.categories || '';
+        const tax = inferTaxAndClassification(fullName, brand, [categoriesStr, ...categoriesTags]);
 
-      // Formatar quantidade inteligentemente (ex: '330' em cervejas vira '330ml')
-      let cleanName = rawName.trim();
-      if (quantity) {
-        if (/^\d+$/.test(quantity)) {
-          if (/cervej|refrig|bebida|água|agua|suco|chopp|chope|heineken|coca|pepsi|guaran/i.test(cleanName)) {
-            quantity = quantity + 'ml';
-          } else {
-            quantity = quantity + 'g';
-          }
+        // Formatar CEST se 7 dígitos
+        let formattedCest = tax.cest;
+        if (formattedCest && formattedCest.length === 7 && !formattedCest.includes('.')) {
+          formattedCest = `${formattedCest.slice(0, 2)}.${formattedCest.slice(2, 5)}.${formattedCest.slice(5)}`;
         }
-        if (!cleanName.toLowerCase().includes(quantity.toLowerCase())) {
-          cleanName = `${cleanName} ${quantity}`;
-        }
+
+        // Buscar categoria compatível no banco
+        const allCategories = await prisma.category.findMany();
+        const matchedCat = allCategories.find(c =>
+          tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
+        );
+
+        const targetCatId = matchedCat?.id || allCategories[0]?.id || null;
+        const suggestedCode = targetCatId ? await getNextSequentialCode(targetCatId) : `${tax.codePrefix}-${cleanEan.slice(-4)}`;
+
+        return {
+          found: true,
+          source: 'OPEN_FOOD_FACTS',
+          name: fullName || name,
+          code: suggestedCode,
+          ean: cleanEan,
+          brand: brand ? String(brand).split(',')[0].trim() : null,
+          supplier: brand ? String(brand).split(',')[0].trim() : null,
+          description: foundProduct.generic_name || (quantity ? `Embalagem ${quantity}` : null),
+          costPrice: null,
+          suggestedPrice: null,
+          suggestedCategoryId: targetCatId,
+          kdsStation: tax.kdsStation,
+          ncm: tax.ncm,
+          cfop: tax.cfop,
+          cest: formattedCest,
+          unit: 'un',
+          stock: 100,
+          minStock: 10,
+          message: `[Catálogo Global] Produto localizado! Tributação oficial e NCM ${tax.ncm} preenchidos automaticamente.`
+        };
       }
 
-      const fullName = cleanName || rawName;
-
-      const tax = inferTaxAndClassification(fullName, brand, [categoriesStr, ...categoriesTags]);
-
-      // Formatar CEST se 7 dígitos
-      let formattedCest = tax.cest;
-      if (formattedCest && formattedCest.length === 7 && !formattedCest.includes('.')) {
-        formattedCest = `${formattedCest.slice(0, 2)}.${formattedCest.slice(2, 5)}.${formattedCest.slice(5)}`;
+      if (mode === 'global') {
+        return {
+          found: false,
+          ean: cleanEan,
+          source: 'OPEN_FOOD_FACTS',
+          message: `Código ${cleanEan} não foi encontrado no Catálogo Global/Nacional GTIN.`
+        };
       }
-
-      // Buscar categoria compatível no banco
-      const allCategories = await prisma.category.findMany();
-      const matchedCat = allCategories.find(c =>
-        tax.categoryKeywords.some(kw => c.name.toLowerCase().includes(kw))
-      );
-
-      const targetCatId = matchedCat?.id || allCategories[0]?.id || null;
-      const suggestedCode = targetCatId ? await getNextSequentialCode(targetCatId) : `${tax.codePrefix}-${cleanEan.slice(-4)}`;
-
-      return {
-        found: true,
-        source: 'OPEN_FOOD_FACTS',
-        name: fullName || name,
-        code: suggestedCode,
-        ean: cleanEan,
-        brand: brand ? String(brand).split(',')[0].trim() : null,
-        supplier: brand ? String(brand).split(',')[0].trim() : null,
-        description: foundProduct.generic_name || (quantity ? `Embalagem ${quantity}` : null),
-        costPrice: null,
-        suggestedPrice: null,
-        suggestedCategoryId: targetCatId,
-        kdsStation: tax.kdsStation,
-        ncm: tax.ncm,
-        cfop: tax.cfop,
-        cest: formattedCest,
-        unit: 'un',
-        stock: 100,
-        minStock: 10,
-        message: 'Produto localizado em catálogo público com tributação oficial sugerida e código sequencial gerado!'
-      };
+    } catch (err) {
+      console.warn('Erro ao consultar Open Food Facts:', err);
     }
-  } catch (err) {
-    console.warn('Erro ao consultar Open Food Facts:', err);
   }
 
   // 4. Não encontrado em bases externas ou XML: Sugerir template com base no EAN
@@ -493,6 +520,6 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
     cfop: '5102',
     unit: 'un',
     kdsStation: 'BAR',
-    message: 'Produto não localizado nas bases públicas. Preencha os dados para concluir o cadastro.'
+    message: 'Produto não localizado nas bases consultadas. Preencha os dados para concluir o cadastro.'
   };
 }
