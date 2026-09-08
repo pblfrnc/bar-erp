@@ -356,64 +356,130 @@ export function createFiscalRouter() {
       const data = JSON.parse(settingsStr);
       const certPassword = req.body.certPassword;
       
-      // Cria a empresa na Focus NFe (Software House Model)
-      if (data.apiToken && data.cnpj && data.logradouro && data.cep) {
-        const baseURL = data.environment === 'producao' 
+      // Cria ou Atualiza a empresa na Focus NFe (Software House Model)
+      if (data.apiToken && data.cnpj) {
+        const cleanCnpj = data.cnpj.replace(/\D/g, '');
+        const isProducao = data.environment === 'producao';
+        const baseURL = isProducao 
           ? 'https://api.focusnfe.com.br/v2/empresas'
           : 'https://homologacao.focusnfe.com.br/v2/empresas';
+        const authHeader = 'Basic ' + Buffer.from(data.apiToken + ':').toString('base64');
           
         let certBase64 = undefined;
         if (req.file) {
            certBase64 = req.file.buffer.toString('base64');
         }
 
-        const empresaPayload = {
-          nome: data.razaoSocial || "Razao Social Nao Informada",
-          nome_fantasia: data.nomeFantasia || data.razaoSocial || "Nome Fantasia Nao Informado",
-          cnpj: data.cnpj.replace(/\D/g, ''),
-          inscricao_estadual: data.ie,
-          regime_tributario: data.crt || '1',
-          logradouro: data.logradouro,
-          numero: data.numero || 'S/N',
-          bairro: data.bairro,
-          cep: data.cep.replace(/\D/g, ''),
-          municipio: data.municipio,
-          uf: data.uf,
+        const cleanCep = (data.cep || '').replace(/\D/g, '');
+        const cleanNumero = (data.numero || '').toString().trim();
+        const numParsed = cleanNumero && !isNaN(Number(cleanNumero)) ? Number(cleanNumero) : cleanNumero || 'S/N';
+        const regTrib = data.crt ? Number(data.crt) : 1;
+
+        const empresaPayload: any = {
+          nome: (data.razaoSocial || '').trim(),
+          nome_fantasia: (data.nomeFantasia || data.razaoSocial || '').trim(),
+          cnpj: cleanCnpj,
+          regime_tributario: regTrib,
           enviar_email_destinatario: false,
-          csc_nfce_producao: data.cscSecret,
-          id_token_nfce_producao: data.cscId,
-          csc_nfce_homologacao: data.cscSecret,
-          id_token_nfce_homologacao: data.cscId,
-          serie_nfce_producao: String(data.serieNfce || '1'),
-          proximo_numero_nfce_producao: Number(data.proximoNumeroNfce) || 1,
-          serie_nfce_homologacao: String(data.serieNfce || '1'),
-          proximo_numero_nfce_homologacao: Number(data.proximoNumeroNfce) || 1,
+          discrimina_impostos: true,
+          habilita_nfce: true,
+          habilita_nfe: true
         };
 
-        if (certBase64 && certPassword) {
-           (empresaPayload as any).arquivo_certificado_base64 = certBase64;
-           (empresaPayload as any).senha_certificado = certPassword;
+        if (data.ie && data.ie.trim().length > 0) {
+          const cleanIe = data.ie.trim();
+          empresaPayload.inscricao_estadual = !isNaN(Number(cleanIe)) ? cleanIe : cleanIe;
         }
 
-        const focusRes = await fetch(baseURL + '?dry_run=0', {
+        if (data.logradouro) empresaPayload.logradouro = data.logradouro.trim();
+        if (numParsed) empresaPayload.numero = numParsed;
+        if (data.bairro) empresaPayload.bairro = data.bairro.trim();
+        if (cleanCep) empresaPayload.cep = cleanCep;
+        if (data.municipio) empresaPayload.municipio = data.municipio.trim();
+        if (data.uf) empresaPayload.uf = data.uf.trim().toUpperCase();
+
+        // CSC e Séries NFC-e (apenas se preenchidos para não enviar nulo/vazio inválido)
+        if (data.cscSecret && data.cscSecret.trim()) {
+          const csc = data.cscSecret.trim();
+          empresaPayload.csc_nfce_producao = csc;
+          empresaPayload.csc_nfce_homologacao = csc;
+        }
+        if (data.cscId && data.cscId.trim()) {
+          const cscIdNum = !isNaN(Number(data.cscId)) ? Number(data.cscId) : data.cscId.trim();
+          empresaPayload.id_token_nfce_producao = cscIdNum;
+          empresaPayload.id_token_nfce_homologacao = cscIdNum;
+        }
+
+        if (data.serieNfce) {
+          empresaPayload.serie_nfce_producao = String(data.serieNfce).trim();
+          empresaPayload.serie_nfce_homologacao = String(data.serieNfce).trim();
+        }
+        if (data.proximoNumeroNfce) {
+          empresaPayload.proximo_numero_nfce_producao = String(data.proximoNumeroNfce).trim();
+          empresaPayload.proximo_numero_nfce_homologacao = String(data.proximoNumeroNfce).trim();
+        }
+
+        if (certBase64 && certPassword) {
+           empresaPayload.arquivo_certificado_base64 = certBase64;
+           empresaPayload.senha_certificado = certPassword;
+        }
+
+        // 1. Tenta criar a empresa via POST /v2/empresas
+        let focusRes = await fetch(baseURL + '?dry_run=0', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Basic ' + Buffer.from(data.apiToken + ':').toString('base64')
+            'Authorization': authHeader
           },
           body: JSON.stringify(empresaPayload)
         });
 
-        const focusData = await focusRes.json();
+        let focusData: any = await focusRes.json().catch(() => ({}));
         
-        // Em homologação, se a empresa já existir, o endpoint de POST pode retornar erro,
-        // mas para fins de protótipo de Software House, se retornar erro de CNPJ existente,
-        // podemos tentar dar um PUT ou ignorar. Focus NFe retorna 400 se já existir.
+        // 2. Se falhar por CNPJ já cadastrado ou se for 400/422 com mensagem de empresa existente, faz PUT para atualizar
+        const focusDataStr = JSON.stringify(focusData).toLowerCase();
+        const jaCadastrado = focusRes.status === 400 && (
+          focusDataStr.includes('já cadastrad') ||
+          focusDataStr.includes('already exist') ||
+          focusDataStr.includes('já existe') ||
+          focusDataStr.includes('empresa_ja_cadastrada') ||
+          focusDataStr.includes('duplicad')
+        );
+
+        if (!focusRes.ok && jaCadastrado) {
+          console.log(`[Focus NFe] CNPJ ${cleanCnpj} já cadastrado na conta. Atualizando dados via PUT /v2/empresas/${cleanCnpj}...`);
+          focusRes = await fetch(`${baseURL}/${cleanCnpj}?dry_run=0`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify(empresaPayload)
+          });
+          focusData = await focusRes.json().catch(() => ({}));
+        }
+
+        // Se ainda assim não der certo, formata o erro de forma clara para o usuário
         if (!focusRes.ok) {
-           console.log("Erro da Focus NFe ao cadastrar empresa:", focusData);
-           if (!JSON.stringify(focusData).includes('já cadastrado') && !JSON.stringify(focusData).includes('already exist')) {
-              return res.status(400).json({ error: JSON.stringify(focusData.erros || focusData.mensagem || focusData) });
+           console.error("[Focus NFe] Erro ao cadastrar/atualizar empresa:", focusData);
+
+           let mensagemAmigavel = '';
+           if (focusRes.status === 401) {
+             mensagemAmigavel = 'Token da Focus NFe não autorizado ou inválido para este ambiente (' + (isProducao ? 'Produção' : 'Homologação') + '). Verifique seu Token.';
+           } else if (focusData.erros && Array.isArray(focusData.erros)) {
+             mensagemAmigavel = focusData.erros.map((e: any) => {
+               const campo = e.campo ? `Campo [${e.campo}]: ` : '';
+               return `${campo}${e.mensagem || e.codigo || JSON.stringify(e)}`;
+             }).join(' | ');
+           } else if (focusData.mensagem) {
+             mensagemAmigavel = focusData.mensagem;
+           } else {
+             mensagemAmigavel = JSON.stringify(focusData);
            }
+
+           return res.status(400).json({ 
+             error: `Focus NFe (${focusRes.status}): ${mensagemAmigavel}` 
+           });
         }
       }
 
