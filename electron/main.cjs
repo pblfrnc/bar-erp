@@ -241,6 +241,34 @@ function createWindow() {
     }
   });
 
+  // ─── Restaurar foco do teclado ao voltar da barra de tarefas ─────────────
+  // No Windows, ao minimizar e restaurar, o foco fica preso no frame do OS
+  // e o teclado para de funcionar. Forçar foco no webContents resolve.
+  mainWindow.on('restore', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      setTimeout(() => {
+        mainWindow.focus();
+        mainWindow.webContents?.focus();
+      }, 100);
+    }
+  });
+
+  mainWindow.on('focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents?.focus();
+    }
+  });
+
+  mainWindow.on('show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      setTimeout(() => {
+        mainWindow.focus();
+        mainWindow.webContents?.focus();
+      }, 50);
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
