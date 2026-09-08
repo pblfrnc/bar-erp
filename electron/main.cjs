@@ -170,9 +170,8 @@ function createWindow() {
     try {
       const printWin = new BrowserWindow({
         show: false,
-        focusable: false, // CRUCIAL no Windows: impede que a janela invisível roube o foco do teclado
+        focusable: false, // Não rouba foco
         skipTaskbar: true,
-        parent: mainWindow || undefined,
         webPreferences: {
           plugins: true
         }
@@ -186,6 +185,7 @@ function createWindow() {
             try { printWin.destroy(); } catch {}
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.focus();
+              mainWindow.webContents?.focus();
             }
           });
         }, 800);
@@ -197,6 +197,7 @@ function createWindow() {
           try { printWin.destroy(); } catch {}
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.focus();
+            mainWindow.webContents?.focus();
           }
         }
       }, 10000);
@@ -204,6 +205,30 @@ function createWindow() {
       console.error('Erro ao disparar impressão de PDF silenciosa:', e);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.focus();
+        mainWindow.webContents?.focus();
+      }
+    }
+  });
+
+  // Diálogo de confirmação síncrono nativo e seguro (evita o bug de teclado do window.confirm)
+  ipcMain.on('show-confirm-dialog', (event, { title, message }) => {
+    try {
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'question',
+        buttons: ['Cancelar', 'Confirmar'],
+        defaultId: 1,
+        cancelId: 0,
+        title: title || 'BarERP Pro',
+        message: String(message || '')
+      });
+      event.returnValue = (choice === 1);
+    } catch (err) {
+      console.error('Erro no diálogo de confirmação:', err);
+      event.returnValue = false;
+    } finally {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.focus();
+        mainWindow.webContents?.focus();
       }
     }
   });
@@ -212,6 +237,7 @@ function createWindow() {
   ipcMain.on('focus-window', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.focus();
+      mainWindow.webContents?.focus();
     }
   });
 

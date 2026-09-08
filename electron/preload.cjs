@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   printSilent: () => ipcRenderer.send('print-silent'),
   printPdfSilent: (url) => ipcRenderer.send('print-pdf-silent', url),
-  focusWindow: () => ipcRenderer.send('focus-window')
+  focusWindow: () => ipcRenderer.send('focus-window'),
+  showConfirm: (message, title) => ipcRenderer.sendSync('show-confirm-dialog', { message, title })
 });
+
