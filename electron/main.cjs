@@ -1,14 +1,11 @@
-const { app, BrowserWindow, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, globalShortcut, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { setupDailyBackup } = require('./backup.js');
 
-
-
 // Habilitar impressão silenciosa (bypass janela de impressão do sistema)
 app.commandLine.appendSwitch('kiosk-printing');
-
 
 let mainWindow = null;
 
@@ -155,11 +152,37 @@ function createWindow() {
     }
   });
 
+  // Impressão silenciosa do DOM atual (80mm)
   ipcMain.on('print-silent', (event) => {
     if (mainWindow) {
       mainWindow.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
         if (!success) console.error('Print failed:', failureReason);
       });
+    }
+  });
+
+  // Impressão silenciosa de DANFE / PDF externo da SEFAZ direto na impressora térmica sem abrir diálogo
+  ipcMain.on('print-pdf-silent', (event, pdfUrl) => {
+    if (!pdfUrl) return;
+    try {
+      const printWin = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          plugins: true
+        }
+      });
+      printWin.loadURL(pdfUrl);
+      printWin.webContents.on('did-finish-load', () => {
+        // Aguarda 800ms para renderizar o PDF na memória e dispara print silencioso
+        setTimeout(() => {
+          printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+            if (!success) console.error('Silent PDF print failed:', failureReason);
+            try { printWin.close(); } catch {}
+          });
+        }, 800);
+      });
+    } catch (e) {
+      console.error('Erro ao disparar impressão de PDF silenciosa:', e);
     }
   });
 

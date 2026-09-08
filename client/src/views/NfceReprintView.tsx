@@ -139,15 +139,31 @@ export const NfceReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                   </div>
                 </div>
 
-                <a 
-                  href={result.caminhoDanfe}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3 px-6 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
-                >
-                  <Printer className="w-4 h-4" />
-                  Imprimir / Abrir DANFE PDF
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if ((window as any).electronAPI?.printPdfSilent) {
+                        (window as any).electronAPI.printPdfSilent(result.caminhoDanfe);
+                        alert('Enviado diretamente para a impressora térmica!');
+                      } else {
+                        window.open(result.caminhoDanfe, '_blank');
+                      }
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Imprimir Direto (Silencioso)
+                  </button>
+                  <a 
+                    href={result.caminhoDanfe}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-slate-800 hover:bg-slate-700 text-white py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
+                  >
+                    Ver PDF
+                  </a>
+                </div>
               </div>
             </div>
           )}

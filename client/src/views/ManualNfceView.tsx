@@ -144,6 +144,34 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
       setResultDanfe(data.caminhoDanfe);
+
+      // Disparo automático e silencioso da impressão na impressora térmica (Sem tela do Windows)
+      if (data.caminhoDanfe) {
+        if ((window as any).electronAPI?.printPdfSilent) {
+          (window as any).electronAPI.printPdfSilent(data.caminhoDanfe);
+        } else {
+          // Fallback para navegador web
+          try {
+            const printFrame = document.createElement('iframe');
+            printFrame.style.position = 'fixed';
+            printFrame.style.right = '0';
+            printFrame.style.bottom = '0';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            printFrame.style.border = '0';
+            printFrame.src = data.caminhoDanfe;
+            document.body.appendChild(printFrame);
+            printFrame.onload = () => {
+              setTimeout(() => {
+                try {
+                  printFrame.contentWindow?.focus();
+                  printFrame.contentWindow?.print();
+                } catch {}
+              }, 600);
+            };
+          } catch {}
+        }
+      }
     } catch (err: any) {
       alert(err.message || 'Erro ao emitir NFC-e');
     } finally {
