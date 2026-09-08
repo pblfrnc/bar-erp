@@ -272,120 +272,128 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
           </p>
         </div>
 
-        {/* 1. SEÇÃO DE 2º BIP DIRETO (SCANNER) */}
-        <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 relative overflow-hidden shadow-xl">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 font-black">
-              2º
+        {/* 1. SEÇÃO DE 2º BIP DIRETO (SCANNER HERO) */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 border-2 border-amber-500 rounded-3xl p-8 relative overflow-hidden shadow-2xl shadow-amber-500/10">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/30">
+              <Scan className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                2º Bip — Conferência Física da Nota (DANFE)
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Recomendado</span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Bipe o código de barras da DANFE impressa que chegou com a mercadoria física para abrir a conferência.
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-black text-white tracking-tight">
+                  2º Bip: Bipar DANFE para Entrada no Estoque
+                </h3>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-500/40 uppercase tracking-wider">
+                  Automático
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Aproxime o leitor de código de barras da DANFE impressa. O XML é carregado instantaneamente do sistema.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <input
                 ref={startBipInputRef}
                 type="text"
+                autoFocus
                 value={bipChaveInput}
                 onChange={e => handleSecondBipScan(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') executeBipSearch(bipChaveInput); }}
-                placeholder="Bipe a chave de 44 dígitos da nota com o leitor..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm font-mono text-white focus:border-amber-500 outline-none transition"
+                placeholder="Bipe o código de barras de 44 dígitos da nota..."
+                className="w-full bg-slate-950 border-2 border-amber-500/60 focus:border-amber-400 rounded-2xl pl-12 pr-4 py-4 text-base font-mono text-white placeholder-slate-500 outline-none transition shadow-inner"
               />
-              <Scan className="w-5 h-5 text-amber-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Scan className="w-6 h-6 text-amber-400 absolute left-3.5 top-1/2 -translate-y-1/2 animate-pulse" />
             </div>
             <button
               onClick={() => executeBipSearch(bipChaveInput)}
               disabled={bipChaveInput.replace(/\D/g, '').length < 44}
-              className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-xl transition flex items-center gap-2 disabled:opacity-40 whitespace-nowrap"
+              className="px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-2xl transition flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:hover:bg-amber-500 shadow-xl shadow-amber-500/25 whitespace-nowrap cursor-pointer"
             >
-              <Scan className="w-4 h-4" />
-              Conferir Nota
+              <Scan className="w-5 h-5" />
+              Carregar Itens
             </button>
           </div>
 
           {bipError && (
-            <div className="mt-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-400 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{bipError}</span>
+            <div className="mt-4 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-300 text-xs">
+              <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
+              <span className="font-medium">{bipError}</span>
             </div>
           )}
 
-          <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block animate-pulse" />
-            <span>O leitor USB preenche automaticamente e já pressiona Enter.</span>
+          <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-ping" />
+              <span className="text-slate-300 font-medium">Leitor USB pronto:</span>
+              <span>Bipe diretamente o DANFE, sem precisar de mouse ou teclado.</span>
+            </div>
+            <span className="font-mono text-[11px] text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+              {bipChaveInput.replace(/\D/g, '').length}/44 dígitos
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 my-2">
-          <div className="h-px bg-slate-800 flex-1" />
-          <span className="text-xs uppercase font-bold text-slate-500 tracking-wider">OU por arquivo</span>
-          <div className="h-px bg-slate-800 flex-1" />
-        </div>
+        {/* 2. FALLBACK MANUAL SECUNDÁRIO (OPÇÃO DE CONTINGÊNCIA) */}
+        <details className="group bg-slate-900/60 border border-slate-800/80 rounded-2xl transition hover:border-slate-700">
+          <summary className="p-4 cursor-pointer text-xs font-semibold text-slate-400 flex items-center justify-between list-none select-none hover:text-slate-200">
+            <span className="flex items-center gap-2">
+              <FileCode2 className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 transition" />
+              Problemas com o leitor de código de barras? Enviar arquivo .xml manualmente
+            </span>
+            <span className="text-[11px] text-slate-400 font-normal group-open:rotate-180 transition-transform">▼</span>
+          </summary>
 
-        {/* 2. SEÇÃO DE UPLOAD MANUAL DE ARQUIVO XML */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto">
-            <FileCode2 className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white">Carregar Arquivo .XML do Fornecedor</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Caso tenha recebido o arquivo .xml por e-mail ou pendrive, selecione-o abaixo para conferir os itens.
+          <div className="p-5 pt-1 border-t border-slate-800/60 space-y-3">
+            <p className="text-xs text-slate-400">
+              Caso você não tenha o código de barras impresso ou o leitor não esteja funcionando, você pode carregar o arquivo .xml fornecido pelo distribuidor:
             </p>
-          </div>
 
-          <div>
-            <input 
-              type="file" 
-              accept=".xml" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleFileChange}
-            />
-            
-            {!file ? (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="mx-auto w-full max-w-xs py-3 px-6 rounded-2xl border-2 border-dashed border-slate-700 hover:border-emerald-500 bg-slate-950 text-slate-400 hover:text-emerald-400 transition flex flex-col items-center justify-center gap-2 cursor-pointer"
-              >
-                <Upload className="w-5 h-5" />
-                <span className="font-bold text-xs">Selecionar Arquivo .XML</span>
-              </button>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 font-mono text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  {file.name}
+            <div>
+              <input 
+                type="file" 
+                accept=".xml" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileChange}
+              />
+              
+              {!file ? (
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3 px-4 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500 bg-slate-950 text-slate-400 hover:text-emerald-400 transition flex items-center justify-center gap-2 cursor-pointer text-xs font-bold"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Selecionar Arquivo .XML de contingência</span>
+                </button>
+              ) : (
+                <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-emerald-500/30">
+                  <div className="text-emerald-400 font-mono text-xs flex items-center gap-2 truncate">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setFile(null)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
+                    >
+                      Trocar
+                    </button>
+                    <button 
+                      onClick={handleUpload}
+                      disabled={isUploading}
+                      className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50"
+                    >
+                      {isUploading ? 'Lendo...' : 'Carregar XML'}
+                    </button>
+                  </div>
                 </div>
-                
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setFile(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 transition"
-                  >
-                    Trocar
-                  </button>
-                  <button 
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50"
-                  >
-                    {isUploading ? 'Lendo...' : 'Ler Arquivo XML'}
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </details>
       </div>
     );
   }

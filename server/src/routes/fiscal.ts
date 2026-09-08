@@ -911,40 +911,116 @@ export function createFiscalRouter() {
     try {
       const chaveClean = req.params.chave.replace(/\D/g, '');
       if (chaveClean.length !== 44) {
-        return res.status(400).json({ error: 'Chave de acesso deve ter 44 dígitos.' });
+        return res.status(400).json({ error: 'Chave de acesso deve conter exatamente 44 dígitos.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
-      if (!settings?.apiToken) {
-        return res.status(400).json({ error: 'Token da API não configurado.' });
+      let xmlText: string | null = null;
+
+      // 1. Tenta buscar XML armazenado localmente em NotaRecebida
+      try {
+        const localNota: any = await prisma.$queryRawUnsafe(
+          `SELECT * FROM "NotaRecebida" WHERE "chave" = ? LIMIT 1`,
+          chaveClean
+        );
+        if (Array.isArray(localNota) && localNota.length > 0) {
+          const content = localNota[0].xmlContent;
+          if (content) {
+            try {
+              const parsedJson = JSON.parse(content);
+              if (parsedJson.raw) {
+                xmlText = parsedJson.raw;
+              }
+            } catch {
+              if (content.startsWith('<?xml') || content.includes('<nfeProc') || content.includes('<NFe')) {
+                xmlText = content;
+              }
+            }
+          }
+        }
+      } catch (localErr) {
+        console.warn('[Parsed XML] Nota local não encontrada ou erro na consulta:', localErr);
       }
 
-      const isProducao = settings.environment === 'producao';
-      const baseURL = isProducao
-        ? 'https://api.focusnfe.com.br'
-        : 'https://homologacao.focusnfe.com.br';
+      // 2. Se não encontrou XML salvo no banco, busca na SEFAZ via Focus NFe
+      if (!xmlText) {
+        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        if (!settings?.apiToken) {
+          return res.status(400).json({ error: 'Token da API Fiscal não configurado. Verifique as configurações fiscais.' });
+        }
 
-      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+        const isProducao = settings.environment === 'producao';
+        const baseURL = isProducao
+          ? 'https://api.focusnfe.com.br'
+          : 'https://homologacao.focusnfe.com.br';
 
-      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
-        headers: { 'Authorization': authHeader }
-      });
+        const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-      if (!xmlRes.ok) {
-        return res.status(404).json({ 
-          error: 'XML da nota ainda não disponível na SEFAZ. Se acabou de realizar o 1º bip, aguarde 30 a 60 segundos para o processamento do download.' 
+        // Tenta baixar o arquivo XML completo
+        let xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
+          headers: { 'Authorization': authHeader }
         });
+
+        // Se ainda não estiver pronto e for status 404, tenta registrar ciência ou esperar
+        if (!xmlRes.ok) {
+          // Tenta manifestar ciência caso não tenha sido feito no 1º bip
+          await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+            body: JSON.stringify({ tipo: 'ciencia' })
+          }).catch(() => {});
+
+          await new Promise(r => setTimeout(r, 1200));
+
+          xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
+            headers: { 'Authorization': authHeader }
+          });
+        }
+
+        if (!xmlRes.ok) {
+          return res.status(404).json({ 
+            error: 'XML da nota ainda não disponível na SEFAZ. Se a nota acabou de ser emitida, aguarde 30 a 60 segundos para o processamento do download na SEFAZ.' 
+          });
+        }
+
+        xmlText = await xmlRes.text();
+
+        // Salvar em cache local no NotaRecebida para os próximos bips
+        try {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "NotaRecebida" SET "xmlContent" = ? WHERE "chave" = ?`,
+            xmlText,
+            chaveClean
+          );
+        } catch {
+          // Registro pode ainda não existir, cria ou ignora
+        }
       }
 
-      const xmlText = await xmlRes.text();
+      // 3. Parsear o XML da NF-e
       const jsonObj = parser.parse(xmlText);
-
       const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
       if (!nfe) {
         return res.status(400).json({ error: 'Não foi possível extrair dados válidos de NF-e do XML.' });
       }
 
       const emit = nfe.emit || {};
+      const emitCnpj = (emit.CNPJ || emit.CPF || '').toString().replace(/\D/g, '');
+      const emitNome = emit.xNome || 'Fornecedor sem nome';
+
+      // Sincronizar fornecedor se existir CNPJ
+      let supplierRecord: any = null;
+      if (emitCnpj) {
+        try {
+          supplierRecord = await prisma.supplier.upsert({
+            where: { document: emitCnpj },
+            update: { name: emitNome },
+            create: { name: emitNome, document: emitCnpj }
+          });
+        } catch (supErr) {
+          console.warn('[Parsed XML] Erro ao sincronizar fornecedor:', supErr);
+        }
+      }
+
       let det = nfe.det || [];
       if (!Array.isArray(det)) det = [det];
 
@@ -952,25 +1028,28 @@ export function createFiscalRouter() {
         const prod = d.prod || {};
         return {
           id: `xml_item_${index}`,
-          code: prod.cProd || '',
+          code: prod.cProd ? String(prod.cProd) : '',
+          ean: (prod.cEAN && prod.cEAN !== 'SEM GTIN') ? String(prod.cEAN) : undefined,
           name: prod.xProd || 'Produto sem descrição',
           quantity: parseFloat(prod.qCom || '1'),
           unitCost: parseFloat(prod.vUnCom || '0'),
-          ncm: prod.NCM || '',
-          cfop: prod.CFOP || '',
+          ncm: prod.NCM ? String(prod.NCM) : '',
+          cfop: prod.CFOP ? String(prod.CFOP) : '',
           unit: prod.uCom || 'UN'
         };
       });
 
       res.json({
         vendor: {
-          name: emit.xNome || 'Fornecedor',
-          cnpj: emit.CNPJ || ''
+          id: supplierRecord?.id,
+          name: emitNome,
+          tradeName: emit.xFant ? String(emit.xFant) : undefined,
+          cnpj: emitCnpj
         },
         items,
         accessKey: chaveClean,
-        numero: nfe.ide?.nNF || '',
-        serie: nfe.ide?.serie || ''
+        numero: nfe.ide?.nNF ? String(nfe.ide.nNF) : '',
+        serie: nfe.ide?.serie ? String(nfe.ide.serie) : ''
       });
     } catch (err: any) {
       console.error('[Parsed XML] Erro:', err);
