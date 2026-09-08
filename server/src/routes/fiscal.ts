@@ -375,6 +375,7 @@ export function createFiscalRouter() {
         const numParsed = cleanNumero && !isNaN(Number(cleanNumero)) ? Number(cleanNumero) : cleanNumero || 'S/N';
         const regTrib = data.crt ? Number(data.crt) : 1;
 
+        const hasCsc = Boolean(data.cscSecret && data.cscSecret.trim() && data.cscId && String(data.cscId).trim());
         const empresaPayload: any = {
           nome: (data.razaoSocial || '').trim(),
           nome_fantasia: (data.nomeFantasia || data.razaoSocial || '').trim(),
@@ -382,7 +383,7 @@ export function createFiscalRouter() {
           regime_tributario: regTrib,
           enviar_email_destinatario: false,
           discrimina_impostos: true,
-          habilita_nfce: true,
+          habilita_nfce: hasCsc,
           habilita_nfe: true
         };
 
