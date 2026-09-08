@@ -12,10 +12,15 @@ import {
   RefreshCw,
   Beer,
   ChefHat,
-  ShieldAlert
+  ShieldAlert,
+  ArrowLeft
 } from 'lucide-react';
 
-export const DashboardView: React.FC = () => {
+interface DashboardViewProps {
+  onBack?: () => void;
+}
+
+export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'audit'>('overview');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,6 +46,15 @@ export const DashboardView: React.FC = () => {
       {/* Cabeçalho */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition cursor-pointer mr-1"
+              title="Voltar para a Retaguarda"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
             <BarChart3 className="w-6 h-6" />
           </div>

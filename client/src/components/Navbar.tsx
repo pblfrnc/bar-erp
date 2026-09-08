@@ -1,20 +1,15 @@
 import React from 'react';
-import { FileText, 
+import { 
+  FileText, 
   Beer,
   LayoutGrid,
   ChefHat,
   Receipt,
   UtensilsCrossed,
-  BarChart3, ShieldAlert, Settings,
+  Settings,
   Maximize2,
   Minimize2,
   WifiOff,
-  Printer,
-  Sun,
-  Moon,
-  Users,
-  Smartphone,
-  Truck,
   LogOut
 } from 'lucide-react';
 import { LoggedUser } from '../types';
@@ -26,10 +21,6 @@ interface NavbarProps {
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;
-  fontScale: 'normal' | 'large' | 'xlarge';
-  onChangeFontScale: (scale: 'normal' | 'large' | 'xlarge') => void;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
   currentUser?: LoggedUser | null;
   onLogout?: () => void;
 }
@@ -40,20 +31,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   kdsCount,
   isCashOpen,
   isConnected,
-  fontScale,
-  onChangeFontScale,
-  theme,
-  onToggleTheme,
   currentUser,
   onLogout
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
-
-  const cycleFontScale = () => {
-    if (fontScale === 'normal') onChangeFontScale('large');
-    else if (fontScale === 'large') onChangeFontScale('xlarge');
-    else onChangeFontScale('normal');
-  };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -104,12 +85,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'settings' as const,
       label: 'Retaguarda',
       icon: Settings,
-      badge: null
-    },
-    {
-      id: 'dashboard' as const,
-      label: 'Métricas & Gestão',
-      icon: BarChart3,
       badge: null
     }
   ];
@@ -175,7 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Ações da direita: Status conexão, Tema, Acessibilidade, Garçons, etc. */}
+          {/* Ações da direita: Status conexão, Tela Cheia e Operador */}
           <div className="flex items-center gap-1.5 sm:gap-2.5">
             {/* Status Wi-Fi / Conexão */}
             <div
@@ -198,33 +173,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </div>
-
-            {/* Alternador de Tema Claro / Escuro */}
-            <button
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700 active:scale-95"
-              title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-indigo-600" />
-              )}
-            </button>
-
-            {/* Botão de Acessibilidade / Fontes Grandes */}
-            <button
-              onClick={cycleFontScale}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-300 border border-slate-200 dark:border-slate-700 transition active:scale-95"
-              title="Ajustar Tamanho da Fonte (Acessibilidade)"
-            >
-              <span className="text-sm font-black tracking-tighter">A+</span>
-              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">
-                {fontScale === 'normal' ? 'Normal' : fontScale === 'large' ? 'Grande' : 'Extra'}
-              </span>
-            </button>
-
-
 
             {/* Botão Tela Cheia */}
             <button

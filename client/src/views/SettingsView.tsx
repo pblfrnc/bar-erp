@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FiscalSettingsView } from './FiscalSettingsView';
-import { Settings, Users, Smartphone, Printer, ChevronRight, ShieldCheck, MonitorSmartphone, Wifi, FileCode2, Receipt, Building2, Truck } from 'lucide-react';
+import { 
+  Settings, 
+  Users, 
+  Smartphone, 
+  Printer, 
+  ChevronRight, 
+  ShieldCheck, 
+  MonitorSmartphone, 
+  Wifi, 
+  FileCode2, 
+  Receipt, 
+  Building2, 
+  Truck,
+  BarChart3,
+  Sun,
+  Moon,
+  Type
+} from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
 
@@ -10,8 +27,13 @@ interface SettingsViewProps {
   onOpenCustomers: () => void;
   onOpenSuppliers?: () => void;
   onOpenStaffModal?: () => void;
+  onOpenDashboard?: () => void;
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
+  fontScale?: 'normal' | 'large' | 'xlarge';
+  onChangeFontScale?: (scale: 'normal' | 'large' | 'xlarge') => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -20,11 +42,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenCustomers,
   onOpenSuppliers,
   onOpenStaffModal,
+  onOpenDashboard,
   autoPrintKitchen,
-  onToggleAutoPrintKitchen
+  onToggleAutoPrintKitchen,
+  theme = 'dark',
+  onToggleTheme,
+  fontScale = 'normal',
+  onChangeFontScale
 }) => {
   const [backupInfo, setBackupInfo] = useState<any>(null);
   const [connectedDevices, setConnectedDevices] = useState<any[]>([]);
+
+  const cycleFontScale = () => {
+    if (!onChangeFontScale) return;
+    if (fontScale === 'normal') onChangeFontScale('large');
+    else if (fontScale === 'large') onChangeFontScale('xlarge');
+    else onChangeFontScale('normal');
+  };
 
   useEffect(() => {
     api.getBackupStatus().then(setBackupInfo).catch(() => {});
@@ -49,23 +83,89 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto">
-      {/* Cabeçalho */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex items-center justify-between">
+      {/* Cabeçalho com Ações Rápidas de Aparência */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
             <Settings className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-xl font-black text-white">Retaguarda & Gestão do Sistema</h2>
             <p className="text-xs text-slate-400">
-              Gerencie colaboradores, permissões por função, fornecedores, conexões e impressoras.
+              Métricas operacionais, colaboradores, fornecedores, conexões e aparência.
             </p>
           </div>
         </div>
+
+        {/* Botões de Tema e Tamanho de Fonte dentro da Retaguarda para despoluir a Tabbar */}
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
+          {/* Botão Modo Claro / Modo Escuro */}
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 cursor-pointer"
+              title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-4 h-4 text-amber-400" />
+                  <span>Modo Claro</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span>Modo Escuro</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Botão Aumentar Tamanho de Fonte */}
+          {onChangeFontScale && (
+            <button
+              onClick={cycleFontScale}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition active:scale-95 cursor-pointer"
+              title="Ajustar Tamanho da Fonte (Acessibilidade)"
+            >
+              <Type className="w-4 h-4 text-amber-400" />
+              <span>Aumentar Tamanho</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded ml-1">
+                {fontScale === 'normal' ? '1x' : fontScale === 'large' ? '1.2x' : '1.4x'}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* MÉTRICAS & GESTÃO (Posicionado logo acima do Backup Automático) */}
+      {onOpenDashboard && (
+        <button
+          onClick={onOpenDashboard}
+          className="w-full bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 hover:from-purple-900/50 hover:to-slate-850 transition border-2 border-purple-500/40 hover:border-purple-400 rounded-3xl p-5 text-left flex items-center justify-between group shadow-lg shadow-purple-950/20"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 group-hover:scale-105 transition-transform">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-white group-hover:text-purple-300 transition">
+                  Métricas & Gestão
+                </h3>
+                <span className="text-[10px] font-black uppercase text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                  Faturamento & Relatórios
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Acompanhe vendas do dia, produtos mais vendidos, auditoria de pedidos e faturamento.
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-purple-300 group-hover:translate-x-1 transition-all shrink-0" />
+        </button>
+      )}
 
-      {/* Grid de Opções */}
+      {/* Grid de Opções - Backup Automático */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">

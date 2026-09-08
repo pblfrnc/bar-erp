@@ -367,10 +367,6 @@ export function App() {
         kdsCount={kdsCount}
         isCashOpen={isCashOpen}
         isConnected={isConnected}
-        fontScale={fontScale}
-        onChangeFontScale={handleFontScaleChange}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
@@ -413,8 +409,13 @@ export function App() {
             onOpenConnectMobile={() => setShowConnectMobileModal(true)}
             onOpenCustomers={() => setCurrentView('customers')}
             onOpenSuppliers={() => setCurrentView('suppliers')}
+            onOpenDashboard={() => setCurrentView('dashboard')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            fontScale={fontScale}
+            onChangeFontScale={handleFontScaleChange}
           />
         )}
 
@@ -423,7 +424,7 @@ export function App() {
         )}
 
         {currentView === 'dashboard' && (
-          <DashboardView />
+          <DashboardView onBack={() => setCurrentView('settings')} />
         )}
       </main>
 
