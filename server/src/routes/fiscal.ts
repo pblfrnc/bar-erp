@@ -776,30 +776,80 @@ export function createFiscalRouter() {
 
       const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
 
-      const focusPayload = {
+      // Formato oficial ISO 8601 com Timezone de Brasília (exigência estrita da SEFAZ e Focus NFe)
+      const dataEmissao = (() => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        try {
+          const spDateStr = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+          const spDate = new Date(spDateStr);
+          const yyyy = spDate.getFullYear();
+          const mm = pad(spDate.getMonth() + 1);
+          const dd = pad(spDate.getDate());
+          const hh = pad(spDate.getHours());
+          const mi = pad(spDate.getMinutes());
+          const ss = pad(spDate.getSeconds());
+          return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+        } catch {
+          const yyyy = now.getUTCFullYear();
+          const mm = pad(now.getUTCMonth() + 1);
+          const dd = pad(now.getUTCDate());
+          const hh = pad((now.getUTCHours() - 3 + 24) % 24);
+          const mi = pad(now.getUTCMinutes());
+          const ss = pad(now.getUTCSeconds());
+          return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+        }
+      })();
+
+      const cleanDestDoc = customerCpf ? String(customerCpf).replace(/\D/g, '') : '';
+      const isCpfDest = cleanDestDoc.length === 11;
+      const isCnpjDest = cleanDestDoc.length === 14;
+
+      const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+
+      const focusPayload: any = {
         cnpj_emitente: cleanCnpj,
-        natureza_operacao: 'VENDA DE MERCADORIA',
-        presenca_comprador: '1',
+        data_emissao: dataEmissao,
+        natureza_operacao: 'VENDA AO CONSUMIDOR',
+        tipo_documento: '1', // 1 = Saída
+        finalidade_emissao: '1', // 1 = Normal
+        consumidor_final: '1', // 1 = Consumidor Final (Obrigatório em NFC-e)
+        presenca_comprador: '1', // 1 = Operação Presencial
+        modalidade_frete: '9', // 9 = Sem Ocorrência de Transporte
+        local_destino: '1', // 1 = Operação Interna
         serie: String(settings.serieNfce || '1'),
-        cpf_cnpj_destinatario: customerCpf ? customerCpf.replace(/\D/g, '') : undefined,
-        itens: items.map((i: any, index: number) => ({
-          numero_item: String(index + 1),
-          codigo_produto: i.productId,
-          descricao: i.name,
-          cfop: i.cfop || '5102',
-          ncm: i.ncm || '21069090', 
-          unidade_comercial: 'UN',
-          quantidade_comercial: String(i.quantity),
-          valor_unitario_comercial: String(i.price),
-          valor_bruto: String((i.quantity * i.price).toFixed(2)),
-          // CRT: 1 = Simples Nacional, 3 = Regime Normal
-          icms_situacao_tributaria: (settings.crt === '3') 
-            ? (i.cfop === '5405' ? '60' : '00')
-            : (i.cfop === '5405' ? '500' : '102'),
-          icms_origem: '0',
-          pis_situacao_tributaria: '08',
-          cofins_situacao_tributaria: '08'
-        })),
+        itens: items.map((i: any, index: number) => {
+          const rawNcm = (i.ncm ? String(i.ncm).replace(/\D/g, '') : '');
+          const cleanNcm = rawNcm.length >= 8 ? rawNcm.slice(0, 8) : (rawNcm ? rawNcm.padEnd(8, '0') : '21069090');
+          const cleanCfop = (i.cfop ? String(i.cfop).replace(/\D/g, '') : '') || '5102';
+          const qty = Number(i.quantity) || 1;
+          const price = Number(i.price) || 0;
+          const grossValue = (qty * price).toFixed(2);
+          const unit = (i.unit || 'UN').toUpperCase().slice(0, 6);
+
+          return {
+            numero_item: String(index + 1),
+            codigo_produto: String(i.code || i.productId || index + 1).slice(0, 60),
+            descricao: String(i.name || 'Produto').trim().slice(0, 120),
+            cfop: cleanCfop,
+            codigo_ncm: cleanNcm,
+            ncm: cleanNcm,
+            unidade_comercial: unit,
+            quantidade_comercial: qty.toFixed(4),
+            valor_unitario_comercial: price.toFixed(2),
+            valor_bruto: grossValue,
+            unidade_tributavel: unit,
+            quantidade_tributavel: qty.toFixed(4),
+            valor_unitario_tributavel: price.toFixed(2),
+            inclui_no_total: '1',
+            icms_origem: '0', // 0 = Nacional
+            icms_situacao_tributaria: (settings.crt === '3') 
+              ? (cleanCfop === '5405' ? '60' : '00')
+              : (cleanCfop === '5405' ? '500' : '102'),
+            pis_situacao_tributaria: '07', // 07 = Operação Isenta
+            cofins_situacao_tributaria: '07'
+          };
+        }),
         formas_pagamento: [
           {
             forma_pagamento: (() => {
@@ -807,23 +857,36 @@ export function createFiscalRouter() {
                if (pm === 'PIX') return '17';
                if (pm === 'CREDITO' || pm === 'CARTÃO DE CRÉDITO') return '03';
                if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO') return '04';
+               if (pm === 'DINHEIRO' || pm === 'CASH') return '01';
                return '01';
             })(),
-            valor_pagamento: String(items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0).toFixed(2))
+            valor_pagamento: totalItemsValue.toFixed(2)
           }
         ]
       };
+
+      // Identificação do Destinatário (apenas se informado)
+      if (isCpfDest) {
+        focusPayload.cpf_destinatario = cleanDestDoc;
+      } else if (isCnpjDest) {
+        focusPayload.cnpj_destinatario = cleanDestDoc;
+      }
+      const customerName = req.body.customerName;
+      if (customerName && String(customerName).trim()) {
+        focusPayload.nome_destinatario = String(customerName).trim().slice(0, 60);
+      }
 
       // ref é obrigatório pela Focus NFe — identifica unicamente a nota
       const focusUrl = `${baseURL}?ref=${ref}&cnpj_emitente=${cleanCnpj}&dry_run=0`;
       console.log('[emit-nfce] Enviando para:', focusUrl);
       console.log('[emit-nfce] Payload:', JSON.stringify(focusPayload, null, 2));
 
+      const cleanToken = (settings.apiToken || '').trim();
       const focusRes = await fetch(focusUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64')
+          'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64')
         },
         body: JSON.stringify(focusPayload)
       });
@@ -883,26 +946,29 @@ export function createFiscalRouter() {
           console.error("Erro ao salvar NotaEmitida", e);
         }
 
+        const danfeUrl = data.caminho_danfe || data.danfe_url || `${baseURL}/${data.ref}/danfe.pdf`;
+
         return res.json({
           success: true,
           status: data.status,
           chaveAcesso: data.chave_nfe,
-          caminhoDanfe: baseURL + '/' + data.ref + '/danfe.pdf'
+          caminhoDanfe: danfeUrl
         });
       }
 
       // Caso seja 'processando', aguardamos 2.5s e tentamos buscar 1x
       if (data.status === 'processando') {
         await new Promise(resolve => setTimeout(resolve, 2500));
-        const checkRes = await fetch(baseURL + '/' + data.ref + '?cnpj_emitente=' + settings.cnpj.replace(/\D/g, ''), {
-          headers: { 'Authorization': 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64') }
+        const checkRes = await fetch(baseURL + '/' + data.ref + '?cnpj_emitente=' + cleanCnpj, {
+          headers: { 'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64') }
         });
         const checkData = await checkRes.json();
 
         if (checkData.status === 'autorizado') {
+          const authorizedDanfeUrl = checkData.caminho_danfe || checkData.danfe_url || `${baseURL}/${checkData.ref}/danfe.pdf`;
           try {
             const NotaEmitida = (prisma as any).notaEmitida;
-            const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
+            const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${cleanCnpj}</CNPJ></emit></infNFe></NFe>`;
             secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
             if (NotaEmitida) {
               await NotaEmitida.create({
@@ -915,7 +981,7 @@ export function createFiscalRouter() {
                   valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
                   status: checkData.status,
                   xmlUrl: baseURL + '/' + checkData.ref + '.xml',
-                  pdfUrl: baseURL + '/' + checkData.ref + '/danfe.pdf'
+                  pdfUrl: authorizedDanfeUrl
                 }
               });
             }
@@ -927,7 +993,7 @@ export function createFiscalRouter() {
             success: true,
             status: checkData.status,
             chaveAcesso: checkData.chave_nfe,
-            caminhoDanfe: baseURL + '/' + data.ref + '/danfe.pdf'
+            caminhoDanfe: authorizedDanfeUrl
           });
         }
         
