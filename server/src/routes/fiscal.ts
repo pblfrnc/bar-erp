@@ -772,7 +772,10 @@ export function createFiscalRouter() {
         ? 'https://api.focusnfe.com.br/v2/nfce'
         : 'https://homologacao.focusnfe.com.br/v2/nfce';
 
+      const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
+
       const focusPayload = {
+        cnpj_emitente: cleanCnpj,
         natureza_operacao: 'VENDA DE MERCADORIA',
         presenca_comprador: '1',
         serie: String(settings.serieNfce || '1'),
@@ -810,7 +813,7 @@ export function createFiscalRouter() {
       };
 
       // ref é obrigatório pela Focus NFe — identifica unicamente a nota
-      const focusUrl = `${baseURL}?ref=${ref}&cnpj_emitente=${settings.cnpj.replace(/\D/g, '')}&dry_run=0`;
+      const focusUrl = `${baseURL}?ref=${ref}&cnpj_emitente=${cleanCnpj}&dry_run=0`;
       console.log('[emit-nfce] Enviando para:', focusUrl);
       console.log('[emit-nfce] Payload:', JSON.stringify(focusPayload, null, 2));
 
@@ -826,10 +829,20 @@ export function createFiscalRouter() {
       const data = await focusRes.json();
       
       if (!focusRes.ok) {
-        const errosFormatados = Array.isArray(data.erros)
+        console.error('[emit-nfce] Focus NFe recusou:', focusRes.status, JSON.stringify(data, null, 2));
+        
+        let errosFormatados = Array.isArray(data.erros)
           ? data.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo || JSON.stringify(e)}`).join('\n')
           : data.mensagem || JSON.stringify(data);
-        console.error('[emit-nfce] Focus NFe recusou:', focusRes.status, JSON.stringify(data, null, 2));
+
+        if (focusRes.status === 403 || data.codigo === 'cnpj_nao_autorizado' || JSON.stringify(data).includes('não autorizado')) {
+          errosFormatados = `CNPJ ${cleanCnpj} não autorizado pela Focus NFe para emissão de NFC-e.\n\n` +
+            `Principais motivos e como resolver:\n` +
+            `1. Token da Empresa: No modelo Software House, verifique se está usando o Token específico desta Empresa (encontrado em "Empresas > [Sua Empresa] > Tokens" no portal da Focus NFe) em vez do Token Master.\n` +
+            `2. CSC da SEFAZ: O Código CSC e o ID do Token devem estar cadastrados na empresa (gerados no portal da SEFAZ do seu estado).\n` +
+            `3. Credenciamento SEFAZ: Confirme com a contabilidade se o CNPJ já está credenciado na SEFAZ para emitir NFC-e (modelo 65) no ambiente ${settings.environment === 'producao' ? 'de Produção' : 'de Homologação'}.`;
+        }
+
         return res.status(400).json({ error: `Focus NFe (${focusRes.status}): ${errosFormatados}` });
       }
 
