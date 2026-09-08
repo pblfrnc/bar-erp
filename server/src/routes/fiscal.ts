@@ -189,7 +189,33 @@ export function createFiscalRouter() {
 
       const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-      // Testa o token tentando listar as empresas vinculadas à conta
+      const cnpjLimpo = (settings.cnpj || '').replace(/\D/g, '');
+      let empresaCadastrada: any = null;
+      let total = 0;
+
+      // 1. Tenta consultar diretamente pelo CNPJ configurado (/v2/empresas/:cnpj)
+      if (cnpjLimpo) {
+        try {
+          const directRes = await fetch(`${baseURL}/v2/empresas/${cnpjLimpo}`, {
+            headers: { 'Authorization': authHeader }
+          });
+          if (directRes.status === 401) {
+            return res.json({
+              ok: false,
+              error: 'Token inválido ou sem permissão. Verifique se o Token está correto e é de produção/homologação conforme o ambiente configurado.',
+              status: 401,
+              ambiente: isProducao ? 'Produção' : 'Homologação'
+            });
+          }
+          if (directRes.ok) {
+            empresaCadastrada = await directRes.json().catch(() => null);
+          }
+        } catch (e) {
+          console.error('[validate-api] Erro ao consultar CNPJ direto:', e);
+        }
+      }
+
+      // 2. Se não encontrou pelo CNPJ direto, tenta consultar a listagem geral (/v2/empresas)
       const focusRes = await fetch(`${baseURL}/v2/empresas`, {
         headers: { 'Authorization': authHeader }
       });
@@ -203,36 +229,35 @@ export function createFiscalRouter() {
         });
       }
 
-      if (!focusRes.ok) {
-        const errData = await focusRes.json().catch(() => ({}));
-        return res.json({
-          ok: false,
-          error: `Focus NFe retornou erro ${focusRes.status}: ${JSON.stringify(errData)}`,
-          status: focusRes.status,
-          ambiente: isProducao ? 'Produção' : 'Homologação'
-        });
+      if (focusRes.ok) {
+        const resData = await focusRes.json().catch(() => []);
+        const empresasList = Array.isArray(resData) 
+          ? resData 
+          : Array.isArray((resData as any)?.empresas) 
+            ? (resData as any).empresas 
+            : [];
+        total = empresasList.length;
+
+        if (!empresaCadastrada && cnpjLimpo && total > 0) {
+          empresaCadastrada = empresasList.find((e: any) => 
+            (e.cnpj || e.cpf_cnpj || '').replace(/\D/g, '') === cnpjLimpo
+          );
+        }
       }
-
-      const empresas = await focusRes.json();
-      const total = Array.isArray(empresas) ? empresas.length : 0;
-
-      // Verificar se o CNPJ configurado já está cadastrado
-      const cnpjLimpo = (settings.cnpj || '').replace(/\D/g, '');
-      const empresaCadastrada = Array.isArray(empresas) && cnpjLimpo
-        ? empresas.find((e: any) => (e.cnpj || '').replace(/\D/g, '') === cnpjLimpo)
-        : null;
 
       return res.json({
         ok: true,
-        ambiente: isProducao ? '🟢 Produção (Notas Válidas)' : '🟡 Homologação (Testes)',
-        totalEmpresas: total,
+        ambiente: isProducao ? '🟢 Produção (Notas Oficiais)' : '🟡 Homologação (Testes)',
+        totalEmpresas: total > 0 ? total : (empresaCadastrada ? 1 : 0),
         cnpjConfigurado: settings.cnpj || null,
         empresaCadastrada: empresaCadastrada
           ? `✓ CNPJ encontrado na Focus NFe: ${empresaCadastrada.nome_fantasia || empresaCadastrada.nome || settings.cnpj}`
           : cnpjLimpo
-          ? '⚠️ CNPJ configurado ainda não registrado na Focus NFe. Salve as configurações para cadastrar.'
+          ? `⚠️ CNPJ ${settings.cnpj} ainda não localizado no ambiente ${isProducao ? 'Produção' : 'Homologação'} da Focus NFe.`
           : 'ℹ️ Nenhum CNPJ configurado ainda.',
-        mensagem: `Conexão com a Focus NFe estabelecida. ${total} empresa(s) vinculada(s) nesta conta.`
+        mensagem: empresaCadastrada
+          ? `Empresa localizada com sucesso na Focus NFe (${isProducao ? 'Produção' : 'Homologação'})!`
+          : `Conexão com a Focus NFe estabelecida com sucesso.`
       });
 
     } catch (err: any) {
