@@ -11,24 +11,24 @@
   html.dark body {
     @apply bg-slate-950 text-slate-100 selection:bg-amber-500/30 selection:text-amber-200;
   }
+}
 
-  /* Garantia universal contra bloqueio de digitação ou seleção em inputs e formulários */
-  input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]),
-  textarea {
-    cursor: text !important;
-    pointer-events: auto !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-  }
+/* Garantia universal contra bloqueio de digitação ou seleção em inputs e formulários */
+input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]),
+textarea {
+  cursor: text !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
 
-  select,
-  input[type="checkbox"],
-  input[type="radio"],
-  input[type="button"],
-  input[type="submit"] {
-    cursor: pointer !important;
-    pointer-events: auto !important;
-  }
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="button"],
+input[type="submit"] {
+  cursor: pointer !important;
+  pointer-events: auto !important;
 }
 
 /* Escalas de acessibilidade para Baixa Visão */

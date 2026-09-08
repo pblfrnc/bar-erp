@@ -167,6 +167,10 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                   printFrame.contentWindow?.focus();
                   printFrame.contentWindow?.print();
                 } catch {}
+                setTimeout(() => {
+                  try { printFrame.remove(); } catch {}
+                  window.focus();
+                }, 1000);
               }, 600);
             };
           } catch {}

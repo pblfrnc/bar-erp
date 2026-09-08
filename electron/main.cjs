@@ -1,8 +1,11 @@
-const { app, BrowserWindow, globalShortcut, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, globalShortcut, dialog, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { setupDailyBackup } = require('./backup.js');
+
+// Desabilitar menu padrão do sistema para nunca prender o foco das teclas (ex: tecla Alt)
+Menu.setApplicationMenu(null);
 
 // Habilitar impressão silenciosa (bypass janela de impressão do sistema)
 app.commandLine.appendSwitch('kiosk-printing');
@@ -167,6 +170,9 @@ function createWindow() {
     try {
       const printWin = new BrowserWindow({
         show: false,
+        focusable: false, // CRUCIAL no Windows: impede que a janela invisível roube o foco do teclado
+        skipTaskbar: true,
+        parent: mainWindow || undefined,
         webPreferences: {
           plugins: true
         }
@@ -177,12 +183,35 @@ function createWindow() {
         setTimeout(() => {
           printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
             if (!success) console.error('Silent PDF print failed:', failureReason);
-            try { printWin.close(); } catch {}
+            try { printWin.destroy(); } catch {}
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.focus();
+            }
           });
         }, 800);
       });
+
+      // Timeout de segurança se o PDF falhar ao carregar
+      setTimeout(() => {
+        if (!printWin.isDestroyed()) {
+          try { printWin.destroy(); } catch {}
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus();
+          }
+        }
+      }, 10000);
     } catch (e) {
       console.error('Erro ao disparar impressão de PDF silenciosa:', e);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.focus();
+      }
+    }
+  });
+
+  // Forçar restauração de foco no processo principal
+  ipcMain.on('focus-window', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.focus();
     }
   });
 

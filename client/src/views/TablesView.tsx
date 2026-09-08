@@ -80,11 +80,12 @@ export const TablesView: React.FC<TablesViewProps> = ({
     return tables.filter((t) => {
       const matchSection = selectedSection === 'ALL' || t.section === selectedSection;
       const matchStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
+      const q = searchQuery.trim().toLowerCase();
       const matchSearch =
-        searchQuery.trim() === '' ||
-        t.number.toString().includes(searchQuery) ||
-        (t.name && t.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (t.customerName && t.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
+        q === '' ||
+        t.number.toString().includes(q) ||
+        Boolean(t.name && String(t.name).toLowerCase().includes(q)) ||
+        Boolean(t.customerName && String(t.customerName).toLowerCase().includes(q));
 
       return matchSection && matchStatus && matchSearch;
     });
