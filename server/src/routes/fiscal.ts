@@ -670,11 +670,16 @@ export function createFiscalRouter() {
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
       const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-      const focusUrl = `${baseURL}/v2/nfce/${encodeURIComponent(referencia)}?justificativa=${encodeURIComponent(justificativa)}`;
+      // Focus NFe exige a justificativa no BODY do DELETE (não na query string)
+      const focusUrl = `${baseURL}/v2/nfce/${encodeURIComponent(referencia)}`;
       
       const focusRes = await fetch(focusUrl, {
         method: 'DELETE',
-        headers: { 'Authorization': authHeader }
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ justificativa })
       });
 
       const data = await focusRes.json().catch(() => ({}));
