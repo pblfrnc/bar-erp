@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, UserCheck, AlertCircle, X, Building2, Package } from 'lucide-react';
+import { Truck, Plus, Search, Edit2, Trash2, Phone, Mail, MapPin, FileText, UserCheck, AlertCircle, X, Building2, Package, UploadCloud } from 'lucide-react';
 import { api } from '../services/api';
 import { Supplier } from '../types';
+import { ImportXmlModal } from '../components/ImportXmlModal';
 
 export const SuppliersView: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -11,6 +12,7 @@ export const SuppliersView: React.FC = () => {
   // Modal de Criar / Editar
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [showImportXml, setShowImportXml] = useState(false);
 
   // Campos do Formulário
   const [formName, setFormName] = useState('');
@@ -154,6 +156,13 @@ export const SuppliersView: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowImportXml(true)}
+            className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer border border-slate-600"
+          >
+            <UploadCloud className="w-4 h-4 text-sky-400" />
+            <span>Importar XML</span>
+          </button>
+          <button
             onClick={openCreateModal}
             className="py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/15 active:scale-95 cursor-pointer"
           >
@@ -162,6 +171,13 @@ export const SuppliersView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {showImportXml && (
+        <ImportXmlModal
+          onClose={() => setShowImportXml(false)}
+          onSuccess={() => { loadSuppliers(); setShowImportXml(false); setTimeout(() => setShowImportXml(true), 50); }}
+        />
+      )}
 
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -21,6 +21,7 @@ import { createCustomersRouter } from './routes/customers.js';
 import { createSystemRouter } from './routes/system.js';
 import { createSuppliersRouter } from './routes/suppliers.js';
 import { createStaffRouter } from './routes/staff.js';
+import { createImportXmlRouter } from './routes/importXml.js';
 
 
 
@@ -118,6 +119,7 @@ app.use('/api/waiters', createWaitersRouter());
 app.use('/api/fiscal', createFiscalRouter());
 app.use('/api/suppliers', createSuppliersRouter());
 app.use('/api/staff', createStaffRouter());
+app.use('/api/import-xml', createImportXmlRouter());
 
 app.get('/api/network/devices', (req, res) => {
   res.json(Array.from(activeDevices.values()));
