@@ -395,7 +395,7 @@ export function App() {
         )}
 
         {currentView === 'suppliers' && (
-          <SuppliersView />
+          <SuppliersView isAdmin={currentUser?.role === 'ADMIN'} />
         )}
 
         {currentView === 'fiscal' && (

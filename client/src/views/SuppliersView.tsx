@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Supplier } from '../types';
 import { ImportXmlModal } from '../components/ImportXmlModal';
 
-export const SuppliersView: React.FC = () => {
+export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -155,13 +155,16 @@ export const SuppliersView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowImportXml(true)}
-            className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer border border-slate-600"
-          >
-            <UploadCloud className="w-4 h-4 text-sky-400" />
-            <span>Importar XML</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowImportXml(true)}
+              className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer border border-slate-600"
+              title="Importar fornecedores e produtos de XML do sistema anterior (apenas administrador)"
+            >
+              <UploadCloud className="w-4 h-4 text-sky-400" />
+              <span>Importar XML</span>
+            </button>
+          )}
           <button
             onClick={openCreateModal}
             className="py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-emerald-500/15 active:scale-95 cursor-pointer"
