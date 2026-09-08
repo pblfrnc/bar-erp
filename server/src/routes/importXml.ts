@@ -131,65 +131,87 @@ export function createImportXmlRouter() {
 
       for (const p of produtosXml) {
         try {
-          const nome = String(p.nome || p.descricao || '').trim();
-          if (!nome) { resultado.produtos.ignorados++; continue; }
-
-          const ativo = String(p.ativo) === '1' || String(p.ativo).toLowerCase() === 'true';
+          // Somente importa produtos ativos
+          const ativo = String(p.ativo) === '1';
           if (!ativo) { resultado.produtos.ignorados++; continue; }
 
-          const precoPedidoRaw = parseFloat(String(p.preco_venda || p.valor_venda || p.preco || '0').replace(',', '.')) || 0;
-          const precoCustoRaw  = parseFloat(String(p.custo     || p.preco_custo  || '0').replace(',', '.')) || 0;
-          const estoque        = parseInt(String(p.estoque_atual || p.estoque || '0'), 10) || 0;
-          const ean            = String(p.codigo_barras || p.ean || p.gtin || '').trim() || undefined;
-          const ncm            = String(p.ncm || p.codigo_ncm || '').replace(/\D/g, '').slice(0, 8) || undefined;
-          const code           = String(p.codigo || p.cod || '').trim() || undefined;
+          // Somente produtos do tipo PRODUTO (não serviço, etc)
+          const tipoProduto = String(p.tipo_produto || 'PRODUTO').trim().toUpperCase();
+          if (tipoProduto !== 'PRODUTO') { resultado.produtos.ignorados++; continue; }
 
-          // Vincula categoria
-          const catXmlId = String(p.id_subcategoria || p.id_categoria || '');
+          const nome = String(p.nome || p.descricao || '').trim();
+          if (!nome || nome.length < 2) { resultado.produtos.ignorados++; continue; }
+
+          // Preços — usar preco_venda / preco_custo / preco_compra
+          const precoVenda = parseFloat(String(p.preco_venda || '0').replace(',', '.')) || 0;
+          const precoCusto = parseFloat(String(p.preco_custo || p.preco_compra || '0').replace(',', '.')) || 0;
+
+          // Estoque: saldo é float no XML → converte para int
+          const estoque = Math.round(parseFloat(String(p.saldo || '0').replace(',', '.')) || 0);
+
+          // EAN / código de barras
+          const ean = String(p.codigo_barras || '').trim().replace(/\D/g, '') || undefined;
+          const eanValido = ean && ean.length >= 8 ? ean : undefined;
+
+          // NCM — usar <ncmCodigo> (o <ncm> embutido costuma estar vazio)
+          const ncmRaw = String(p.ncmCodigo || p.ncm?.codigo || '').replace(/\D/g, '');
+          const ncm = ncmRaw && ncmRaw !== '00000000' && ncmRaw.length === 8 ? ncmRaw : undefined;
+
+          // CEST
+          const cestRaw = String(p.cestCodigo || '').replace(/\D/g, '');
+          const cest = cestRaw && cestRaw !== '0000000' ? cestRaw : undefined;
+
+          // Código interno
+          const code = String(p.codigo || '').trim() || undefined;
+
+          // Descrição secundária (campo descricao no XML = descrição curta)
+          const descricao = String(p.observacoes || '').trim() || undefined;
+
+          // Vincula categoria via id_subcategoria → catIdMap
+          const catXmlId = String(p.id_subcategoria || p.id_categoria || '0');
           const categoryId = catIdMap.get(catXmlId) || defaultCategory?.id;
           if (!categoryId) { resultado.produtos.ignorados++; continue; }
 
-          // Vincula fornecedor
-          const fornXmlId = String(p.id_fornecedor || '');
+          // Vincula fornecedor via id_fornecedor → fornIdMap
+          const fornXmlId = String(p.id_fornecedor || '0');
           const supplierId = fornIdMap.get(fornXmlId) || undefined;
 
-          // Verifica duplicata por EAN ou nome+categoria
+          // Verifica duplicata por EAN ou por nome+categoria
           let existing: any = null;
-          if (ean) {
-            existing = await (prisma as any).product.findFirst({ where: { ean } });
+          if (eanValido) {
+            existing = await (prisma as any).product.findFirst({ where: { ean: eanValido } });
           }
           if (!existing) {
-            existing = await (prisma as any).product.findFirst({
-              where: { name: nome, categoryId }
-            });
+            existing = await (prisma as any).product.findFirst({ where: { name: nome, categoryId } });
           }
 
           if (existing) {
-            // Atualiza preço e estoque se o produto já existe
             await (prisma as any).product.update({
               where: { id: existing.id },
               data: {
-                price: precoPedidoRaw > 0 ? precoPedidoRaw : existing.price,
-                costPrice: precoCustoRaw > 0 ? precoCustoRaw : existing.costPrice,
-                stock: estoque,
-                ...(ean ? { ean } : {}),
-                ...(ncm ? { ncm } : {}),
-                ...(supplierId ? { supplierId } : {}),
+                price:     precoVenda > 0 ? precoVenda : existing.price,
+                costPrice: precoCusto > 0 ? precoCusto : existing.costPrice,
+                stock:     estoque,
+                ...(eanValido  ? { ean: eanValido }  : {}),
+                ...(ncm        ? { ncm }              : {}),
+                ...(cest       ? { cest }             : {}),
+                ...(supplierId ? { supplierId }       : {}),
               }
             });
             resultado.produtos.atualizados++;
           } else {
             await (prisma as any).product.create({
               data: {
-                name: nome,
-                description: String(p.observacao || '').trim() || undefined,
-                price: precoPedidoRaw > 0 ? precoPedidoRaw : 0.01,
-                costPrice: precoCustoRaw > 0 ? precoCustoRaw : undefined,
-                stock: estoque,
-                trackStock: true,
-                ean: ean || undefined,
-                ncm: ncm || undefined,
-                code: code || undefined,
+                name:        nome,
+                description: descricao,
+                price:       precoVenda > 0 ? precoVenda : 0.01,
+                costPrice:   precoCusto > 0 ? precoCusto : undefined,
+                stock:       estoque,
+                trackStock:  true,
+                ean:         eanValido,
+                ncm,
+                cest,
+                code,
                 categoryId,
                 supplierId,
                 kdsStation: 'BAR',
