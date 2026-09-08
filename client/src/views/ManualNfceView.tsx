@@ -122,6 +122,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
     setIsEmitting(true);
     try {
       const payload = {
+        orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
         customerCpf: customerCpf.replace(/\D/g, '') || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,

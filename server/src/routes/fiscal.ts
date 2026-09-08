@@ -743,7 +743,7 @@ export function createFiscalRouter() {
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {
     try {
-      const { items, customerCpf, paymentMethod } = req.body;
+      const { items, customerCpf, paymentMethod, orderId } = req.body;
       
       // Validações básicas
       if (!items || items.length === 0) {
@@ -759,6 +759,14 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Para emitir NFC-e, preencha o Código CSC e o ID do Token nas Configurações Fiscais.' });
       }
 
+      // Gera um ref único para esta nota (obrigatório pela Focus NFe)
+      // Formato: nfce_<orderId ou timestamp>_<random>
+      const ts = Date.now();
+      const rnd = Math.floor(Math.random() * 9000) + 1000;
+      const ref = orderId
+        ? `nfce_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
+        : `nfce_${ts}_${rnd}`;
+
       // Mapeamento para requisição na Focus NFe
       const baseURL = settings.environment === 'producao' 
         ? 'https://api.focusnfe.com.br/v2/nfce'
@@ -773,7 +781,7 @@ export function createFiscalRouter() {
           numero_item: String(index + 1),
           codigo_produto: i.productId,
           descricao: i.name,
-          cfop: i.cfop || '5102', // Fallback se o NCM for mágico
+          cfop: i.cfop || '5102',
           ncm: i.ncm || '21069090', 
           unidade_comercial: 'UN',
           quantidade_comercial: String(i.quantity),
@@ -781,29 +789,32 @@ export function createFiscalRouter() {
           valor_bruto: String((i.quantity * i.price).toFixed(2)),
           // CRT: 1 = Simples Nacional, 3 = Regime Normal
           icms_situacao_tributaria: (settings.crt === '3') 
-            ? (i.cfop === '5405' ? '60' : '00')  // Regime Normal: 60 = ST, 00 = Tributada Integralmente
-            : (i.cfop === '5405' ? '500' : '102'), // Simples Nacional: 500 = ST, 102 = Tributada
+            ? (i.cfop === '5405' ? '60' : '00')
+            : (i.cfop === '5405' ? '500' : '102'),
           icms_origem: '0',
-          pis_situacao_tributaria: '08', // Operação sem incidência
+          pis_situacao_tributaria: '08',
           cofins_situacao_tributaria: '08'
         })),
         formas_pagamento: [
           {
             forma_pagamento: (() => {
-               // De -> Para Sefaz
                const pm = (paymentMethod || '').toUpperCase();
                if (pm === 'PIX') return '17';
                if (pm === 'CREDITO' || pm === 'CARTÃO DE CRÉDITO') return '03';
                if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO') return '04';
-               return '01'; // Default: Dinheiro
+               return '01';
             })(),
             valor_pagamento: String(items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0).toFixed(2))
           }
         ]
       };
 
-      console.log('Enviando NFC-e para:', baseURL);
-      const focusRes = await fetch(baseURL + '?cnpj_emitente=' + settings.cnpj.replace(/\D/g, '') + '&dry_run=0', {
+      // ref é obrigatório pela Focus NFe — identifica unicamente a nota
+      const focusUrl = `${baseURL}?ref=${ref}&cnpj_emitente=${settings.cnpj.replace(/\D/g, '')}&dry_run=0`;
+      console.log('[emit-nfce] Enviando para:', focusUrl);
+      console.log('[emit-nfce] Payload:', JSON.stringify(focusPayload, null, 2));
+
+      const focusRes = await fetch(focusUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
