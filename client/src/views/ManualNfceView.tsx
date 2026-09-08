@@ -14,7 +14,13 @@ import {
   ShieldCheck,
   CreditCard,
   QrCode,
-  Banknote
+  Banknote,
+  Printer,
+  Mail,
+  RotateCcw,
+  Loader2,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product } from '../types';
@@ -33,6 +39,21 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   const [paymentMethod, setPaymentMethod] = useState<string>('PIX');
   const [isEmitting, setIsEmitting] = useState<boolean>(false);
   const [resultDanfe, setResultDanfe] = useState<string | null>(null);
+
+  // Estados de Finalização e Pós-Venda
+  const [saleSuccessData, setSaleSuccessData] = useState<{
+    danfeUrl: string;
+    referencia?: string;
+    total: number;
+    chaveAcesso?: string;
+    paymentMethod: string;
+  } | null>(null);
+  const [emailInput, setEmailInput] = useState<string>('');
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [emailSentSuccess, setEmailSentSuccess] = useState<boolean>(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [printSuccessFeedback, setPrintSuccessFeedback] = useState<boolean>(false);
+  const [copiedKey, setCopiedKey] = useState<boolean>(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,6 +135,81 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
 
   const total = items.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0);
 
+  const handleResetForNewSale = () => {
+    setItems([]);
+    setSaleSuccessData(null);
+    setResultDanfe(null);
+    setSearchTerm('');
+    setCustomerCpf('');
+    setCustomerName('');
+    setEmailInput('');
+    setEmailSentSuccess(false);
+    setEmailError(null);
+    setPrintSuccessFeedback(false);
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 150);
+  };
+
+  const handlePrintDanfe = () => {
+    const url = saleSuccessData?.danfeUrl || resultDanfe;
+    if (!url) return;
+    if ((window as any).electronAPI?.printPdfSilent) {
+      (window as any).electronAPI.printPdfSilent(url);
+      setPrintSuccessFeedback(true);
+      setTimeout(() => setPrintSuccessFeedback(false), 3000);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailInput.trim() || !emailInput.includes('@')) {
+      alert('Digite um endereço de e-mail válido.');
+      return;
+    }
+    const ref = saleSuccessData?.referencia;
+    if (!ref) {
+      alert('Referência da nota não localizada para envio.');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    setEmailError(null);
+    try {
+      const res = await fetch(api.getApiUrl() + '/fiscal/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referencia: ref,
+          email: emailInput.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar e-mail.');
+      setEmailSentSuccess(true);
+    } catch (err: any) {
+      setEmailError(err.message || 'Falha no envio do e-mail.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  // Atalho de teclado no pós-venda: Enter ou Espaço fecha o aviso e inicia a nova venda
+  useEffect(() => {
+    if (!saleSuccessData) return;
+    const handleKey = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isTypingEmail = activeEl && activeEl.tagName === 'INPUT' && (activeEl as HTMLInputElement).type === 'email';
+      if (e.key === 'Escape' || (e.key === 'Enter' && !isTypingEmail)) {
+        e.preventDefault();
+        handleResetForNewSale();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [saleSuccessData]);
+
   const handleEmit = async () => {
     if (items.length === 0) {
       alert('Adicione pelo menos um produto à nota fiscal.');
@@ -121,6 +217,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
     }
     setIsEmitting(true);
     try {
+      const saleTotal = total;
       const payload = {
         orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
         customerCpf: customerCpf.replace(/\D/g, '') || undefined,
@@ -128,11 +225,13 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
         paymentMethod,
         items: items.map((i) => ({
           productId: i.product.id,
+          code: i.product.code,
           quantity: i.quantity,
           price: i.product.price,
           name: i.product.name,
           ncm: i.product.ncm || '22030000',
           cfop: i.product.cfop || '5102',
+          unit: i.product.unit || 'un',
           cest: i.product.cest || undefined
         }))
       };
@@ -144,38 +243,27 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
-      setResultDanfe(data.caminhoDanfe);
+      
+      const danfeUrl = data.caminhoDanfe;
+      const refNota = data.referencia || data.ref;
+      const chaveNota = data.chaveAcesso;
+
+      setResultDanfe(danfeUrl);
+      setSaleSuccessData({
+        danfeUrl,
+        referencia: refNota,
+        total: saleTotal,
+        chaveAcesso: chaveNota,
+        paymentMethod
+      });
+      setEmailSentSuccess(false);
+      setEmailError(null);
+      setPrintSuccessFeedback(false);
 
       // Disparo automático e silencioso da impressão na impressora térmica (Sem tela do Windows)
-      if (data.caminhoDanfe) {
-        if ((window as any).electronAPI?.printPdfSilent) {
-          (window as any).electronAPI.printPdfSilent(data.caminhoDanfe);
-        } else {
-          // Fallback para navegador web
-          try {
-            const printFrame = document.createElement('iframe');
-            printFrame.style.position = 'fixed';
-            printFrame.style.right = '0';
-            printFrame.style.bottom = '0';
-            printFrame.style.width = '0';
-            printFrame.style.height = '0';
-            printFrame.style.border = '0';
-            printFrame.src = data.caminhoDanfe;
-            document.body.appendChild(printFrame);
-            printFrame.onload = () => {
-              setTimeout(() => {
-                try {
-                  printFrame.contentWindow?.focus();
-                  printFrame.contentWindow?.print();
-                } catch {}
-                setTimeout(() => {
-                  try { printFrame.remove(); } catch {}
-                  window.focus();
-                }, 1000);
-              }, 600);
-            };
-          } catch {}
-        }
+      if (danfeUrl && (window as any).electronAPI?.printPdfSilent) {
+        (window as any).electronAPI.printPdfSilent(danfeUrl);
+        setPrintSuccessFeedback(true);
       }
     } catch (err: any) {
       alert(err.message || 'Erro ao emitir NFC-e');
@@ -183,61 +271,6 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       setIsEmitting(false);
     }
   };
-
-  if (resultDanfe) {
-    return (
-      <div className="space-y-6 max-w-2xl w-full mx-auto pt-10 pb-20 text-center animate-in fade-in duration-200">
-        <div className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/10">
-          <CheckCircle className="w-10 h-10" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black text-white">NFC-e Autorizada com Sucesso!</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            O cupom fiscal eletrônico foi transmitido e validado pela SEFAZ.
-          </p>
-        </div>
-
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between text-left">
-          <div>
-            <span className="text-xs font-bold uppercase text-slate-400 block">Total Transmitido</span>
-            <span className="text-xl font-mono font-black text-emerald-400">R$ {total.toFixed(2)}</span>
-          </div>
-          <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs rounded-full">
-            STATUS: AUTORIZADA
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-          <a
-            href={resultDanfe}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition"
-          >
-            <Download className="w-5 h-5" />
-            <span>Imprimir / Baixar DANFE</span>
-          </a>
-          <button
-            onClick={() => {
-              setItems([]);
-              setResultDanfe(null);
-              setSearchTerm('');
-              setCustomerCpf('');
-            }}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700 transition"
-          >
-            Nova Emissão Manual
-          </button>
-          <button
-            onClick={onBack}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition"
-          >
-            Voltar ao Painel
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 max-w-6xl w-full mx-auto pb-24 animate-in fade-in duration-200">
@@ -589,6 +622,138 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Venda Finalizada com Sucesso & Pós-Venda */}
+      {saleSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl flex flex-col gap-6 text-center">
+            
+            {/* Ícone & Título */}
+            <div>
+              <div className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-500/10">
+                <CheckCircle className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-black text-white tracking-tight">Venda Finalizada com Sucesso!</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                NFC-e Autorizada e transmitida à SEFAZ
+              </p>
+            </div>
+
+            {/* Card com Detalhes da Venda */}
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-slate-400">Total da Venda</span>
+                <span className="text-2xl font-mono font-black text-emerald-400">
+                  R$ {saleSuccessData.total.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                <span>Forma de Pagamento:</span>
+                <span className="font-bold text-slate-200">{saleSuccessData.paymentMethod}</span>
+              </div>
+
+              {saleSuccessData.chaveAcesso && (
+                <div className="border-t border-slate-800/80 pt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold uppercase text-slate-500">Chave de Acesso SEFAZ</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(saleSuccessData.chaveAcesso!);
+                        setCopiedKey(true);
+                        setTimeout(() => setCopiedKey(false), 2000);
+                      }}
+                      className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 font-bold cursor-pointer"
+                    >
+                      {copiedKey ? '✓ Copiado!' : 'Copiar Chave'}
+                    </button>
+                  </div>
+                  <p className="font-mono text-[11px] text-slate-400 break-all leading-tight bg-slate-900/80 p-2 rounded-lg border border-slate-800 select-all">
+                    {saleSuccessData.chaveAcesso}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Ações: Imprimir Cupom / Encaminhar E-mail */}
+            <div className="flex flex-col gap-3">
+              {/* Botão Imprimir */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintDanfe}
+                  className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-white rounded-xl font-bold flex items-center justify-center gap-2.5 transition active:scale-98 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4 text-sky-400" />
+                  <span>{printSuccessFeedback ? 'Reimprimir Cupom' : 'Imprimir Cupom'}</span>
+                </button>
+
+                {saleSuccessData.danfeUrl && (
+                  <a
+                    href={saleSuccessData.danfeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 hover:text-white rounded-xl transition flex items-center justify-center"
+                    title="Visualizar PDF do DANFE"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+              </div>
+
+              {/* Seção de Envio por E-mail */}
+              <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <Mail className="w-4 h-4 text-amber-400" />
+                  <span>Encaminhar NF por E-mail</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="email.do.cliente@exemplo.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendEmail(); }}
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-amber-400 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendEmail}
+                    disabled={isSendingEmail || !emailInput.trim()}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-lg transition flex items-center gap-1 cursor-pointer"
+                  >
+                    {isSendingEmail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    Enviar
+                  </button>
+                </div>
+                {emailSentSuccess && (
+                  <p className="text-xs text-emerald-400 font-bold text-left flex items-center gap-1">
+                    ✓ E-mail com XML e DANFE enviado com sucesso!
+                  </p>
+                )}
+                {emailError && (
+                  <p className="text-xs text-rose-400 text-left">
+                    {emailError}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Botão de Ação Primária: ZERAR E INICIAR NOVA VENDA */}
+            <button
+              type="button"
+              onClick={handleResetForNewSale}
+              className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/25 transition cursor-pointer"
+            >
+              <RotateCcw className="w-5 h-5" />
+              <span>Nova Venda (Zerar)</span>
+              <span className="text-xs bg-emerald-950/20 px-2 py-0.5 rounded-md font-mono font-bold text-slate-900">Enter</span>
+            </button>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

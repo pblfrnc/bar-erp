@@ -951,6 +951,7 @@ export function createFiscalRouter() {
         return res.json({
           success: true,
           status: data.status,
+          referencia: data.ref,
           chaveAcesso: data.chave_nfe,
           caminhoDanfe: danfeUrl
         });
@@ -992,6 +993,7 @@ export function createFiscalRouter() {
           return res.json({
             success: true,
             status: checkData.status,
+            referencia: checkData.ref || data.ref,
             chaveAcesso: checkData.chave_nfe,
             caminhoDanfe: authorizedDanfeUrl
           });
@@ -1009,6 +1011,7 @@ export function createFiscalRouter() {
           success: true,
           status: checkData.status,
           mensagem: 'A nota está na fila da SEFAZ. Você poderá consultar depois.',
+          referencia: data.ref,
           ref: data.ref
         });
       }
@@ -1017,6 +1020,51 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error('[emit-nfce] Exceção:', err);
       res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal.' });
+    }
+  });
+
+  // ============================================================
+  // Encaminhar NFC-e por E-mail (via Focus NFe)
+  // ============================================================
+  router.post('/send-email', async (req, res) => {
+    try {
+      const { referencia, email } = req.body;
+      if (!referencia || !email) {
+        return res.status(400).json({ error: 'Referência da nota e e-mail são obrigatórios.' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token fiscal não configurado.' });
+      }
+
+      const cleanToken = settings.apiToken.trim();
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+
+      const focusUrl = `${baseURL}/v2/nfce/${encodeURIComponent(referencia)}/email`;
+
+      const focusRes = await fetch(focusUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64')
+        },
+        body: JSON.stringify({
+          emails: [String(email).trim()]
+        })
+      });
+
+      const data = await focusRes.json().catch(() => ({}));
+      if (!focusRes.ok) {
+        const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
+        return res.status(400).json({ error: `Focus NFe: ${erroMsg}` });
+      }
+
+      return res.json({ success: true, message: 'Nota fiscal enviada por e-mail com sucesso!' });
+    } catch (err: any) {
+      console.error('[send-email] Erro:', err);
+      return res.status(500).json({ error: 'Erro interno ao enviar e-mail.', detail: err.message });
     }
   });
 
