@@ -106,10 +106,18 @@ export function createOrdersRouter(io: SocketIOServer) {
         });
         if (!product) continue;
         const qty = Math.max(1, Number(it.quantity) || 1);
-        const unitPrice = product.price;
+        const isBox = it.unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
+        const unitPrice = isBox ? Number(product.boxPrice) : product.price;
         const totalPrice = unitPrice * qty;
         subtotal += totalPrice;
-        verifiedItems.push({ product, quantity: qty, unitPrice, totalPrice, notes: it.notes });
+        verifiedItems.push({
+          product,
+          quantity: qty,
+          unitPrice,
+          totalPrice,
+          unitType: isBox ? 'BOX' : 'UNIT',
+          notes: it.notes
+        });
       }
 
       if (verifiedItems.length === 0) {
@@ -147,7 +155,8 @@ export function createOrdersRouter(io: SocketIOServer) {
             quantity: vi.quantity,
             unitPrice: vi.unitPrice,
             totalPrice: vi.totalPrice,
-            notes: vi.notes || null,
+            unitType: vi.unitType,
+            notes: vi.notes || (vi.unitType === 'BOX' ? `📦 Caixa Fechada (${vi.product.boxQuantity || 24} un)` : null),
             kdsStatus: vi.product.kdsStation === 'NONE' ? 'DELIVERED' : 'PENDING',
             kdsStation: vi.product.kdsStation,
             paidQuantity: vi.quantity
@@ -155,18 +164,22 @@ export function createOrdersRouter(io: SocketIOServer) {
           include: { product: true }
         });
 
+        // Quantidade total de unidades avulsas a abater do estoque
+        const unitsMultiplier = vi.unitType === 'BOX' ? (vi.product.boxQuantity || 24) : 1;
+        const totalStockUnitsToDeduct = vi.quantity * unitsMultiplier;
+
         // Baixa no estoque
         if (vi.product.components && vi.product.components.length > 0) {
           for (const comp of vi.product.components) {
             await prisma.product.update({
               where: { id: comp.componentId },
-              data: { stock: { decrement: comp.quantity * vi.quantity } }
+              data: { stock: { decrement: comp.quantity * totalStockUnitsToDeduct } }
             });
           }
         } else if (vi.product.trackStock) {
           await prisma.product.update({
             where: { id: vi.product.id },
-            data: { stock: { decrement: vi.quantity } }
+            data: { stock: { decrement: totalStockUnitsToDeduct } }
           });
         }
 
@@ -329,7 +342,8 @@ export function createOrdersRouter(io: SocketIOServer) {
         if (!product) continue;
 
         const qty = Number(item.quantity) || 1;
-        const unitPrice = product.price;
+        const isBox = item.unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
+        const unitPrice = isBox ? Number(product.boxPrice) : product.price;
         const totalPrice = unitPrice * qty;
 
         // Criar item do pedido
@@ -340,25 +354,30 @@ export function createOrdersRouter(io: SocketIOServer) {
             quantity: qty,
             unitPrice,
             totalPrice,
-            notes: item.notes || null,
+            unitType: isBox ? 'BOX' : 'UNIT',
+            notes: item.notes || (isBox ? `📦 Caixa Fechada (${product.boxQuantity || 24} un)` : null),
             kdsStatus: 'PENDING',
             kdsStation: product.kdsStation
           },
           include: { product: true }
         });
 
+        // Quantidade total de unidades avulsas a abater do estoque
+        const unitsMultiplier = isBox ? (product.boxQuantity || 24) : 1;
+        const totalStockUnitsToDeduct = qty * unitsMultiplier;
+
         // Dar baixa no estoque (Verifica Ficha Técnica / Componentes)
         if (product.components && product.components.length > 0) {
           for (const comp of product.components) {
             await prisma.product.update({
               where: { id: comp.componentId },
-              data: { stock: { decrement: comp.quantity * qty } }
+              data: { stock: { decrement: comp.quantity * totalStockUnitsToDeduct } }
             });
           }
         } else if (product.trackStock) {
           await prisma.product.update({
             where: { id: product.id },
-            data: { stock: { decrement: qty } }
+            data: { stock: { decrement: totalStockUnitsToDeduct } }
           });
         }
 

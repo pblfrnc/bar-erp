@@ -25,6 +25,8 @@ interface QuickSaleModalProps {
 interface CartItem {
   product: Product;
   quantity: number;
+  unitType: 'UNIT' | 'BOX';
+  unitPrice: number;
   notes?: string;
 }
 
@@ -71,23 +73,32 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   };
 
   // Funções do Carrinho
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+    const isBox = unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
+    const price = isBox ? Number(product.boxPrice) : product.price;
+
     setCart(prev => {
-      const idx = prev.findIndex(item => item.product.id === product.id);
+      const idx = prev.findIndex(item => item.product.id === product.id && item.unitType === unitType);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, {
+        product,
+        quantity: 1,
+        unitType,
+        unitPrice: price,
+        notes: isBox ? `Caixa Fechada (${product.boxQuantity || 24} un)` : undefined
+      }];
     });
   };
 
-  const handleUpdateQuantity = (productId: string, delta: number) => {
+  const handleUpdateQuantity = (productId: string, unitType: 'UNIT' | 'BOX', delta: number) => {
     setCart(prev => {
       return prev
         .map(item => {
-          if (item.product.id === productId) {
+          if (item.product.id === productId && item.unitType === unitType) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
@@ -97,12 +108,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
     });
   };
 
-  const handleRemoveFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
+  const handleRemoveFromCart = (productId: string, unitType: 'UNIT' | 'BOX') => {
+    setCart(prev => prev.filter(item => !(item.product.id === productId && item.unitType === unitType)));
   };
 
   // Cálculos
-  const subtotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+  const subtotal = cart.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
   const discountNum = Math.min(parseFloat(discountValue.replace(',', '.')) || 0, subtotal);
   const total = Math.max(0, subtotal - discountNum);
 
@@ -128,21 +139,32 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       const term = search.trim().toLowerCase();
       if (!term) return;
 
-      // 1. Tenta correspondência exata por código de barras EAN ou código interno (#5001)
+      // 1. Tenta correspondência exata por código de barras de caixa (DUN-14 / boxEan)
+      const exactBox = products.find(p => 
+        p.hasBoxPrice && p.boxEan && p.boxEan.toLowerCase() === term
+      );
+
+      if (exactBox) {
+        handleAddToCart(exactBox, 'BOX');
+        setSearch('');
+        return;
+      }
+
+      // 2. Tenta correspondência exata por código de barras EAN ou código interno (#5001)
       const exact = products.find(p => 
         (p.ean && p.ean.toLowerCase() === term) ||
         (p.code && p.code.toLowerCase() === term)
       );
 
       if (exact) {
-        handleAddToCart(exact);
+        handleAddToCart(exact, 'UNIT');
         setSearch('');
         return;
       }
 
-      // 2. Se houver resultados filtrados, adiciona o primeiro item imediatamente
+      // 3. Se houver resultados filtrados, adiciona o primeiro item imediatamente
       if (filteredProducts.length > 0) {
-        handleAddToCart(filteredProducts[0]);
+        handleAddToCart(filteredProducts[0], 'UNIT');
         setSearch('');
       }
     }
@@ -159,6 +181,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
         items: cart.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
+          unitType: i.unitType,
           notes: i.notes
         })),
         payment: {
@@ -305,28 +328,29 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {filteredProducts.map(product => {
-                    const inCartItem = cart.find(item => item.product.id === product.id);
+                    const cartUnits = cart.find(item => item.product.id === product.id && item.unitType === 'UNIT');
+                    const cartBoxes = cart.find(item => item.product.id === product.id && item.unitType === 'BOX');
+                    const totalCartCount = (cartUnits?.quantity || 0) + (cartBoxes?.quantity || 0);
                     const isLowStock = product.trackStock && product.stock <= product.minStock;
 
                     return (
-                      <button
+                      <div
                         key={product.id}
-                        onClick={() => handleAddToCart(product)}
-                        className={`p-3 rounded-2xl border text-left transition relative flex flex-col justify-between group active:scale-95 cursor-pointer ${
-                          inCartItem
+                        className={`p-3 rounded-2xl border text-left transition relative flex flex-col justify-between ${
+                          totalCartCount > 0
                             ? 'bg-amber-500/10 border-amber-500/40 shadow-sm shadow-amber-500/10'
                             : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-800/50'
                         }`}
                       >
-                        {inCartItem && (
-                          <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-md">
-                            {inCartItem.quantity}
+                        {totalCartCount > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-md z-10">
+                            {totalCartCount}
                           </span>
                         )}
 
-                        <div>
+                        <div className="mb-2">
                           <div className="flex items-start justify-between gap-1 mb-0.5">
-                            <span className="font-bold text-xs text-white group-hover:text-amber-400 transition line-clamp-2 leading-snug flex-1">
+                            <span className="font-bold text-xs text-white line-clamp-2 leading-snug flex-1">
                               {product.name}
                             </span>
                             {product.code && (
@@ -342,22 +366,85 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                           )}
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/50">
-                          <span className="text-xs font-black text-emerald-400 font-mono">
-                            R$ {product.price.toFixed(2)}
-                          </span>
+                        {/* Seletor Visual de Preço: Unidade vs Caixa */}
+                        {product.hasBoxPrice && product.boxPrice ? (
+                          <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
+                            <div className="grid grid-cols-2 gap-1">
+                              {/* Botão Unidade Avulsa */}
+                              <button
+                                type="button"
+                                onClick={() => handleAddToCart(product, 'UNIT')}
+                                className="px-2 py-1.5 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/btn active:scale-95"
+                                title="Adicionar 1 Unidade Avulsa"
+                              >
+                                <span className="text-[9px] uppercase font-bold text-slate-400 group-hover/btn:text-slate-900">
+                                  Unidade
+                                </span>
+                                <span className="text-[11px] font-black font-mono text-emerald-400 group-hover/btn:text-slate-950">
+                                  R$ {product.price.toFixed(2)}
+                                </span>
+                                {cartUnits && (
+                                  <span className="text-[9px] font-bold text-amber-400 group-hover/btn:text-slate-950">
+                                    ({cartUnits.quantity}x)
+                                  </span>
+                                )}
+                              </button>
 
-                          {product.trackStock && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                              isLowStock 
-                                ? 'bg-rose-500/20 text-rose-300' 
-                                : 'bg-slate-800 text-slate-400'
-                            }`}>
-                              {product.stock} un
+                              {/* Botão Caixa Fechada */}
+                              <button
+                                type="button"
+                                onClick={() => handleAddToCart(product, 'BOX')}
+                                className="px-2 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/box active:scale-95"
+                                title={`Adicionar Caixa com ${product.boxQuantity || 24} unidades`}
+                              >
+                                <span className="text-[9px] uppercase font-black tracking-wider flex items-center gap-0.5 group-hover/box:text-slate-950">
+                                  <Package className="w-2.5 h-2.5" /> Cx {product.boxQuantity || 24}x
+                                </span>
+                                <span className="text-[11px] font-black font-mono text-white group-hover/box:text-slate-950">
+                                  R$ {Number(product.boxPrice).toFixed(2)}
+                                </span>
+                                {cartBoxes && (
+                                  <span className="text-[9px] font-black text-amber-400 group-hover/box:text-slate-950">
+                                    ({cartBoxes.quantity} cx)
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[9px] text-slate-400 px-0.5">
+                              {product.trackStock && (
+                                <span className={isLowStock ? 'text-rose-400 font-bold' : ''}>
+                                  Estoque: {product.stock} un
+                                </span>
+                              )}
+                              <span className="text-[9px] text-emerald-400/90 font-mono">
+                                R$ {(Number(product.boxPrice) / (product.boxQuantity || 24)).toFixed(2)}/un
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Botão Simples Para Produtos sem opção de Caixa */
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product, 'UNIT')}
+                            className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/50 w-full hover:text-amber-400 transition cursor-pointer"
+                          >
+                            <span className="text-xs font-black text-emerald-400 font-mono">
+                              R$ {product.price.toFixed(2)}
                             </span>
-                          )}
-                        </div>
-                      </button>
+
+                            {product.trackStock && (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                                isLowStock 
+                                  ? 'bg-rose-500/20 text-rose-300' 
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {product.stock} un
+                              </span>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -394,20 +481,31 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
               ) : (
                 cart.map(item => (
                   <div
-                    key={item.product.id}
+                    key={`${item.product.id}-${item.unitType}`}
                     className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex items-center justify-between gap-2"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-white truncate">{item.product.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        R$ {item.product.price.toFixed(2)} un
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-white truncate">{item.product.name}</span>
+                        {item.unitType === 'BOX' ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
+                            <Package className="w-2.5 h-2.5" /> Cx {item.product.boxQuantity || 24}x
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">
+                            Un
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        R$ {item.unitPrice.toFixed(2)} {item.unitType === 'BOX' ? 'cx' : 'un'}
                       </div>
                     </div>
 
                     {/* Controles de Quantidade */}
                     <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
                       <button
-                        onClick={() => handleUpdateQuantity(item.product.id, -1)}
+                        onClick={() => handleUpdateQuantity(item.product.id, item.unitType, -1)}
                         className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
                       >
                         <Minus className="w-3 h-3" />
@@ -416,7 +514,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => handleUpdateQuantity(item.product.id, 1)}
+                        onClick={() => handleUpdateQuantity(item.product.id, item.unitType, 1)}
                         className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
                       >
                         <Plus className="w-3 h-3" />
@@ -425,11 +523,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
                     <div className="text-right min-w-[65px]">
                       <div className="text-xs font-black text-emerald-400 font-mono">
-                        R$ {(item.product.price * item.quantity).toFixed(2)}
+                        R$ {(item.unitPrice * item.quantity).toFixed(2)}
                       </div>
                       <button
-                        onClick={() => handleRemoveFromCart(item.product.id)}
+                        onClick={() => handleRemoveFromCart(item.product.id, item.unitType)}
                         className="text-slate-500 hover:text-rose-400 p-0.5 transition cursor-pointer"
+                        title="Remover item do carrinho"
                       >
                         <Trash2 className="w-3 h-3 ml-auto" />
                       </button>

@@ -115,6 +115,10 @@ export function createProductsRouter() {
           description: description || null,
           price: Number(price),
           costPrice: costPrice !== undefined && costPrice !== null && costPrice !== '' ? Number(costPrice) : null,
+          hasBoxPrice: Boolean(req.body.hasBoxPrice),
+          boxQuantity: req.body.boxQuantity ? parseInt(req.body.boxQuantity, 10) : 24,
+          boxPrice: req.body.boxPrice !== undefined && req.body.boxPrice !== null && req.body.boxPrice !== '' ? Number(req.body.boxPrice) : null,
+          boxEan: req.body.boxEan ? String(req.body.boxEan).trim() : null,
           categoryId,
           kdsStation: kdsStation || 'BAR',
           stock: stock !== undefined ? Number(stock) : 100,
@@ -178,6 +182,10 @@ export function createProductsRouter() {
       if (description !== undefined) dataToUpdate.description = description;
       if (price !== undefined) dataToUpdate.price = Number(price);
       if (costPrice !== undefined) dataToUpdate.costPrice = costPrice !== null && costPrice !== '' ? Number(costPrice) : null;
+      if (req.body.hasBoxPrice !== undefined) dataToUpdate.hasBoxPrice = Boolean(req.body.hasBoxPrice);
+      if (req.body.boxQuantity !== undefined) dataToUpdate.boxQuantity = req.body.boxQuantity ? parseInt(req.body.boxQuantity, 10) : 24;
+      if (req.body.boxPrice !== undefined) dataToUpdate.boxPrice = req.body.boxPrice !== null && req.body.boxPrice !== '' ? Number(req.body.boxPrice) : null;
+      if (req.body.boxEan !== undefined) dataToUpdate.boxEan = req.body.boxEan ? String(req.body.boxEan).trim() : null;
       if (categoryId !== undefined) dataToUpdate.categoryId = categoryId;
       if (kdsStation !== undefined) dataToUpdate.kdsStation = kdsStation;
       if (stock !== undefined) dataToUpdate.stock = Number(stock);

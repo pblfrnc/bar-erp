@@ -61,6 +61,7 @@ model OrderItem {
   quantity   Int      @default(1)
   unitPrice  Float
   totalPrice Float
+  unitType   String?  @default("UNIT") // "UNIT" ou "BOX"
   notes      String?  // Ex: "Sem gelo", "Com limão espremido"
   paidQuantity Int      @default(0)
 
@@ -98,6 +99,13 @@ model Product {
   description String?
   price       Float
   costPrice   Float?
+
+  // Venda por Caixa / Fardo Fechado
+  hasBoxPrice    Boolean   @default(false)
+  boxQuantity    Int?      @default(24) // Qtd de unidades por caixa (ex: 6, 12, 15, 24)
+  boxPrice       Float?    // Preço total da caixa fechada
+  boxEan         String?   // Código de barras EAN/DUN-14 da caixa
+
   categoryId  String
   category    Category    @relation(fields: [categoryId], references: [id])
   kdsStation  String      @default("BAR") // BAR, KITCHEN, NONE

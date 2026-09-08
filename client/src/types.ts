@@ -65,6 +65,12 @@ export interface Product {
   unit: string;
   isActive: boolean;
   components?: ProductComponent[];
+
+  // Venda por Caixa / Fardo Fechado
+  hasBoxPrice?: boolean;
+  boxQuantity?: number | null;
+  boxPrice?: number | null;
+  boxEan?: string | null;
 }
 
 export interface OrderItem {
@@ -74,9 +80,9 @@ export interface OrderItem {
   product: Product;
   quantity: number;
   paidQuantity?: number;
-
   unitPrice: number;
   totalPrice: number;
+  unitType?: 'UNIT' | 'BOX';
   notes?: string | null;
   kdsStatus: KdsStatus;
   kdsStation: KdsStation;

@@ -89,6 +89,12 @@ export const ProductsView: React.FC = () => {
   const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
   const [isComposed, setIsComposed] = useState<boolean>(false);
 
+  // Venda por Caixa / Fardo Fechado
+  const [formHasBoxPrice, setFormHasBoxPrice] = useState<boolean>(false);
+  const [formBoxQuantity, setFormBoxQuantity] = useState<string>('24');
+  const [formBoxPrice, setFormBoxPrice] = useState<string>('');
+  const [formBoxEan, setFormBoxEan] = useState<string>('');
+
   // EAN Lookup API
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
   const [lookupFeedback, setLookupFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -145,6 +151,10 @@ export const ProductsView: React.FC = () => {
     setLookupFeedback(null);
     setFormComponents([]);
     setIsComposed(false);
+    setFormHasBoxPrice(false);
+    setFormBoxQuantity('24');
+    setFormBoxPrice('');
+    setFormBoxEan('');
     const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0]?.id || '');
     if (targetCat) {
       setFormCategoryId(targetCat);
@@ -220,6 +230,10 @@ export const ProductsView: React.FC = () => {
     setFormCfop(p.cfop || '5102');
     setFormCest(p.cest || '');
     setFormUnit(p.unit || 'un');
+    setFormHasBoxPrice(Boolean(p.hasBoxPrice));
+    setFormBoxQuantity(p.boxQuantity ? String(p.boxQuantity) : '24');
+    setFormBoxPrice(p.boxPrice ? String(p.boxPrice) : '');
+    setFormBoxEan(p.boxEan || '');
     setLookupFeedback(null);
     if (p.components && p.components.length > 0) {
       setIsComposed(true);
@@ -344,6 +358,10 @@ export const ProductsView: React.FC = () => {
         cfop: formCfop.trim() || null,
         cest: formCest.trim() || null,
         unit: formUnit.trim() || 'un',
+        hasBoxPrice: formHasBoxPrice,
+        boxQuantity: formHasBoxPrice ? parseInt(formBoxQuantity || '24', 10) : null,
+        boxPrice: formHasBoxPrice && formBoxPrice ? parseFloat(formBoxPrice.replace(',', '.')) : null,
+        boxEan: formHasBoxPrice && formBoxEan.trim() ? formBoxEan.trim() : null,
         components: isComposed ? formComponents.filter(c => c.componentId && parseFloat((c.quantity || '0').replace(',', '.')) > 0).map(c => ({
           componentId: c.componentId,
           quantity: parseFloat(c.quantity.replace(',', '.'))
@@ -996,6 +1014,119 @@ export const ProductsView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Card Especial: Venda por Caixa / Fardo Fechado */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <Package className="w-5 h-5 text-amber-400" />
+                      <div>
+                        <h3 className="text-base font-black text-white">Venda por Caixa / Fardo Fechado</h3>
+                        <p className="text-xs text-slate-400">Permite alternar entre preço avulso e preço de caixa no Caixa (PDV) e Mesas</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formHasBoxPrice}
+                        onChange={(e) => setFormHasBoxPrice(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+
+                  {formHasBoxPrice && (
+                    <div className="space-y-4 bg-slate-950/70 p-4 rounded-2xl border border-slate-800 animate-in fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                            Qtd de Unidades por Caixa *
+                          </label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="500"
+                            placeholder="Ex: 6, 12, 15, 24"
+                            value={formBoxQuantity}
+                            onChange={(e) => setFormBoxQuantity(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text"
+                          />
+                          <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Comuns:</span>
+                            {['6', '12', '15', '24', '30'].map(q => (
+                              <button
+                                key={q}
+                                type="button"
+                                onClick={() => setFormBoxQuantity(q)}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                  formBoxQuantity === q
+                                    ? 'bg-amber-500 text-slate-950'
+                                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                                }`}
+                              >
+                                {q} un
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                            Preço Total da Caixa (R$) *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
+                              R$
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="216,00"
+                              value={formBoxPrice}
+                              onChange={(e) => setFormBoxPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                              className="w-full pl-11 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                            />
+                          </div>
+                          {(() => {
+                            const bQty = parseInt(formBoxQuantity, 10) || 0;
+                            const bPr = parseFloat((formBoxPrice || '0').replace(',', '.')) || 0;
+                            if (bQty > 0 && bPr > 0) {
+                              const unitInBox = bPr / bQty;
+                              const unitOriginal = parseFloat((formPrice || '0').replace(',', '.')) || 0;
+                              const diff = unitOriginal - unitInBox;
+                              return (
+                                <span className="text-[11px] text-emerald-400 font-medium mt-1 block">
+                                  Sai a <strong>R$ {unitInBox.toFixed(2)}</strong> por unidade {diff > 0 ? `(Economia de R$ ${diff.toFixed(2)}/un)` : ''}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                          Código de Barras da Caixa (DUN-14 / EAN da Caixa Fechada)
+                        </label>
+                        <div className="relative">
+                          <Barcode className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Opcional: bipe a caixa fechada para adicionar no caixa direto como caixa"
+                            value={formBoxEan}
+                            onChange={(e) => setFormBoxEan(e.target.value.trim())}
+                            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1 block">
+                          Ao bipar este código no Caixa, o sistema seleciona automaticamente a Caixa Fechada e desconta as {formBoxQuantity || 24} unidades do estoque avulso.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Card 3: Ficha Técnica & Produto Composto */}
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -1590,7 +1721,13 @@ export const ProductsView: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 text-sm whitespace-nowrap">
-                      R$ {p.price.toFixed(2)}
+                      <div>R$ {p.price.toFixed(2)}</div>
+                      {p.hasBoxPrice && p.boxPrice && (
+                        <div className="text-[10px] text-emerald-400 font-sans font-normal mt-0.5 flex items-center justify-end gap-1">
+                          <Package className="w-3 h-3 text-emerald-400" />
+                          <span>Cx {p.boxQuantity || 24}x: R$ {p.boxPrice.toFixed(2)}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-slate-400 whitespace-nowrap">
                       {p.costPrice ? `R$ ${p.costPrice.toFixed(2)}` : '-'}

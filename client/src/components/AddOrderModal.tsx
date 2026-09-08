@@ -15,7 +15,8 @@ import {
   Beef,
   GlassWater,
   Sparkles,
-  Check
+  Check,
+  Package
 } from 'lucide-react';
 
 interface AddOrderModalProps {
@@ -27,6 +28,8 @@ interface AddOrderModalProps {
 interface CartItem {
   product: Product;
   quantity: number;
+  unitType: 'UNIT' | 'BOX';
+  unitPrice: number;
   notes: string;
 }
 
@@ -85,25 +88,34 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   });
 
   // Funções do carrinho
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+    const isBox = unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
+    const price = isBox ? Number(product.boxPrice) : product.price;
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find((item) => item.product.id === product.id && item.unitType === unitType);
       if (existing) {
         return prev.map((item) =>
-          item.product.id === product.id
+          item.product.id === product.id && item.unitType === unitType
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, { product, quantity: 1, notes: '' }];
+      return [...prev, {
+        product,
+        quantity: 1,
+        unitType,
+        unitPrice: price,
+        notes: isBox ? `Caixa Fechada (${product.boxQuantity || 24} un)` : ''
+      }];
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (productId: string, unitType: 'UNIT' | 'BOX', delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.product.id === productId) {
+          if (item.product.id === productId && item.unitType === unitType) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
@@ -113,18 +125,18 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
     );
   };
 
-  const updateNotes = (productId: string, notes: string) => {
+  const updateNotes = (productId: string, unitType: 'UNIT' | 'BOX', notes: string) => {
     setCart((prev) =>
       prev.map((item) =>
-        item.product.id === productId ? { ...item, notes } : item
+        item.product.id === productId && item.unitType === unitType ? { ...item, notes } : item
       )
     );
   };
 
-  const appendQuickNote = (productId: string, chip: string) => {
+  const appendQuickNote = (productId: string, unitType: 'UNIT' | 'BOX', chip: string) => {
     setCart((prev) =>
       prev.map((item) => {
-        if (item.product.id === productId) {
+        if (item.product.id === productId && item.unitType === unitType) {
           const current = item.notes ? `${item.notes}, ${chip}` : chip;
           return { ...item, notes: current };
         }
@@ -134,7 +146,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + item.unitPrice * item.quantity,
     0
   );
 
@@ -146,6 +158,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
       const itemsPayload = cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
+        unitType: item.unitType,
         notes: item.notes.trim() || undefined
       }));
 
@@ -260,13 +273,15 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {filteredProducts.map((prod) => {
-                    const inCart = cart.find((i) => i.product.id === prod.id);
+                    const cartUnits = cart.find((i) => i.product.id === prod.id && i.unitType === 'UNIT');
+                    const cartBoxes = cart.find((i) => i.product.id === prod.id && i.unitType === 'BOX');
+                    const totalInCart = (cartUnits?.quantity || 0) + (cartBoxes?.quantity || 0);
+
                     return (
                       <div
                         key={prod.id}
-                        onClick={() => addToCart(prod)}
-                        className={`group relative p-3 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col justify-between select-none active:scale-[0.97] ${
-                          inCart
+                        className={`group relative p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between select-none ${
+                          totalInCart > 0
                             ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/30'
                             : 'bg-slate-950/60 border-slate-800/90 hover:border-slate-700 hover:bg-slate-850'
                         }`}
@@ -276,9 +291,9 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                               {prod.kdsStation === 'BAR' ? '🍺 Bar' : '🍳 Cozinha'}
                             </span>
-                            {inCart && (
+                            {totalInCart > 0 && (
                               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
-                                {inCart.quantity}x no pedido
+                                {totalInCart}x
                               </span>
                             )}
                           </div>
@@ -292,17 +307,65 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           )}
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60">
-                          <span className="text-sm font-extrabold text-amber-400">
-                            R$ {prod.price.toFixed(2)}
-                          </span>
-                          <button
-                            type="button"
-                            className="p-1 rounded-lg bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-950 transition"
-                          >
-                            <Plus className="w-4 h-4 stroke-[2.5]" />
-                          </button>
-                        </div>
+                        {/* Seletor Visual: Unidade vs Caixa */}
+                        {prod.hasBoxPrice && prod.boxPrice ? (
+                          <div className="mt-3 pt-2 border-t border-slate-800/60 space-y-1.5">
+                            <div className="grid grid-cols-2 gap-1">
+                              {/* Botão Unidade Avulsa */}
+                              <button
+                                type="button"
+                                onClick={() => addToCart(prod, 'UNIT')}
+                                className="px-2 py-1.5 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/u active:scale-95"
+                                title="Adicionar 1 Unidade"
+                              >
+                                <span className="text-[9px] uppercase font-bold text-slate-400 group-hover/u:text-slate-900">
+                                  Unidade
+                                </span>
+                                <span className="text-xs font-black font-mono text-emerald-400 group-hover/u:text-slate-950">
+                                  R$ {prod.price.toFixed(2)}
+                                </span>
+                                {cartUnits && (
+                                  <span className="text-[9px] font-bold text-amber-400 group-hover/u:text-slate-950">
+                                    ({cartUnits.quantity}x)
+                                  </span>
+                                )}
+                              </button>
+
+                              {/* Botão Caixa Fechada */}
+                              <button
+                                type="button"
+                                onClick={() => addToCart(prod, 'BOX')}
+                                className="px-2 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/cx active:scale-95"
+                                title={`Adicionar Caixa com ${prod.boxQuantity || 24} unidades`}
+                              >
+                                <span className="text-[9px] uppercase font-black tracking-wider flex items-center gap-0.5 group-hover/cx:text-slate-950">
+                                  <Package className="w-2.5 h-2.5" /> Cx {prod.boxQuantity || 24}x
+                                </span>
+                                <span className="text-xs font-black font-mono text-white group-hover/cx:text-slate-950">
+                                  R$ {Number(prod.boxPrice).toFixed(2)}
+                                </span>
+                                {cartBoxes && (
+                                  <span className="text-[9px] font-black text-amber-400 group-hover/cx:text-slate-950">
+                                    ({cartBoxes.quantity} cx)
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60">
+                            <span className="text-sm font-extrabold text-amber-400">
+                              R$ {prod.price.toFixed(2)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addToCart(prod, 'UNIT')}
+                              className="p-1 rounded-lg bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-950 transition cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4 stroke-[2.5]" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -346,23 +409,34 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
               ) : (
                 cart.map((item) => (
                   <div
-                    key={item.product.id}
+                    key={`${item.product.id}-${item.unitType}`}
                     className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <span className="text-xs font-bold text-white block">
-                          {item.product.name}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-white block">
+                            {item.product.name}
+                          </span>
+                          {item.unitType === 'BOX' ? (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
+                              <Package className="w-2.5 h-2.5" /> Cx {item.product.boxQuantity || 24}x
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">
+                              Un
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs font-semibold text-amber-400">
-                          R$ {(item.product.price * item.quantity).toFixed(2)}
+                          R$ {(item.unitPrice * item.quantity).toFixed(2)}
                         </span>
                       </div>
 
                       {/* Controle de Quantidade */}
                       <div className="flex items-center gap-1 bg-slate-950 rounded-xl p-0.5 border border-slate-800">
                         <button
-                          onClick={() => updateQuantity(item.product.id, -1)}
+                          onClick={() => updateQuantity(item.product.id, item.unitType, -1)}
                           className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                         >
                           <Minus className="w-3.5 h-3.5" />
@@ -371,7 +445,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.product.id, 1)}
+                          onClick={() => updateQuantity(item.product.id, item.unitType, 1)}
                           className="p-1.5 text-amber-400 hover:text-amber-300 rounded-lg hover:bg-slate-800 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -385,7 +459,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         type="text"
                         placeholder="Observação (ex: sem gelo, bem passada)..."
                         value={item.notes}
-                        onChange={(e) => updateNotes(item.product.id, e.target.value)}
+                        onChange={(e) => updateNotes(item.product.id, item.unitType, e.target.value)}
                         className="w-full text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800/80 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
                       />
 
@@ -395,7 +469,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           <button
                             key={chip}
                             type="button"
-                            onClick={() => appendQuickNote(item.product.id, chip)}
+                            onClick={() => appendQuickNote(item.product.id, item.unitType, chip)}
                             className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition"
                           >
                             + {chip}
