@@ -375,18 +375,18 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
     console.warn('Erro ao consultar notas fiscais locais por EAN:', err);
   }
 
-  // 3. Consultar Open Food Facts Brasil e Global
+  // 3. Consultar Open Food Facts (v2 World e v0 BR)
   try {
     const urls = [
-      `https://br.openfoodfacts.org/api/v0/product/${cleanEan}.json`,
-      `https://world.openfoodfacts.org/api/v0/product/${cleanEan}.json`
+      `https://world.openfoodfacts.org/api/v2/product/${cleanEan}.json`,
+      `https://br.openfoodfacts.org/api/v0/product/${cleanEan}.json`
     ];
 
     let foundProduct: any = null;
 
     for (const url of urls) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       try {
         const resp = await fetch(url, {
@@ -404,25 +404,41 @@ export async function lookupEanCatalog(rawEan: string): Promise<CatalogLookupRes
             break;
           }
         }
-      } catch (e) {
+      } catch {
         clearTimeout(timeoutId);
       }
     }
 
     if (foundProduct) {
-      const name =
+      const rawName =
         foundProduct.product_name_pt ||
         foundProduct.product_name ||
         foundProduct.product_name_en ||
         foundProduct.generic_name_pt ||
-        foundProduct.generic_name;
+        foundProduct.generic_name ||
+        '';
 
       const brand = foundProduct.brands || (foundProduct.brands_tags && foundProduct.brands_tags[0]) || null;
-      const quantity = foundProduct.quantity || null;
+      let quantity = (foundProduct.quantity || '').trim();
       const categoriesTags = Array.isArray(foundProduct.categories_tags) ? foundProduct.categories_tags : [];
       const categoriesStr = foundProduct.categories || '';
 
-      const fullName = [name, quantity].filter(Boolean).join(' ');
+      // Formatar quantidade inteligentemente (ex: '330' em cervejas vira '330ml')
+      let cleanName = rawName.trim();
+      if (quantity) {
+        if (/^\d+$/.test(quantity)) {
+          if (/cervej|refrig|bebida|água|agua|suco|chopp|chope|heineken|coca|pepsi|guaran/i.test(cleanName)) {
+            quantity = quantity + 'ml';
+          } else {
+            quantity = quantity + 'g';
+          }
+        }
+        if (!cleanName.toLowerCase().includes(quantity.toLowerCase())) {
+          cleanName = `${cleanName} ${quantity}`;
+        }
+      }
+
+      const fullName = cleanName || rawName;
 
       const tax = inferTaxAndClassification(fullName, brand, [categoriesStr, ...categoriesTags]);
 

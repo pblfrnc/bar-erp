@@ -1624,6 +1624,48 @@ export const ProductsView: React.FC = () => {
                   </tr>
                 );
               })}
+              {filteredProducts.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400">
+                        {/^\d{7,14}$/.test(search.trim()) ? <Barcode className="w-6 h-6 text-amber-400" /> : <Search className="w-6 h-6" />}
+                      </div>
+                      <p className="text-sm font-bold text-slate-300">
+                        Nenhum produto cadastrado encontrado {search.trim() ? `para "${search.trim()}"` : ''}
+                      </p>
+                      {/^\d{7,14}$/.test(search.trim()) ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-slate-400 max-w-sm">
+                            Este código de barras ainda não está no cardápio. Deseja cadastrá-lo agora com preenchimento automático?
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const scanned = search.trim();
+                              openCreateModal();
+                              setFormEan(scanned);
+                              setTimeout(() => handleLookupEan(scanned), 250);
+                            }}
+                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center gap-2 mx-auto cursor-pointer"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>Cadastrar Código {search.trim()}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openCreateModal}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer"
+                        >
+                          + Cadastrar Novo Produto
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
