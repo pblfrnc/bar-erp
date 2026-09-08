@@ -78,6 +78,15 @@ export function ImportXmlModal({ onClose, onSuccess }: Props) {
         </div>
 
         <div className="p-6 space-y-4">
+          {/* Aviso desenvolvedor */}
+          <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-3 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-300 leading-relaxed">
+              <span className="font-black">USO EXCLUSIVO DO DESENVOLVEDOR.</span>{' '}
+              Esta função importa dados em massa do sistema antigo. Usar sem orientação pode duplicar ou sobrescrever produtos e fornecedores.
+            </p>
+          </div>
+
           {/* Instrução */}
           <div className="bg-slate-800/50 rounded-xl p-3 text-xs text-slate-400 leading-relaxed">
             O arquivo deve ser o XML exportado pelo sistema antigo contendo{' '}

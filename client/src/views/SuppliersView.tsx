@@ -156,14 +156,19 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
 
         <div className="flex items-center gap-3">
           {isAdmin && (
-            <button
-              onClick={() => setShowImportXml(true)}
-              className="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer border border-slate-600"
-              title="Importar fornecedores e produtos de XML do sistema anterior (apenas administrador)"
-            >
-              <UploadCloud className="w-4 h-4 text-sky-400" />
-              <span>Importar XML</span>
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => setShowImportXml(true)}
+                className="py-2.5 px-4 bg-red-900/60 hover:bg-red-800/80 text-red-300 border border-red-700/60 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer"
+                title="⚠️ USO EXCLUSIVO DO DESENVOLVEDOR — Importar fornecedores e produtos do sistema anterior"
+              >
+                <UploadCloud className="w-4 h-4 text-red-400" />
+                <span>Importar XML</span>
+              </button>
+              <span className="text-[10px] text-red-500/80 font-medium leading-none pr-1">
+                ⚠️ Apenas desenvolvedor
+              </span>
+            </div>
           )}
           <button
             onClick={openCreateModal}
