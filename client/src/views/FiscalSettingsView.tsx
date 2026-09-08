@@ -39,6 +39,8 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const [cnpjValid, setCnpjValid] = useState<boolean | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<any>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagnoseResult, setDiagnoseResult] = useState<any>(null);
 
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
 
@@ -126,6 +128,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const handleValidate = async () => {
     setIsValidating(true);
     setValidateResult(null);
+    setDiagnoseResult(null);
     try {
       const res = await fetch(api.getApiUrl() + '/fiscal/validate-api');
       const data = await res.json();
@@ -134,6 +137,20 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
       setValidateResult({ ok: false, error: 'Sem resposta do servidor. Verifique se o BarERP está rodando.' });
     } finally {
       setIsValidating(false);
+    }
+  };
+
+  const handleDiagnose = async () => {
+    setIsDiagnosing(true);
+    setDiagnoseResult(null);
+    try {
+      const res = await fetch(api.getApiUrl() + '/fiscal/diagnose-focus');
+      const data = await res.json();
+      setDiagnoseResult(data);
+    } catch (e: any) {
+      setDiagnoseResult({ error: 'Sem resposta do servidor.' });
+    } finally {
+      setIsDiagnosing(false);
     }
   };
 
@@ -208,7 +225,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           )}
           {/* Aviso acionável quando CNPJ não está cadastrado na Focus NFe */}
           {validateResult.ok && validateResult.empresaCadastrada?.includes('não localizado') && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-2">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
@@ -220,14 +237,23 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleSave}
-                disabled={isSaving || cnpjValid === false}
-                className="flex items-center justify-center gap-2 mt-1 px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-amber-500/20"
-              >
-                <Save className="w-3.5 h-3.5" />
-                {isSaving ? 'Cadastrando empresa na Focus NFe...' : '📋 Cadastrar Empresa Agora na Focus NFe'}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || cnpjValid === false}
+                  className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-amber-500/20"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {isSaving ? 'Cadastrando empresa na Focus NFe...' : '📋 Cadastrar Empresa Agora na Focus NFe'}
+                </button>
+                <button
+                  onClick={handleDiagnose}
+                  disabled={isDiagnosing}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition disabled:opacity-50"
+                >
+                  {isDiagnosing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Diagnosticando...</> : <>🔍 Diagnóstico Focus NFe</>}
+                </button>
+              </div>
             </div>
           )}
           {!validateResult.ok && (
@@ -245,6 +271,33 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Painel de diagnóstico RAW da Focus NFe */}
+      {diagnoseResult && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">🔍 Diagnóstico Focus NFe — {diagnoseResult.ambiente}</span>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+              <p className="text-slate-500 font-bold mb-1">CNPJ configurado</p>
+              <p className="text-white font-mono">{diagnoseResult.cnpjConfigurado || '(não configurado)'}</p>
+            </div>
+            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+              <p className="text-slate-500 font-bold mb-1">GET /v2/empresas — Status {diagnoseResult.listaEmpresasStatus}</p>
+              <pre className="text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all">
+                {JSON.stringify(diagnoseResult.listaEmpresasResposta, null, 2)}
+              </pre>
+            </div>
+            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+              <p className="text-slate-500 font-bold mb-1">GET /v2/empresas/{diagnoseResult.cnpjConfigurado} — Status {diagnoseResult.buscaDiretaStatus}</p>
+              <pre className="text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all">
+                {JSON.stringify(diagnoseResult.buscaDiretaResposta, null, 2)}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
 

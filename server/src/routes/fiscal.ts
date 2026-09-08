@@ -273,6 +273,50 @@ export function createFiscalRouter() {
     }
   });
 
+  // ============================================================
+  // Diagnóstico RAW da Focus NFe (para debug de CNPJ não localizado)
+  // ============================================================
+  router.get('/diagnose-focus', async (req, res) => {
+    try {
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token não configurado.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+      const cnpjLimpo = (settings.cnpj || '').replace(/\D/g, '');
+
+      // 1. Busca listagem /v2/empresas
+      const listRes = await fetch(`${baseURL}/v2/empresas`, { headers: { 'Authorization': authHeader } });
+      const listRaw = await listRes.text();
+      let listJson: any;
+      try { listJson = JSON.parse(listRaw); } catch { listJson = listRaw; }
+
+      // 2. Busca direto pelo CNPJ /v2/empresas/:cnpj
+      let directJson: any = null;
+      let directStatus = 0;
+      if (cnpjLimpo) {
+        const directRes = await fetch(`${baseURL}/v2/empresas/${cnpjLimpo}`, { headers: { 'Authorization': authHeader } });
+        directStatus = directRes.status;
+        const directRaw = await directRes.text();
+        try { directJson = JSON.parse(directRaw); } catch { directJson = directRaw; }
+      }
+
+      return res.json({
+        ambiente: isProducao ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO',
+        cnpjConfigurado: cnpjLimpo || null,
+        listaEmpresasStatus: listRes.status,
+        listaEmpresasResposta: listJson,
+        buscaDiretaStatus: directStatus,
+        buscaDiretaResposta: directJson
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Aplica as associações no banco de dados
   router.post('/apply-import', async (req, res) => {
     try {
