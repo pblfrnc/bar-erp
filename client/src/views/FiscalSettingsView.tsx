@@ -41,6 +41,8 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
   const [validateResult, setValidateResult] = useState<any>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnoseResult, setDiagnoseResult] = useState<any>(null);
+  const [isUploadingCert, setIsUploadingCert] = useState(false);
+  const [certUploadResult, setCertUploadResult] = useState<any>(null);
 
   const [isFetchingCnpj, setIsFetchingCnpj] = useState(false);
 
@@ -151,6 +153,27 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
       setDiagnoseResult({ error: 'Sem resposta do servidor.' });
     } finally {
       setIsDiagnosing(false);
+    }
+  };
+
+  const handleUploadCert = async () => {
+    if (!certFile || !certPassword) return;
+    setIsUploadingCert(true);
+    setCertUploadResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('certificado', certFile);
+      formData.append('certPassword', certPassword);
+      const res = await fetch(api.getApiUrl() + '/fiscal/upload-cert', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      setCertUploadResult(res.ok ? { ...data, ok: true } : { ok: false, error: data.error || 'Erro desconhecido.' });
+    } catch (e: any) {
+      setCertUploadResult({ ok: false, error: 'Sem resposta do servidor. Verifique se o BarERP está rodando.' });
+    } finally {
+      setIsUploadingCert(false);
     }
   };
 
@@ -610,32 +633,63 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
 
         {/* Certificado A1 */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-2">
             <UploadCloud className="w-5 h-5 text-sky-500" />
             <h3 className="text-lg font-bold text-white">Certificado Digital (A1)</h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+            O certificado é enviado <strong className="text-slate-300">diretamente para a Focus NFe</strong> de forma independente das outras configurações.
+            A empresa já deve estar cadastrada em{' '}
+            <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">app.focusnfe.com.br</a> antes de enviar.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Arquivo .PFX do Cliente</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Arquivo .PFX / .P12</label>
               <input
                 type="file"
                 accept=".pfx,.p12"
-                onChange={e => setCertFile(e.target.files ? e.target.files[0] : null)}
+                onChange={e => { setCertFile(e.target.files ? e.target.files[0] : null); setCertUploadResult(null); }}
                 className="w-full bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-4 py-2.5 focus:border-sky-500 outline-none transition file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sky-500/10 file:text-sky-400 hover:file:bg-sky-500/20"
               />
-              <p className="text-xs text-slate-500 mt-2">Só envie se for a primeira vez ou estiver atualizando.</p>
+              {certFile && (
+                <p className="text-xs text-emerald-400 mt-1.5">📎 {certFile.name} ({(certFile.size / 1024).toFixed(1)} KB)</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Senha do Certificado</label>
               <input
                 type="password"
                 value={certPassword}
-                onChange={e => setCertPassword(e.target.value)}
+                onChange={e => { setCertPassword(e.target.value); setCertUploadResult(null); }}
                 placeholder="Senha do arquivo A1"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-sky-500 outline-none transition"
               />
             </div>
           </div>
+
+          {/* Resultado do upload */}
+          {certUploadResult && (
+            <div className={`rounded-xl p-3 mb-4 text-sm font-medium ${certUploadResult.ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+              {certUploadResult.ok ? certUploadResult.mensagem : `❌ ${certUploadResult.error}`}
+              {certUploadResult.ok && certUploadResult.arquivo && (
+                <p className="text-xs text-emerald-300/70 mt-1">Arquivo: {certUploadResult.arquivo} • {certUploadResult.tamanho}</p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handleUploadCert}
+            disabled={isUploadingCert || !certFile || !certPassword}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-sky-600 hover:bg-sky-500 text-white transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isUploadingCert
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando para Focus NFe...</>
+              : <><UploadCloud className="w-4 h-4" /> Enviar Certificado para Focus NFe</>
+            }
+          </button>
+          {(!certFile || !certPassword) && (
+            <p className="text-xs text-slate-500 mt-2">Selecione o arquivo .PFX e informe a senha para habilitar o envio.</p>
+          )}
         </div>
 
       </div>

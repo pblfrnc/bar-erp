@@ -3,7 +3,7 @@ import multer from 'multer';
 import { XMLParser } from 'fast-xml-parser';
 import { prisma } from '../prisma.js';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
 
@@ -420,8 +420,82 @@ export function createFiscalRouter() {
     }
   });
 
-  
-  // Salvar configurações fiscais (Agora suporta Onboarding de Software House)
+  // ============================================================
+  // Upload dedicado do Certificado Digital A1 para a Focus NFe
+  // ============================================================
+  router.post('/upload-cert', upload.single('certificado'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Nenhum arquivo enviado. Selecione o arquivo .PFX do certificado.' });
+      }
+
+      const certPassword = req.body.certPassword;
+      if (!certPassword || !certPassword.trim()) {
+        return res.status(400).json({ error: 'Senha do certificado é obrigatória.' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token da API não configurado. Salve as configurações primeiro.' });
+      }
+      if (!settings?.cnpj) {
+        return res.status(400).json({ error: 'CNPJ não configurado. Salve as configurações da empresa primeiro.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br/v2/empresas'
+        : 'https://homologacao.focusnfe.com.br/v2/empresas';
+      const cleanCnpj = settings.cnpj.replace(/\D/g, '');
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+      const certBase64 = req.file.buffer.toString('base64');
+
+      console.log(`[Upload Cert] Enviando certificado para CNPJ ${cleanCnpj} no ambiente ${isProducao ? 'Produção' : 'Homologação'}...`);
+      console.log(`[Upload Cert] Arquivo: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
+
+      // Envia o certificado via PUT /v2/empresas/:cnpj
+      const focusRes = await fetch(`${baseURL}/${cleanCnpj}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        },
+        body: JSON.stringify({
+          arquivo_certificado_base64: certBase64,
+          senha_certificado: certPassword.trim()
+        })
+      });
+
+      const focusData = await focusRes.json().catch(() => ({}));
+      console.log(`[Upload Cert] Focus NFe respondeu ${focusRes.status}:`, focusData);
+
+      if (!focusRes.ok) {
+        let errMsg = '';
+        if (focusRes.status === 401) {
+          errMsg = 'Token inválido ou sem permissão para este ambiente.';
+        } else if (focusRes.status === 404) {
+          errMsg = 'Empresa não encontrada na Focus NFe. Cadastre a empresa no painel de app.focusnfe.com.br primeiro.';
+        } else if (focusData.erros && Array.isArray(focusData.erros)) {
+          errMsg = focusData.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join(' | ');
+        } else {
+          errMsg = focusData.mensagem || JSON.stringify(focusData);
+        }
+        return res.status(400).json({ error: `Focus NFe (${focusRes.status}): ${errMsg}` });
+      }
+
+      return res.json({
+        ok: true,
+        mensagem: `✅ Certificado enviado com sucesso para a Focus NFe (${isProducao ? 'Produção' : 'Homologação'})!`,
+        arquivo: req.file.originalname,
+        tamanho: `${(req.file.size / 1024).toFixed(1)} KB`
+      });
+
+    } catch (err: any) {
+      console.error('[Upload Cert] Erro:', err);
+      return res.status(500).json({ error: 'Erro ao enviar certificado: ' + err.message });
+    }
+  });
+
   router.put('/settings', upload.single('certificado'), async (req, res) => {
     try {
       const settingsStr = req.body.settings;
