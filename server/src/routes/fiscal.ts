@@ -608,6 +608,10 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Token da API Fiscal não configurado. Vá nas Configurações Fiscais.' });
       }
 
+      if (!settings.cscSecret || !settings.cscId) {
+        return res.status(400).json({ error: 'Para emitir NFC-e, preencha o Código CSC e o ID do Token nas Configurações Fiscais.' });
+      }
+
       // Mapeamento para requisição na Focus NFe
       const baseURL = settings.environment === 'producao' 
         ? 'https://api.focusnfe.com.br/v2/nfce'
