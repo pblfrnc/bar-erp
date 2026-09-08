@@ -228,13 +228,32 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-amber-300 font-bold text-sm">O que fazer: cadastrar a empresa na Focus NFe</p>
-                  <p className="text-amber-200/70 text-xs leading-relaxed">
-                    O token está correto e a conexão funciona ✅, mas sua empresa ainda não foi registrada neste ambiente da Focus NFe.
-                    <br />
-                    Preencha os campos abaixo (Razão Social, endereço, CSC/ID Token NFC-e) e clique no botão abaixo ou em <strong className="text-white">"Cadastrar Dados da Empresa"</strong> no topo.
-                  </p>
+                <div className="space-y-2">
+                  <p className="text-amber-300 font-bold text-sm">CNPJ não localizado — siga os passos abaixo</p>
+                  <ol className="text-amber-200/80 text-xs leading-relaxed list-none space-y-2">
+                    <li className="flex gap-2">
+                      <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
+                      <span>
+                        <strong className="text-white">Cadastre a empresa no painel da Focus NFe:</strong>{' '}
+                        acesse{' '}
+                        <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline hover:text-sky-300">
+                          app.focusnfe.com.br
+                        </a>
+                        {' '}→ <strong className="text-white">Empresas → Nova Empresa</strong> e preencha os dados do seu CNPJ lá.
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>
+                      <span>
+                        <strong className="text-white">Preencha os campos abaixo</strong> (Razão Social, endereço, CSC e ID Token NFC-e) e clique em{' '}
+                        <strong className="text-white">"Cadastrar Dados da Empresa"</strong> para sincronizar com a API.
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">3</span>
+                      <span>Após concluir, clique em <strong className="text-white">"Testar Conexão"</strong> novamente para confirmar.</span>
+                    </li>
+                  </ol>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
