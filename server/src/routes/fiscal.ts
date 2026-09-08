@@ -239,25 +239,29 @@ export function createFiscalRouter() {
         total = empresasList.length;
 
         if (!empresaCadastrada && cnpjLimpo && total > 0) {
-          empresaCadastrada = empresasList.find((e: any) => 
-            (e.cnpj || e.cpf_cnpj || '').replace(/\D/g, '') === cnpjLimpo
-          );
+          empresaCadastrada = empresasList.find((e: any) => {
+            const docRaw = (e.cnpj || e.cpf_cnpj || e.document || '').replace(/\D/g, '');
+            return docRaw === cnpjLimpo;
+          });
         }
       }
+
+      const cnpjLocalizado = Boolean(empresaCadastrada);
 
       return res.json({
         ok: true,
         ambiente: isProducao ? '🟢 Produção (Notas Oficiais)' : '🟡 Homologação (Testes)',
-        totalEmpresas: total > 0 ? total : (empresaCadastrada ? 1 : 0),
+        totalEmpresas: total > 0 ? total : (cnpjLocalizado ? 1 : 0),
         cnpjConfigurado: settings.cnpj || null,
-        empresaCadastrada: empresaCadastrada
+        cnpjLocalizado,
+        empresaCadastrada: cnpjLocalizado
           ? `✓ CNPJ encontrado na Focus NFe: ${empresaCadastrada.nome_fantasia || empresaCadastrada.nome || settings.cnpj}`
           : cnpjLimpo
-          ? `⚠️ CNPJ ${settings.cnpj} ainda não localizado no ambiente ${isProducao ? 'Produção' : 'Homologação'} da Focus NFe.`
+          ? `⚠️ CNPJ ${settings.cnpj} ainda não localizado no ambiente ${isProducao ? 'Produção' : 'Homologação'} da Focus NFe. Preencha os dados da empresa e clique em "Cadastrar Dados da Empresa".`
           : 'ℹ️ Nenhum CNPJ configurado ainda.',
-        mensagem: empresaCadastrada
+        mensagem: cnpjLocalizado
           ? `Empresa localizada com sucesso na Focus NFe (${isProducao ? 'Produção' : 'Homologação'})!`
-          : `Conexão com a Focus NFe estabelecida com sucesso.`
+          : `Conexão com a Focus NFe estabelecida com sucesso. Cadastre sua empresa para emitir NFC-e.`
       });
 
     } catch (err: any) {

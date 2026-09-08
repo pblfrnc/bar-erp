@@ -200,12 +200,50 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
               </div>
               <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
                 <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Status do CNPJ</p>
-                <p className="font-bold text-white leading-snug">{validateResult.empresaCadastrada}</p>
+                <p className={`font-bold leading-snug ${validateResult.empresaCadastrada?.includes('não localizado') ? 'text-amber-400' : 'text-white'}`}>
+                  {validateResult.empresaCadastrada}
+                </p>
               </div>
             </div>
           )}
+          {/* Aviso acionável quando CNPJ não está cadastrado na Focus NFe */}
+          {validateResult.ok && validateResult.empresaCadastrada?.includes('não localizado') && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-amber-300 font-bold text-sm">O que fazer: cadastrar a empresa na Focus NFe</p>
+                  <p className="text-amber-200/70 text-xs leading-relaxed">
+                    O token está correto e a conexão funciona ✅, mas sua empresa ainda não foi registrada neste ambiente da Focus NFe.
+                    <br />
+                    Preencha os campos abaixo (Razão Social, endereço, CSC/ID Token NFC-e) e clique no botão abaixo ou em <strong className="text-white">"Cadastrar Dados da Empresa"</strong> no topo.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || cnpjValid === false}
+                className="flex items-center justify-center gap-2 mt-1 px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-amber-500/20"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {isSaving ? 'Cadastrando empresa na Focus NFe...' : '📋 Cadastrar Empresa Agora na Focus NFe'}
+              </button>
+            </div>
+          )}
           {!validateResult.ok && (
-            <p className="text-sm text-red-300 leading-relaxed">{validateResult.error}</p>
+            <div className="space-y-2">
+              <p className="text-sm text-red-300 leading-relaxed">{validateResult.error}</p>
+              {validateResult.error?.includes('Token') && (
+                <div className="bg-slate-950/60 rounded-xl p-3 text-xs text-slate-400 space-y-1">
+                  <p className="font-bold text-slate-300">Verifique:</p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-1">
+                    <li>O token deve ser do mesmo ambiente (Homologação ou Produção) configurado acima</li>
+                    <li>Copie o token da sua conta em <span className="text-sky-400">app.focusnfe.com.br → API → Token</span></li>
+                    <li>Não adicione espaços ou caracteres extras no token</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
