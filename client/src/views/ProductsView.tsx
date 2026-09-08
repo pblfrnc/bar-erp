@@ -44,6 +44,7 @@ export const ProductsView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [showImportXmlModal, setShowImportXmlModal] = useState<boolean>(false);
   const [organizingLoading, setOrganizingLoading] = useState<boolean>(false);
+  const [isBackfilling, setIsBackfilling] = useState<boolean>(false);
 
   // Modal Produto
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
@@ -148,6 +149,28 @@ export const ProductsView: React.FC = () => {
       alert(`Falha ao conectar com o servidor: ${err.message}`);
     } finally {
       setOrganizingLoading(false);
+    }
+  };
+
+  const handleBackfillCodes = async () => {
+    if (!confirm('Atribuir códigos internos sequenciais a todos os produtos que não têm código?\n\nEsta operação não altera produtos que já têm código.')) return;
+    try {
+      setIsBackfilling(true);
+      const res = await fetch(api.getApiUrl() + '/products/backfill-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadData();
+        alert(data.mensagem || `✅ ${data.atualizados} produtos atualizados!`);
+      } else {
+        alert(`Erro: ${data.error || 'Falha ao gerar códigos'}`);
+      }
+    } catch (err: any) {
+      alert(`Falha ao conectar com o servidor: ${err.message}`);
+    } finally {
+      setIsBackfilling(false);
     }
   };
 
@@ -1634,6 +1657,18 @@ export const ProductsView: React.FC = () => {
           >
             <Tag className="w-4 h-4 text-purple-400" />
             <span>Nova Categoria</span>
+          </button>
+
+          <button
+            onClick={handleBackfillCodes}
+            disabled={isBackfilling}
+            title="Atribuir códigos internos sequenciais a todos os produtos sem código"
+            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            {isBackfilling
+              ? <><span className="animate-spin">⟳</span> <span>Gerando...</span></>
+              : <><span className="text-sky-400 font-mono text-sm">#</span> <span>Gerar Códigos</span></>
+            }
           </button>
 
           <button

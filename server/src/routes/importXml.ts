@@ -3,6 +3,7 @@ import multer from 'multer';
 import { XMLParser } from 'fast-xml-parser';
 import { prisma } from '../prisma.js';
 import iconv from 'iconv-lite';
+import { getNextSequentialCode } from '../services/catalogService.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -282,6 +283,9 @@ export function createImportXmlRouter() {
             });
             resultado.produtos.atualizados++;
           } else {
+            // Gera código interno sequencial se não veio no XML
+            const codigoGerado = code || await getNextSequentialCode(targetCategoryId);
+
             await (prisma as any).product.create({
               data: {
                 name:        nome,
@@ -293,8 +297,7 @@ export function createImportXmlRouter() {
                 ean:         eanValido,
                 ncm,
                 cest,
-                code,
-                unit:        unidadeXml || 'un',
+                code:        codigoGerado,
                 categoryId:  targetCategoryId,
                 supplierId,
                 kdsStation:  targetKdsStation,

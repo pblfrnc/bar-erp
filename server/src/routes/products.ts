@@ -84,6 +84,54 @@ export function createProductsRouter() {
     }
   });
 
+  // Atribuir códigos internos a todos os produtos sem código (retroativo)
+  router.post('/backfill-codes', async (_req, res) => {
+    try {
+      // Busca todos os produtos sem código, agrupados por categoria
+      const produtosSemCodigo = await (prisma as any).product.findMany({
+        where: { OR: [{ code: null }, { code: '' }] },
+        select: { id: true, categoryId: true, name: true },
+        orderBy: { name: 'asc' }
+      });
+
+      if (produtosSemCodigo.length === 0) {
+        return res.json({ ok: true, atualizados: 0, mensagem: 'Todos os produtos já possuem código interno.' });
+      }
+
+      // Agrupa por categoria para gerar códigos sequenciais sem conflito
+      const porCategoria = new Map<string, string[]>();
+      for (const p of produtosSemCodigo) {
+        const list = porCategoria.get(p.categoryId) || [];
+        list.push(p.id);
+        porCategoria.set(p.categoryId, list);
+      }
+
+      let totalAtualizados = 0;
+
+      for (const [categoryId, ids] of porCategoria) {
+        for (const id of ids) {
+          // Pega próximo código disponível (considera os já atribuídos nesta sessão)
+          const nextCode = await getNextSequentialCode(categoryId);
+
+          await (prisma as any).product.update({
+            where: { id },
+            data: { code: nextCode }
+          });
+          totalAtualizados++;
+        }
+      }
+
+      return res.json({
+        ok: true,
+        atualizados: totalAtualizados,
+        mensagem: `✅ ${totalAtualizados} produtos receberam código interno sequencial.`
+      });
+    } catch (error: any) {
+      console.error('Erro no backfill de códigos:', error);
+      res.status(500).json({ error: 'Erro ao atribuir códigos: ' + error.message });
+    }
+  });
+
   // Buscar informações fiscais e cadastrais por Código de Barras (EAN / GTIN)
   router.get('/lookup-ean/:ean', async (req, res) => {
     try {
