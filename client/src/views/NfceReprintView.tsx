@@ -192,7 +192,7 @@ export const NfceReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-800">
             {recentNotas.map(nota => (
-              <div key={nota.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
+              <div key={nota.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="font-mono font-black text-slate-900 dark:text-white text-sm">

@@ -449,7 +449,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                     {items.map((item, index) => {
                       const itemSubtotal = item.product.price * item.quantity;
                       return (
-                        <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
+                        <tr key={index} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition">
                           <td className="py-3 px-4">
                             <div className="font-bold text-slate-900 dark:text-white text-sm">
                               {item.product.name}

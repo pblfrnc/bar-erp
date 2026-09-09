@@ -221,7 +221,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     key={u.id}
                     type="button"
                     onClick={() => handleSelectUser(u)}
-                    className="p-5 rounded-3xl bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/50 flex flex-col items-center justify-center text-center gap-3 transition-all duration-150 hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 group cursor-pointer"
+                    className="p-5 rounded-3xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 flex flex-col items-center justify-center text-center gap-3 transition-all duration-150 hover:scale-[1.02] hover:shadow-xl hover:shadow-amber-500/10 group cursor-pointer"
                   >
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 flex items-center justify-center text-amber-400 font-black text-xl shadow-inner group-hover:border-amber-500/50 group-hover:text-white transition">
                       {initials}

@@ -1820,7 +1820,7 @@ export const ProductsView: React.FC = () => {
                   : null;
 
                 return (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
+                  <tr key={p.id} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition">
                     <td className="py-3 px-4 cursor-pointer group" onClick={() => openEditModal(p)} title="Clique para abrir e editar este produto">
                       <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2 flex-wrap group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
                         <span>{p.name}</span>

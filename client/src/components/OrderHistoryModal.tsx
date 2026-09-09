@@ -166,7 +166,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ onClose })
                       className={`p-4 transition cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
                           ? 'bg-amber-500/10 border-l-4 border-amber-500'
-                          : 'hover:bg-slate-100/70 dark:hover:bg-slate-850/60'
+                          : 'hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <div>

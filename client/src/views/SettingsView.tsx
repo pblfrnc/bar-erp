@@ -141,7 +141,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {onOpenDashboard && (
         <button
           onClick={onOpenDashboard}
-          className="w-full bg-gradient-to-r from-purple-50 via-white to-white dark:from-purple-950/40 dark:via-slate-900 dark:to-slate-900 hover:from-purple-100 hover:to-slate-50 dark:hover:from-purple-900/50 dark:hover:to-slate-850 transition border-2 border-purple-200 dark:border-purple-500/40 hover:border-purple-400 rounded-3xl p-5 text-left flex items-center justify-between group shadow-sm dark:shadow-lg dark:shadow-purple-950/20"
+          className="w-full bg-gradient-to-r from-purple-50 via-white to-white dark:from-purple-950/40 dark:via-slate-900 dark:to-slate-900 hover:from-purple-100 hover:to-slate-50 dark:hover:from-purple-900/50 dark:hover:to-slate-800 transition border-2 border-purple-200 dark:border-purple-500/40 hover:border-purple-400 rounded-3xl p-5 text-left flex items-center justify-between group shadow-sm dark:shadow-lg dark:shadow-purple-950/20"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 shrink-0 group-hover:scale-105 transition-transform">

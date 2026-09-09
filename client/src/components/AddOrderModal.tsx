@@ -283,7 +283,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         className={`group relative p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between select-none ${
                           totalInCart > 0
                             ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/30'
-                            : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 shadow-xs'
+                            : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 shadow-xs'
                         }`}
                       >
                         <div>

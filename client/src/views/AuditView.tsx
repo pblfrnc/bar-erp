@@ -72,7 +72,7 @@ export const AuditView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
+                  <tr key={log.id} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition">
                     <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-2">
                       <Clock className="w-4 h-4 text-slate-400 dark:text-slate-600" />
                       {new Date(log.createdAt).toLocaleString('pt-BR')}
