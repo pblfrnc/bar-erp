@@ -88,16 +88,33 @@ jobs:
         run: |
           chmod +x client/android/gradlew
 
+      - name: Garantir Chave de Assinatura Release
+        working-directory: client/android/app
+        run: |
+          if [ ! -f release.keystore ]; then
+            echo "release.keystore não encontrada, criando chave de release..."
+            keytool -genkeypair -v -keystore release.keystore \
+              -alias barerp -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass barerp123 -keypass barerp123 \
+              -dname "CN=BarERP, OU=Tecnologia, O=BarERP, L=Sao Paulo, ST=SP, C=BR"
+          else
+            echo "Chave release.keystore existente encontrada!"
+          fi
+
       - name: Compilar APK do Garçom (Android)
         working-directory: client
         run: |
           npm run build:waiter
           npx cap sync android
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
           cd ../..
           mkdir -p output-apk/waiter
-          cp client/android/app/build/outputs/apk/debug/app-debug.apk output-apk/waiter/BarERP-Garcom.apk
+          if [ -f client/android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp client/android/app/build/outputs/apk/release/app-release.apk output-apk/waiter/BarERP-Garcom.apk
+          else
+            find client/android/app/build/outputs/apk/release/ -name "*.apk" -exec cp {} output-apk/waiter/BarERP-Garcom.apk \;
+          fi
 
       - name: Compilar APK da Cozinha / KDS (Android)
         working-directory: client
@@ -110,10 +127,14 @@ jobs:
           npx cap sync android
           sed -i 's/BarERP Garçom/BarERP Cozinha/g' android/app/src/main/res/values/strings.xml
           cd android
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
           cd ../..
           mkdir -p output-apk/kitchen
-          cp client/android/app/build/outputs/apk/debug/app-debug.apk output-apk/kitchen/BarERP-Cozinha.apk
+          if [ -f client/android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp client/android/app/build/outputs/apk/release/app-release.apk output-apk/kitchen/BarERP-Cozinha.apk
+          else
+            find client/android/app/build/outputs/apk/release/ -name "*.apk" -exec cp {} output-apk/kitchen/BarERP-Cozinha.apk \;
+          fi
 
       - name: Salvar Artefato APK do Garçom
         uses: actions/upload-artifact@v4
