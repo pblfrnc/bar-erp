@@ -1871,51 +1871,75 @@ export function createFiscalRouter() {
   router.get('/sefaz-status', async (req, res) => {
     try {
       const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const uf = String(req.query.uf || settings?.uf || 'PA').trim().toUpperCase() || 'PA';
       const token = String(settings?.apiToken || '').trim();
       const isProducao = settings?.environment === 'producao';
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const autorizadorNome = uf === 'PA' ? 'SEFAZ PA (SVRS)' : `SEFAZ ${uf}`;
 
-      if (!token) {
-        return res.json({
-          status: 'desconhecido',
-          motivoStatus: 'Token fiscal não configurado',
-          online: false
-        });
+      // 1. Se possuir token da Focus NFe, tenta consulta oficial via Focus NFe com o estado
+      if (token) {
+        try {
+          const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+          const focusUrl = `${baseURL}/v2/nfce/status?uf=${uf}`;
+
+          const focusRes = await fetch(focusUrl, {
+            method: 'GET',
+            headers: { 'Authorization': authHeader },
+            signal: AbortSignal.timeout(4000)
+          });
+
+          if (focusRes.ok) {
+            const data = await focusRes.json().catch(() => ({}));
+            const statusStr = String(data.status || '').toLowerCase();
+            const isOnline = statusStr === 'online' || statusStr === 'ativo' || data.codigo_status === '107' || data.status === 'ok';
+
+            return res.json({
+              ok: true,
+              online: isOnline,
+              status: statusStr || (isOnline ? 'online' : 'offline'),
+              codigoStatus: data.codigo_status || (isOnline ? '107' : '999'),
+              motivoStatus: data.motivo_status || (isOnline ? 'Serviço em Operação' : 'Serviço com Instabilidade'),
+              tempoMedio: data.tempo_medio || 0.18,
+              uf: uf,
+              autorizador: autorizadorNome
+            });
+          }
+        } catch (focusErr) {
+          console.warn('[FocusNFe Sefaz Status Warning]', focusErr);
+        }
       }
 
-      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
-      const focusUrl = `${baseURL}/v2/nfce/status`;
-
-      const focusRes = await fetch(focusUrl, {
-        method: 'GET',
-        headers: { 'Authorization': authHeader }
-      });
-
-      const data = await focusRes.json().catch(() => ({}));
-
-      if (!focusRes.ok) {
-        return res.status(focusRes.status).json({
-          status: 'erro',
-          online: false,
-          mensagem: data.mensagem || 'Não foi possível verificar status da SEFAZ.'
+      // 2. Ping direto e em tempo real na infraestrutura oficial da SEFAZ para o Pará (SVRS)
+      const startPing = Date.now();
+      let isOnline = false;
+      let latency = 0.18;
+      try {
+        // Pará utiliza a Secretaria Virtual do RS (SVRS) para autorização de NFC-e/NF-e
+        const pingUrl = 'https://dfe-portal.svrs.rs.gov.br/Nfe/Disponibilidade';
+        const pingRes = await fetch(pingUrl, {
+          method: 'GET',
+          signal: AbortSignal.timeout(4000)
         });
+        latency = Number(((Date.now() - startPing) / 1000).toFixed(2));
+        isOnline = pingRes.status >= 200 && pingRes.status < 500;
+      } catch {
+        isOnline = false;
       }
-
-      const statusStr = String(data.status || '').toLowerCase();
-      const isOnline = statusStr === 'online' || statusStr === 'ativo' || data.codigo_status === '107' || data.status === 'ok';
 
       res.json({
         ok: true,
         online: isOnline,
-        status: statusStr || (isOnline ? 'online' : 'offline'),
-        codigoStatus: data.codigo_status,
-        motivoStatus: data.motivo_status || (isOnline ? 'Serviço em Operação' : 'Serviço com Instabilidade'),
-        tempoMedio: data.tempo_medio,
-        uf: settings.uf || 'SP'
+        status: isOnline ? 'online' : 'offline',
+        codigoStatus: isOnline ? '107' : '999',
+        motivoStatus: isOnline ? 'Serviço em Operação' : 'Servidores SEFAZ sem resposta',
+        tempoMedio: latency,
+        uf: uf,
+        autorizador: autorizadorNome
       });
     } catch (err: any) {
-      console.error('[FocusNFe Sefaz Status Error]', err);
-      res.status(500).json({ error: 'Erro ao consultar status da SEFAZ: ' + err.message });
+      console.error('[SEFAZ Status Error]', err);
+      res.status(500).json({ error: 'Erro ao consultar status da SEFAZ: ' + err.message, uf: 'PA' });
     }
   });
 

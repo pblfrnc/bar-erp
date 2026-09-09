@@ -47,7 +47,7 @@ export const SefazStatusBadge: React.FC = () => {
           isPending ? 'bg-slate-400 animate-pulse' : isOnline ? 'bg-emerald-400' : 'bg-rose-400 animate-ping'
         }`} />
         <span className="text-[11px]">
-          {isPending ? 'SEFAZ...' : isOnline ? `SEFAZ Online (${status?.uf || 'SP'})` : 'SEFAZ Fora do Ar'}
+          {isPending ? 'SEFAZ...' : isOnline ? `SEFAZ Online (${status?.uf || 'PA'})` : `SEFAZ (${status?.uf || 'PA'}) Fora do Ar`}
         </span>
       </button>
 
@@ -55,7 +55,7 @@ export const SefazStatusBadge: React.FC = () => {
         <div className="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl z-50 text-xs text-slate-300 space-y-2.5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="font-bold text-white flex items-center gap-1.5">
-              <Wifi className="w-3.5 h-3.5 text-sky-400" /> Servidores SEFAZ ({status?.uf || 'SP'})
+              <Wifi className="w-3.5 h-3.5 text-sky-400" /> {status?.autorizador || `SEFAZ (${status?.uf || 'PA'})`}
             </span>
             <button
               onClick={checkStatus}
