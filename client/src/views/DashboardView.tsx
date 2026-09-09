@@ -13,7 +13,8 @@ import {
   Beer,
   ChefHat,
   ShieldAlert,
-  ArrowLeft
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -24,22 +25,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'audit'>('overview');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
-      const res = await api.getDashboardData();
-      setData(res);
-    } catch (err) {
-      console.error('Erro ao carregar dashboard:', err);
-    } finally {
-      setLoading(false);
-    }
+  const formatDateLabel = (dateStr: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (dateStr === today) return 'Hoje';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
   };
+
+  const dateLabel = formatDateLabel(selectedDate);
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [selectedDate]);
 
   return (
     <div className="space-y-4 pb-20 max-w-6xl mx-auto">
@@ -66,12 +65,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
           </div>
         </div>
 
-        <button
-          onClick={loadDashboard}
-          className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl transition cursor-pointer"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative group">
+            <label className="sr-only">Filtrar por data</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition w-40 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          <button
+            onClick={loadDashboard}
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl transition cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
       </div>
 
       
@@ -109,7 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
             <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Faturamento Hoje</span>
+            <span>Faturamento {dateLabel}</span>
           </div>
           <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
             R$ {(data?.todayRevenue || 0).toFixed(2)}
@@ -122,13 +134,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
             <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span>Comandas Pagas</span>
+            <span>Comandas Pagas {dateLabel}</span>
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white">
             {data?.ordersCompletedToday || 0}
           </div>
           <span className="text-[11px] text-slate-500 mt-1 block">
-            Mesas finalizadas
+            Mesas finalizadas {dateLabel}
           </span>
         </div>
 
@@ -165,13 +177,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Award className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-            <h3 className="text-base font-black text-slate-900 dark:text-white">Top 5 Produtos Mais Pedidos Hoje</h3>
+            <h3 className="text-base font-black text-slate-900 dark:text-white">Top 5 Produtos Mais Pedidos {dateLabel}</h3>
           </div>
 
           <div className="space-y-3">
             {(!data?.topProducts || data.topProducts.length === 0) ? (
               <div className="text-center py-8 text-slate-500 text-xs">
-                Nenhum pedido computado hoje ainda.
+                Nenhum pedido computado {dateLabel.toLowerCase()} ainda.
               </div>
             ) : (
               data.topProducts.map((p, idx) => {
@@ -210,7 +222,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
 
         {/* Meios de Pagamento Recebidos */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
-          <h3 className="text-base font-black text-slate-900 dark:text-white">Distribuição dos Pagamentos</h3>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Distribuição dos Pagamentos {dateLabel}</h3>
 
           <div className="space-y-3 pt-2">
             {data?.paymentMethodsBreakdown && Object.keys(data.paymentMethodsBreakdown).length > 0 ? (
@@ -237,7 +249,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
               })
             ) : (
               <div className="text-center py-8 text-slate-500 text-xs">
-                Nenhum pagamento liquidado no dia.
+                Nenhum pagamento liquidado {dateLabel.toLowerCase()}.
               </div>
             )}
           </div>
@@ -249,7 +261,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
 
         {/* Vendas por Hora (Gráfico Nativo) */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
-          <h3 className="text-base font-black text-slate-900 dark:text-white">Vendas por Hora (Pico)</h3>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Vendas por Hora {dateLabel} (Pico)</h3>
           <div className="flex items-end gap-2 h-40 pt-4">
             {data?.salesByHour?.map((sh) => {
               const maxSales = Math.max(...data.salesByHour.map((s) => s.total), 1);
@@ -275,7 +287,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
 
         {/* Pódio de Garçons */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
-          <h3 className="text-base font-black text-slate-900 dark:text-white">Performance dos Garçons</h3>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Performance dos Garçons {dateLabel}</h3>
           <div className="space-y-3 pt-2">
             {data?.waiterPerformance?.length ? (
               data.waiterPerformance.map((w, idx) => (
@@ -286,14 +298,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-200">{w.name}</p>
-                      <p className="text-[10px] text-slate-500">{w.count} pedidos fechados</p>
+                      <p className="text-[10px] text-slate-500">{w.count} pedidos fechados {dateLabel.toLowerCase()}</p>
                     </div>
                   </div>
                   <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">R$ {w.total.toFixed(2)}</span>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-slate-500 text-xs">Nenhum garçom registrou vendas hoje.</div>
+              <div className="text-center py-8 text-slate-500 text-xs">Nenhum garçom registrou vendas {dateLabel.toLowerCase()}.</div>
             )}
           </div>
         </div>

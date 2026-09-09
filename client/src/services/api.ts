@@ -372,8 +372,10 @@ export const api = {
   // Dashboard
   getAuditLogs: () => fetchWithRetry(`${getApiUrl()}/audit-logs`).then(handleResponse<any[]>),
 
-  getDashboardData: (): Promise<DashboardData> =>
-    fetchWithRetry(`${getApiUrl()}/dashboard`).then(handleResponse<DashboardData>),
+  getDashboardData: (date?: string): Promise<DashboardData> => {
+    const params = date ? `?date=${date}` : '';
+    return fetchWithRetry(`${getApiUrl()}/dashboard${params}`).then(handleResponse<DashboardData>);
+  },
 
   // Garçons & Comissões
   getCustomers: () => fetchWithRetry(`${getApiUrl()}/customers`).then(handleResponse<any[]>),

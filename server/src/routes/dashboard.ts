@@ -6,21 +6,24 @@ export function createDashboardRouter() {
 
   router.get('/', async (req, res) => {
     try {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const dateParam = req.query.date as string | undefined;
+      const targetDate = dateParam ? new Date(dateParam) : new Date();
+      targetDate.setHours(0, 0, 0, 0);
+      const nextDay = new Date(targetDate);
+      nextDay.setDate(nextDay.getDate() + 1);
 
-      // Pagamentos recebidos hoje
+      // Pagamentos recebidos no dia
       const todayPayments = await prisma.payment.findMany({
-        where: { receivedAt: { gte: todayStart } }
+        where: { receivedAt: { gte: targetDate, lt: nextDay } }
       });
 
       const todayRevenue = todayPayments.reduce((acc, p) => acc + p.amount, 0);
 
-      // Comandas fechadas hoje
+      // Comandas fechadas no dia
       const closedOrdersToday = await prisma.order.findMany({
         where: {
           status: 'PAID',
-          closedAt: { gte: todayStart }
+          closedAt: { gte: targetDate, lt: nextDay }
         }
       });
 
@@ -36,7 +39,7 @@ export function createDashboardRouter() {
       // Top produtos vendidos
       const orderItems = await prisma.orderItem.findMany({
         where: {
-          addedAt: { gte: todayStart }
+          addedAt: { gte: targetDate, lt: nextDay }
         },
         include: { product: true }
       });
@@ -68,7 +71,7 @@ export function createDashboardRouter() {
       // Vendas por hora
       const salesByHour = Array.from({ length: 24 }).map((_, i) => ({ hour: i, total: 0 }));
       todayPayments.forEach(p => {
-        const h = p.receivedAt.getHours();
+        const h = new Date(p.receivedAt).getHours();
         salesByHour[h].total += p.amount;
       });
       // Filtrar apenas o intervalo com vendas para não mostrar um monte de zero inútil
