@@ -7,8 +7,14 @@ export function createDashboardRouter() {
   router.get('/', async (req, res) => {
     try {
       const dateParam = req.query.date as string | undefined;
-      const targetDate = dateParam ? new Date(dateParam) : new Date();
-      targetDate.setHours(0, 0, 0, 0);
+      let targetDate: Date;
+      if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        const [year, month, day] = dateParam.split('-').map(Number);
+        targetDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+      } else {
+        targetDate = new Date();
+        targetDate.setHours(0, 0, 0, 0);
+      }
       const nextDay = new Date(targetDate);
       nextDay.setDate(nextDay.getDate() + 1);
 
@@ -80,7 +86,9 @@ export function createDashboardRouter() {
       let maxHour = activeHours.length > 0 ? Math.max(...activeHours) + 1 : 23;
       if (minHour < 0) minHour = 0;
       if (maxHour > 23) maxHour = 23;
-      const filteredSalesByHour = salesByHour.slice(minHour, maxHour + 1).map(h => ({ hour: `\${h}h`, total: h.total }));
+      const filteredSalesByHour = salesByHour
+        .slice(minHour, maxHour + 1)
+        .map(h => ({ hour: `${h.hour}h`, total: h.total }));
 
       // Performance dos Garçons
       const waiterPerformanceMap: Record<string, { name: string; total: number; count: number }> = {};

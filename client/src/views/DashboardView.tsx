@@ -21,20 +21,35 @@ interface DashboardViewProps {
   onBack?: () => void;
 }
 
+const getTodayDateString = () => new Date().toLocaleDateString('en-CA');
+
 export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'audit'>('overview');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString);
 
   const formatDateLabel = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     if (dateStr === today) return 'Hoje';
-    const d = new Date(dateStr + 'T00:00:00');
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
     return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
   };
 
   const dateLabel = formatDateLabel(selectedDate);
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      const res = await api.getDashboardData(selectedDate);
+      setData(res);
+    } catch (err) {
+      console.error('Erro ao carregar dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadDashboard();
@@ -73,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition w-40 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              max={new Date().toISOString().split('T')[0]}
+              max={getTodayDateString()}
             />
             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -81,9 +96,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
           <button
             onClick={loadDashboard}
             className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl transition cursor-pointer"
+            title="Atualizar dados"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+        </div>
       </div>
 
       
@@ -263,25 +280,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-sm">
           <h3 className="text-base font-black text-slate-900 dark:text-white">Vendas por Hora {dateLabel} (Pico)</h3>
           <div className="flex items-end gap-2 h-40 pt-4">
-            {data?.salesByHour?.map((sh) => {
-              const maxSales = Math.max(...data.salesByHour.map((s) => s.total), 1);
-              const heightPct = Math.round((sh.total / maxSales) * 100);
-              return (
-                <div key={sh.hour} className="flex-1 flex flex-col items-center gap-2 group">
-                  <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-t-lg relative flex-1 flex items-end justify-center">
-                    <div
-                      className="w-full bg-indigo-500 rounded-t-sm transition-all group-hover:bg-indigo-400"
-                      style={{ height: `${heightPct}%` }}
-                    />
-                    {/* Tooltip rudimentar */}
-                    <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
-                      R$ {sh.total.toFixed(0)}
+            {data?.salesByHour && data.salesByHour.length > 0 && data.salesByHour.some((s) => s.total > 0) ? (
+              data.salesByHour.map((sh) => {
+                const maxSales = Math.max(...data.salesByHour.map((s) => s.total), 1);
+                const heightPct = Math.round((sh.total / maxSales) * 100);
+                return (
+                  <div key={sh.hour} className="flex-1 flex flex-col items-center gap-2 group">
+                    <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-t-lg relative flex-1 flex items-end justify-center">
+                      <div
+                        className="w-full bg-indigo-500 rounded-t-sm transition-all group-hover:bg-indigo-400"
+                        style={{ height: `${heightPct}%` }}
+                      />
+                      {/* Tooltip rudimentar */}
+                      <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                        R$ {sh.total.toFixed(0)}
+                      </div>
                     </div>
+                    <span className="text-[10px] text-slate-500 font-bold">{sh.hour}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-bold">{sh.hour}</span>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                Nenhuma venda registrada {dateLabel.toLowerCase()}.
+              </div>
+            )}
           </div>
         </div>
 
