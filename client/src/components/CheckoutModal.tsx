@@ -29,15 +29,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isManager = true
 }) => {
   const [currentOrder, setCurrentOrder] = useState<Order | null>(table?.activeOrder || null);
-
-  React.useEffect(() => {
-    if (table?.activeOrder) {
-      setCurrentOrder(table.activeOrder);
-      const remaining = Math.max(0, (table.activeOrder.total || 0) - (table.activeOrder.paidAmount || 0));
-      setPayAmount(remaining.toFixed(2));
-    }
-  }, [table?.activeOrder]);
-
   const order = currentOrder;
   const remainingBalance = Math.max(0, (order?.total || 0) - (order?.paidAmount || 0));
 
@@ -58,31 +49,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [customerNameInput, setCustomerNameInput] = useState<string>('');
 
   React.useEffect(() => {
+    if (table?.activeOrder) {
+      setCurrentOrder(table.activeOrder);
+      const remaining = Math.max(0, (table.activeOrder.total || 0) - (table.activeOrder.paidAmount || 0));
+      setPayAmount(remaining.toFixed(2));
+    }
+  }, [table?.activeOrder]);
+
+  React.useEffect(() => {
     if (isManager) {
       api.getCustomers().then(setCustomers).catch(() => {});
     }
   }, [isManager]);
 
-
-  if (!table || !order) return null;
-
-  // Cálculo da divisão por pessoa
-
   // Itens que ainda não foram totalmente pagos
   const unpaidItems = React.useMemo(() => {
+    if (!order) return [];
     return order.items.map(item => ({
       ...item,
       unpaidQty: item.quantity - (item.paidQuantity || 0)
     })).filter(i => i.unpaidQty > 0);
-  }, [order.items]);
+  }, [order?.items]);
 
   // Lógica de "Racha Conta por Itens"
   const selectedItemsSubtotal = Object.entries(selectedItems).reduce((acc, [itemId, qty]) => {
+    if (!order) return acc;
     const item = order.items.find(i => i.id === itemId);
     if (!item) return acc;
     return acc + (item.unitPrice * qty);
   }, 0);
-  const selectedItemsService = order.isServiceFeeActive ? selectedItemsSubtotal * (order.serviceFeeRate || 0.1) : 0;
+  const selectedItemsService = order?.isServiceFeeActive ? selectedItemsSubtotal * (order.serviceFeeRate || 0.1) : 0;
   const selectedItemsTotal = selectedItemsSubtotal + selectedItemsService;
 
   // Atualizar payAmount quando trocar os itens selecionados
@@ -91,6 +87,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setPayAmount(selectedItemsTotal.toFixed(2));
     }
   }, [selectedItemsTotal, splitMode]);
+
+  if (!table || !order) return null;
 
   const handleToggleItemQty = (item: OrderItem & { unpaidQty?: number }, delta: number) => {
     setSelectedItems(prev => {

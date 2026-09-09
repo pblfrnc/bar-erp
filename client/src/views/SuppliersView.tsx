@@ -26,6 +26,38 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
   const [formAddress, setFormAddress] = useState('');
   const [formContactName, setFormContactName] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [searchingCnpj, setSearchingCnpj] = useState(false);
+
+  const handleConsultarCnpj = async () => {
+    const clean = formDocument.replace(/\D/g, '');
+    if (clean.length !== 14) {
+      alert('Digite um CNPJ com 14 dígitos para consultar.');
+      return;
+    }
+    setSearchingCnpj(true);
+    try {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/consulta-cnpj/${clean}`);
+      const data = await res.json();
+      if (res.ok && data.razao_social) {
+        if (!formName || formName.trim() === '') setFormName(data.razao_social);
+        if (data.nome_fantasia && (!formTradeName || formTradeName.trim() === '')) setFormTradeName(data.nome_fantasia);
+        if (data.ddd_telefone_1 && (!formPhone || formPhone.trim() === '')) setFormPhone(data.ddd_telefone_1);
+        if (data.email && (!formEmail || formEmail.trim() === '')) setFormEmail(data.email);
+        if (data.municipio && (!formCity || formCity.trim() === '')) setFormCity(data.municipio);
+        if (data.uf && (!formState || formState.trim() === '')) setFormState(data.uf);
+        if (data.logradouro) {
+          const fullAddr = `${data.logradouro}${data.numero ? ', ' + data.numero : ''}${data.bairro ? ' - ' + data.bairro : ''}${data.cep ? ' (CEP ' + data.cep + ')' : ''}`;
+          if (!formAddress || formAddress.trim() === '') setFormAddress(fullAddr);
+        }
+      } else {
+        alert(data.error || 'CNPJ não encontrado na Receita Federal.');
+      }
+    } catch (err: any) {
+      alert('Falha ao consultar CNPJ: ' + err.message);
+    } finally {
+      setSearchingCnpj(false);
+    }
+  };
 
   const loadSuppliers = async () => {
     try {
@@ -437,9 +469,19 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                   />
                 </div>
                 <div>
-                  <label htmlFor="sup-form-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
-                    CNPJ ou CPF
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="sup-form-doc" className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
+                      CNPJ ou CPF
+                    </label>
+                    <button
+                      type="button"
+                      disabled={searchingCnpj}
+                      onClick={handleConsultarCnpj}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer disabled:opacity-50"
+                    >
+                      {searchingCnpj ? 'Consultando...' : 'Buscar Receita'}
+                    </button>
+                  </div>
                   <input
                     id="sup-form-doc"
                     type="text"

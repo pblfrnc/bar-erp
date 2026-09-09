@@ -1768,6 +1768,258 @@ export function createFiscalRouter() {
     }
   });
 
+  // ============================================================
+  // Backups Oficiais em Nuvem (Focus NFe)
+  // ============================================================
+  router.get('/focus-backups', async (req, res) => {
+    try {
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const token = String(settings?.apiToken || '').trim();
+      const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
+
+      if (!token) return res.status(400).json({ error: 'Token da Focus NFe não configurado.' });
+      if (!cnpj || cnpj.length !== 14) return res.status(400).json({ error: 'CNPJ da empresa não configurado ou inválido.' });
+
+      const isProducao = settings?.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+
+      const focusUrl = `${baseURL}/v2/backups/${cnpj}.json`;
+      const focusRes = await fetch(focusUrl, {
+        method: 'GET',
+        headers: { 'Authorization': authHeader }
+      });
+
+      if (!focusRes.ok) {
+        if (focusRes.status === 404) {
+          return res.json({ ok: true, backups: [], mensagem: 'Nenhum backup em nuvem disponível para este CNPJ ainda.' });
+        }
+        const errData = await focusRes.json().catch(() => ({}));
+        return res.status(focusRes.status).json({ error: errData.mensagem || 'Erro ao consultar backups na Focus NFe.' });
+      }
+
+      const data = await focusRes.json();
+      res.json({ ok: true, backups: Array.isArray(data) ? data : (data?.backups || []) });
+    } catch (err: any) {
+      console.error('[FocusNFe Backups Error]', err);
+      res.status(500).json({ error: 'Erro ao buscar backups na Focus NFe: ' + err.message });
+    }
+  });
+
+  // ============================================================
+  // Consulta de NCM (Focus NFe)
+  // ============================================================
+  router.get('/ncm/:code', async (req, res) => {
+    try {
+      const { code } = req.params;
+      const cleanCode = String(code || '').replace(/\D/g, '');
+      if (!cleanCode || cleanCode.length < 4) {
+        return res.status(400).json({ error: 'Código NCM deve ter pelo menos 4 dígitos.' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const token = String(settings?.apiToken || '').trim();
+      const isProducao = settings?.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+
+      if (!token) {
+        return res.json({
+          ok: true,
+          codigo: cleanCode,
+          descricao: 'Código NCM salvo localmente (configure o token da Focus para validação oficial)',
+          valido: true
+        });
+      }
+
+      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+      const focusUrl = `${baseURL}/v2/ncms/${cleanCode}`;
+
+      const focusRes = await fetch(focusUrl, {
+        method: 'GET',
+        headers: { 'Authorization': authHeader }
+      });
+
+      if (!focusRes.ok) {
+        if (focusRes.status === 404) {
+          return res.status(404).json({ valido: false, error: 'Código NCM não encontrado na Receita Federal / Mercosul.' });
+        }
+        const errData = await focusRes.json().catch(() => ({}));
+        return res.status(focusRes.status).json({ valido: false, error: errData.mensagem || 'Erro ao consultar NCM.' });
+      }
+
+      const data = await focusRes.json();
+      res.json({
+        ok: true,
+        valido: true,
+        codigo: data.codigo || cleanCode,
+        descricao: data.descricao || '',
+        dataInicio: data.data_inicio,
+        dataFim: data.data_fim,
+        aliquotaNacional: data.aliquota_nacional,
+        aliquotaEstadual: data.aliquota_estadual,
+        aliquotaImportado: data.aliquota_importado
+      });
+    } catch (err: any) {
+      console.error('[FocusNFe NCM Error]', err);
+      res.status(500).json({ error: 'Erro ao consultar NCM: ' + err.message });
+    }
+  });
+
+  // ============================================================
+  // Status em Tempo Real da SEFAZ (Focus NFe)
+  // ============================================================
+  router.get('/sefaz-status', async (req, res) => {
+    try {
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const token = String(settings?.apiToken || '').trim();
+      const isProducao = settings?.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+
+      if (!token) {
+        return res.json({
+          status: 'desconhecido',
+          motivoStatus: 'Token fiscal não configurado',
+          online: false
+        });
+      }
+
+      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+      const focusUrl = `${baseURL}/v2/nfce/status`;
+
+      const focusRes = await fetch(focusUrl, {
+        method: 'GET',
+        headers: { 'Authorization': authHeader }
+      });
+
+      const data = await focusRes.json().catch(() => ({}));
+
+      if (!focusRes.ok) {
+        return res.status(focusRes.status).json({
+          status: 'erro',
+          online: false,
+          mensagem: data.mensagem || 'Não foi possível verificar status da SEFAZ.'
+        });
+      }
+
+      const statusStr = String(data.status || '').toLowerCase();
+      const isOnline = statusStr === 'online' || statusStr === 'ativo' || data.codigo_status === '107' || data.status === 'ok';
+
+      res.json({
+        ok: true,
+        online: isOnline,
+        status: statusStr || (isOnline ? 'online' : 'offline'),
+        codigoStatus: data.codigo_status,
+        motivoStatus: data.motivo_status || (isOnline ? 'Serviço em Operação' : 'Serviço com Instabilidade'),
+        tempoMedio: data.tempo_medio,
+        uf: settings.uf || 'SP'
+      });
+    } catch (err: any) {
+      console.error('[FocusNFe Sefaz Status Error]', err);
+      res.status(500).json({ error: 'Erro ao consultar status da SEFAZ: ' + err.message });
+    }
+  });
+
+  // ============================================================
+  // Inutilização de Faixa de Numeração (Focus NFe)
+  // ============================================================
+  router.post('/inutilizar-numeracao', async (req, res) => {
+    try {
+      const { serie, numeroInicial, numeroFinal, justificativa } = req.body;
+
+      if (!serie || !numeroInicial || !numeroFinal) {
+        return res.status(400).json({ error: 'Série, número inicial e número final são obrigatórios.' });
+      }
+
+      if (!justificativa || justificativa.trim().length < 15) {
+        return res.status(400).json({ error: 'A justificativa de inutilização deve ter no mínimo 15 caracteres (Exigência SEFAZ).' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const token = String(settings?.apiToken || '').trim();
+      const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
+
+      if (!token) return res.status(400).json({ error: 'Token da API fiscal não configurado.' });
+      if (!cnpj) return res.status(400).json({ error: 'CNPJ da empresa não configurado.' });
+
+      const isProducao = settings?.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+
+      const focusUrl = `${baseURL}/v2/nfe/inutilizacao`;
+      const payload = {
+        cnpj,
+        serie: String(serie),
+        numero_inicial: Number(numeroInicial),
+        numero_final: Number(numeroFinal),
+        justificativa: justificativa.trim()
+      };
+
+      const focusRes = await fetch(focusUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await focusRes.json().catch(() => ({}));
+
+      if (!focusRes.ok) {
+        return res.status(focusRes.status).json({
+          error: data.mensagem || data.erro || 'Erro ao homologar inutilização na SEFAZ.',
+          details: data
+        });
+      }
+
+      res.json({
+        ok: true,
+        mensagem: `Inutilização da faixa ${numeroInicial} a ${numeroFinal} (Série ${serie}) homologada com sucesso na SEFAZ!`,
+        data
+      });
+    } catch (err: any) {
+      console.error('[FocusNFe Inutilizacao Error]', err);
+      res.status(500).json({ error: 'Erro interno ao processar inutilização: ' + err.message });
+    }
+  });
+
+  // ============================================================
+  // Consulta de Dados de CNPJ (Receita Federal / BrasilAPI)
+  // ============================================================
+  router.get('/consulta-cnpj/:cnpj', async (req, res) => {
+    try {
+      const cleanCnpj = req.params.cnpj.replace(/\D/g, '');
+      if (cleanCnpj.length !== 14) {
+        return res.status(400).json({ error: 'CNPJ deve conter 14 dígitos.' });
+      }
+
+      const bRes = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+      if (!bRes.ok) {
+        return res.status(bRes.status).json({ error: 'CNPJ não localizado na base pública da Receita Federal.' });
+      }
+
+      const data = await bRes.json();
+      res.json({
+        ok: true,
+        cnpj: cleanCnpj,
+        razaoSocial: data.razao_social || '',
+        nomeFantasia: data.nome_fantasia || '',
+        ie: '',
+        cep: data.cep || '',
+        logradouro: [data.descricao_tipo_de_logradouro, data.logradouro].filter(Boolean).join(' '),
+        numero: data.numero || '',
+        complemento: data.complemento || '',
+        bairro: data.bairro || '',
+        municipio: data.municipio || '',
+        uf: data.uf || '',
+        telefone: data.ddd_telefone_1 || data.ddd_telefone_2 || '',
+        cnae: data.cnae_fiscal || ''
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Erro ao consultar CNPJ: ' + err.message });
+    }
+  });
+
   return router;
 }
 

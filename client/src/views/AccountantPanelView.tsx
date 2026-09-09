@@ -176,23 +176,140 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
           )}
         </div>
 
-        {/* Botão de Download */}
+        {/* Botão de Download Local */}
         <button
           onClick={handleExport}
           disabled={isExporting || !month}
-          className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-indigo-600/20 text-base"
+          className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-6 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-indigo-600/20 text-base cursor-pointer"
         >
           {isExporting ? (
             <><Loader2 className="w-5 h-5 animate-spin" /> Compactando XMLs e Relatório...</>
           ) : (
-            <><Download className="w-5 h-5" /> Baixar Fechamento Contábil (.ZIP)</>
+            <><Download className="w-5 h-5" /> Baixar Fechamento Contábil Local (.ZIP)</>
           )}
         </button>
 
         <p className="text-center text-xs text-slate-500 mt-4 flex items-center justify-center gap-1.5">
-          <FileSpreadsheet className="w-3.5 h-3.5" /> O arquivo .ZIP inclui pastas separadas para Saídas e Entradas, além de planilha formatada em Excel (.CSV).
+          <FileSpreadsheet className="w-3.5 h-3.5" /> O arquivo .ZIP local inclui XMLs de Saídas/Entradas e planilha formatada para o contador (.CSV).
         </p>
       </div>
+
+      {/* Seção Focus NFe: Backups Oficiais em Nuvem */}
+      <FocusCloudBackupsSection />
     </div>
   );
 };
+
+function FocusCloudBackupsSection() {
+  const [backups, setBackups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFocusBackups = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${api.getApiUrl()}/fiscal/focus-backups`);
+      const data = await res.json();
+      if (res.ok) {
+        setBackups(Array.isArray(data.backups) ? data.backups : []);
+        if (data.backups?.length === 0 && data.mensagem) {
+          setError(data.mensagem);
+        }
+      } else {
+        setError(data.error || 'Erro ao carregar backups da Focus NFe.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Falha de conexão com a Focus NFe.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFocusBackups();
+  }, []);
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-sky-500/10 text-sky-400 rounded-xl">
+            <Download className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Backups Oficiais em Nuvem (Focus NFe)</h3>
+            <p className="text-xs text-slate-400">Pacotes mensais e semanais compilados automaticamente pelos servidores da Focus</p>
+          </div>
+        </div>
+        <button
+          onClick={loadFocusBackups}
+          disabled={loading}
+          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+          <span>Atualizar Nuvem</span>
+        </button>
+      </div>
+
+      {loading && (
+        <div className="py-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+          <span>Consultando arquivos compactados na Focus NFe...</span>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4 text-xs text-slate-400">
+          <p className="font-semibold text-slate-300">{error}</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Os backups mensais da Focus NFe são gerados automaticamente a cada virada de mês (ou aos sábados). Enquanto não houver lote fechado, utilize o botão de fechamento contábil acima.
+          </p>
+        </div>
+      )}
+
+      {!loading && backups.length > 0 && (
+        <div className="space-y-3">
+          {backups.map((b: any, idx: number) => {
+            const label = b.referencia || `${b.ano || ''}-${String(b.mes || '').padStart(2, '0')}`;
+            return (
+              <div key={idx} className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center font-mono font-bold text-xs">
+                    {b.mes ? String(b.mes).padStart(2, '0') : 'NF'}
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold text-sm">Competência {label}</h4>
+                    <p className="text-[11px] text-slate-400">Pacote oficial homologado com DANFEs e XMLs</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {b.xmls && (
+                    <a
+                      href={b.xmls}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Baixar XMLs
+                    </a>
+                  )}
+                  {b.danfes && (
+                    <a
+                      href={b.danfes}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Baixar DANFEs
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

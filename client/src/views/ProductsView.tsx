@@ -35,6 +35,7 @@ import {
   UploadCloud
 } from 'lucide-react';
 import { ImportXmlModal } from '../components/ImportXmlModal';
+import { NcmLookupModal } from '../components/NcmLookupModal';
 
 export const ProductsView: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -103,6 +104,34 @@ export const ProductsView: React.FC = () => {
   // EAN Lookup API
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
   const [lookupFeedback, setLookupFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Focus NFe NCM Lookup & Validation
+  const [showNcmModal, setShowNcmModal] = useState<boolean>(false);
+  const [ncmValidation, setNcmValidation] = useState<{ loading: boolean; valido?: boolean; descricao?: string; aliqNac?: number } | null>(null);
+
+  useEffect(() => {
+    const clean = formNcm.replace(/\D/g, '');
+    if (clean.length === 8) {
+      let active = true;
+      setNcmValidation({ loading: true });
+      fetch(`${api.getApiUrl()}/fiscal/ncm/${clean}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!active) return;
+          if (d.valido) {
+            setNcmValidation({ loading: false, valido: true, descricao: d.descricao, aliqNac: d.aliquotaNacional });
+          } else {
+            setNcmValidation({ loading: false, valido: false });
+          }
+        })
+        .catch(() => {
+          if (active) setNcmValidation(null);
+        });
+      return () => { active = false; };
+    } else {
+      setNcmValidation(null);
+    }
+  }, [formNcm]);
 
   // Modal Categoria
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
@@ -1469,9 +1498,18 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label htmlFor="prod-form-ncm" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
-                        NCM (8 dígitos)
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label htmlFor="prod-form-ncm" className="block text-[11px] font-bold uppercase text-slate-400 cursor-pointer">
+                          NCM (8 dígitos)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowNcmModal(true)}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold underline cursor-pointer"
+                        >
+                          Buscar NCM
+                        </button>
+                      </div>
                       <input
                         id="prod-form-ncm"
                         type="text"
@@ -1481,6 +1519,26 @@ export const ProductsView: React.FC = () => {
                         maxLength={8}
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
                       />
+                      {ncmValidation && (
+                        <div className="mt-1">
+                          {ncmValidation.loading ? (
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" /> Verificando na Receita...
+                            </span>
+                          ) : ncmValidation.valido ? (
+                            <div className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded p-1">
+                              <p className="font-semibold line-clamp-1">✓ {ncmValidation.descricao}</p>
+                              {ncmValidation.aliqNac !== undefined && (
+                                <p className="text-[9px] text-emerald-300/80">IBPT: {ncmValidation.aliqNac}%</p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                              <AlertTriangle className="w-2.5 h-2.5" /> NCM não localizado
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -2470,6 +2528,16 @@ export const ProductsView: React.FC = () => {
           onSuccess={() => {
             loadData();
             setShowImportXmlModal(false);
+          }}
+        />
+      )}
+
+      {showNcmModal && (
+        <NcmLookupModal
+          onClose={() => setShowNcmModal(false)}
+          onSelectNcm={(ncm) => {
+            setFormNcm(ncm);
+            setShowNcmModal(false);
           }}
         />
       )}

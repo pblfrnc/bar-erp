@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Receipt, FileText, ArrowLeft, Settings, Scan } from 'lucide-react';
+import { Receipt, FileText, ArrowLeft, Settings, Scan, ShieldAlert, BookOpen } from 'lucide-react';
 import { FiscalImportView } from './FiscalImportView';
 import { ManualNfceView } from './ManualNfceView';
 import { FiscalSettingsView } from './FiscalSettingsView';
@@ -9,10 +9,15 @@ import { api } from '../services/api';
 import { NfceCancelView } from './NfceCancelView';
 import { NfceReprintView } from './NfceReprintView';
 import { AccountantPanelView } from './AccountantPanelView';
+import { SefazStatusBadge } from '../components/SefazStatusBadge';
+import { NfceInutilizacaoModal } from './NfceInutilizacaoModal';
+import { NcmLookupModal } from '../components/NcmLookupModal';
 
 export const FiscalHubView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings' | 'cancel' | 'reprint' | 'accountant'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
+  const [showInutilizacao, setShowInutilizacao] = useState(false);
+  const [showNcmLookup, setShowNcmLookup] = useState(false);
 
   // Ao clicar em "Importar Itens" na lista de recebidos, abre import com XML já baixado
   const handleImportarDeChave = async (chave: string) => {
@@ -60,7 +65,15 @@ export const FiscalHubView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pt-4 pb-20">
-      <h2 className="text-2xl font-black text-white tracking-tight mb-8">Módulo Fiscal Central</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 className="text-2xl font-black text-white tracking-tight">Módulo Fiscal Central</h2>
+          <p className="text-slate-400 text-sm mt-1">Gestão fiscal integrada com SEFAZ e Focus NFe</p>
+        </div>
+        <div>
+          <SefazStatusBadge />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -140,6 +153,41 @@ export const FiscalHubView: React.FC = () => {
           </p>
         </button>
 
+        {/* Card: Inutilizar Numeração */}
+        <button
+          onClick={() => setShowInutilizacao(true)}
+          className="bg-slate-900 border border-slate-800 hover:border-amber-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/20 transition"></div>
+          <div className="w-10 h-10 text-amber-400 mb-6 flex items-center justify-center bg-amber-500/10 rounded-xl border border-amber-500/20">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl font-bold text-white">Inutilizar Numeração</h3>
+            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">SEFAZ</span>
+          </div>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Comunique falhas de numeração ou saltos de notas fiscais à SEFAZ para manter a escrituração 100% legalizada.
+          </p>
+        </button>
+
+        {/* Card: Consulta NCM & Tributação */}
+        <button
+          onClick={() => setShowNcmLookup(true)}
+          className="bg-slate-900 border border-slate-800 hover:border-blue-500 hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/20 transition"></div>
+          <div className="w-10 h-10 text-blue-400 mb-6 flex items-center justify-center bg-blue-500/10 rounded-xl border border-blue-500/20">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl font-bold text-white">Tabela NCM & Alíquotas</h3>
+            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">IBPT</span>
+          </div>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Consulte códigos NCM na base oficial da Receita Federal com atalhos para bebidas, alimentos e alíquotas IBPT.
+          </p>
+        </button>
         
         {/* Card: Painel do Contador */}
         <button
@@ -153,9 +201,9 @@ export const FiscalHubView: React.FC = () => {
              </div>
              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">Contabilidade</span>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Painel do Contador (SPED/XMLs)</h3>
+          <h3 className="text-xl font-bold text-white mb-2">Painel do Contador (SPED/XMLs e Backups em Nuvem)</h3>
           <p className="text-slate-400 text-sm leading-relaxed">
-            Fechamento do mês: Exporte todos os XMLs de notas de Entrada e Saída compactados em um único arquivo .ZIP com a planilha de resumo para enviar ao contador.
+            Fechamento do mês: Baixe os pacotes oficiais compactados da Focus NFe na nuvem ou exporte todos os XMLs de notas fiscais de Entrada e Saída em .ZIP para enviar ao contador.
           </p>
         </button>
   
@@ -171,6 +219,15 @@ export const FiscalHubView: React.FC = () => {
           </div>
         </button>
       </div>
+
+      {/* Modais */}
+      {showInutilizacao && (
+        <NfceInutilizacaoModal onClose={() => setShowInutilizacao(false)} />
+      )}
+
+      {showNcmLookup && (
+        <NcmLookupModal onClose={() => setShowNcmLookup(false)} />
+      )}
     </div>
   );
 };
