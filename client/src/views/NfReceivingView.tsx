@@ -108,32 +108,32 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pt-4 pb-20">
-      <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition">
+      <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
         <ArrowLeft className="w-4 h-4" /> Voltar ao Módulo Fiscal
       </button>
 
       <div>
-        <h2 className="text-2xl font-black text-white tracking-tight">1º BIP: Recebimento de NF & Ciência na SEFAZ</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">1º BIP: Recebimento de NF & Ciência na SEFAZ</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Bipe a chave de 44 dígitos na entrega da mercadoria. O sistema registra a <strong>Ciência da Operação na SEFAZ</strong> e faz o download automático do XML.
         </p>
       </div>
 
       {/* Alerta explicativo do fluxo em 2 etapas */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-300/90 flex items-start gap-3">
-        <Scan className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 text-xs text-amber-800 dark:text-amber-300/90 flex items-start gap-3 shadow-xs">
+        <Scan className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-bold text-white">Fluxo de Entrada em 2 Etapas:</p>
-          <p><strong>1º Bip (Aqui):</strong> Confirma o recebimento fiscal na SEFAZ e baixa o XML. O estoque <u className="font-bold text-amber-200">não</u> é alterado ainda.</p>
+          <p className="font-bold text-slate-900 dark:text-white">Fluxo de Entrada em 2 Etapas:</p>
+          <p><strong>1º Bip (Aqui):</strong> Confirma o recebimento fiscal na SEFAZ e baixa o XML. O estoque <u className="font-bold text-amber-700 dark:text-amber-200">não</u> é alterado ainda.</p>
           <p><strong>2º Bip (Na Conferência):</strong> Feito ao descarregar as caixas e conferir os itens recebidos com a DANFE impressa. É neste momento que os produtos e custos entram no estoque.</p>
         </div>
       </div>
 
       {/* Campo de Bip */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <Scan className="w-5 h-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-white">1º Bip — Leitor de Chave de Acesso</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">1º Bip — Leitor de Chave de Acesso</h3>
         </div>
 
         <div className="flex gap-3">
@@ -144,13 +144,13 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
             onChange={e => setChave(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Bipe o código ou cole a chave de 44 dígitos aqui..."
-            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-amber-500 outline-none transition"
+            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono text-sm focus:border-amber-500 outline-none transition shadow-xs"
             disabled={isLoading}
           />
           <button
             onClick={handleBip}
             disabled={isLoading || chave.replace(/\D/g, '').length < 44}
-            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
           >
             {isLoading ? <Loader className="w-5 h-5 animate-spin" /> : <Scan className="w-5 h-5" />}
             {isLoading ? 'Consultando SEFAZ...' : 'Registrar NF'}
@@ -159,32 +159,32 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
 
         <p className="text-xs text-slate-500 mt-3 flex items-center gap-1">
           <Scan className="w-3 h-3" />
-          Pressione <strong className="text-slate-400">Enter</strong> após bipar para registro imediato. O leitor USB já faz isso automaticamente.
+          Pressione <strong className="text-slate-700 dark:text-slate-400">Enter</strong> após bipar para registro imediato. O leitor USB já faz isso automaticamente.
         </p>
 
         {/* Resultado do último bip */}
         {lastResult && (
           <div className={`mt-4 p-4 rounded-2xl border flex items-start gap-3 ${
             lastResult.success
-              ? 'bg-emerald-500/10 border-emerald-500/30'
-              : 'bg-red-500/10 border-red-500/30'
+              ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+              : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
           }`}>
             {lastResult.success
-              ? <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-              : <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              ? <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-500 shrink-0 mt-0.5" />
+              : <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
             }
             <div>
               {lastResult.success ? (
                 <>
-                  <p className="text-sm font-bold text-emerald-400">Ciência Registrada na SEFAZ!</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Ciência Registrada na SEFAZ!</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     {lastResult.emitente} — NF {lastResult.numero}/{lastResult.serie} — {formatMoney(lastResult.valorTotal)}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-bold text-red-400">Erro no Bip</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{lastResult.error}</p>
+                  <p className="text-sm font-bold text-red-700 dark:text-red-400">Erro no Bip</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{lastResult.error}</p>
                 </>
               )}
             </div>
@@ -193,20 +193,20 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
       </div>
 
       {/* Lista de Notas Recebidas */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <Package className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-lg font-bold text-white">Histórico de Recebimentos</h3>
+            <Package className="w-5 h-5 text-indigo-500" />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Histórico de Recebimentos</h3>
           </div>
-          <button onClick={loadNotas} className="text-xs text-slate-400 hover:text-white transition">
+          <button onClick={loadNotas} className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
             Atualizar
           </button>
         </div>
 
         {loadingNotas ? (
           <div className="text-center py-8 text-slate-500">
-            <Loader className="w-6 h-6 animate-spin mx-auto mb-2" />
+            <Loader className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
             Carregando...
           </div>
         ) : notas.length === 0 ? (
@@ -219,32 +219,32 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
             {notas.map((nota) => (
               <div
                 key={nota.id}
-                className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-2xl gap-4"
+                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl gap-4 shadow-xs"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                       nota.status === 'importada'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
+                        : 'bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30'
                     }`}>
                       {nota.status === 'importada' ? '✓ 2º Bip OK (No Estoque)' : 'Aguardando 2º Bip (Conferência)'}
                     </span>
                     <span className="text-xs text-slate-500 font-mono">NF {nota.numero}/{nota.serie}</span>
                   </div>
-                  <p className="text-sm font-bold text-white truncate">{nota.emitente || 'Fornecedor não identificado'}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{nota.emitente || 'Fornecedor não identificado'}</p>
                   <p className="text-xs text-slate-500 mt-0.5 font-mono">{formatChave(nota.chave).substring(0, 24)}…</p>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <p className="text-base font-black text-amber-400">{formatMoney(nota.valorTotal)}</p>
+                  <p className="text-base font-black text-amber-600 dark:text-amber-400">{formatMoney(nota.valorTotal)}</p>
                   <p className="text-xs text-slate-500">{new Date(nota.createdAt).toLocaleDateString('pt-BR')}</p>
                 </div>
 
                 <button
                   onClick={() => onImportarXml(nota.chave)}
                   disabled={nota.status === 'importada'}
-                  className="shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-bold text-sm rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed border border-amber-500/30"
+                  className="shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500/15 hover:bg-amber-500 text-amber-800 hover:text-slate-950 dark:text-amber-400 dark:hover:text-slate-950 font-bold text-sm rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed border border-amber-500/30 cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   {nota.status === 'importada' ? 'Entrada Realizada' : 'Fazer 2º Bip / Conferir'}

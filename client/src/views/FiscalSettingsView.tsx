@@ -177,34 +177,34 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
     }
   };
 
-  if (isLoading) return <div className="p-8 text-center text-slate-400">Carregando...</div>;
+  if (isLoading) return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Carregando...</div>;
 
   return (
-    <div className="space-y-4 max-w-4xl mx-auto pt-4 pb-20">
+    <div className="space-y-6 max-w-4xl mx-auto pt-4 pb-20">
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
           <ArrowLeft className="w-4 h-4" /> Voltar ao Painel
         </button>
         <div className="flex items-center gap-3">
           <button
             onClick={handleValidate}
             disabled={isValidating}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {isValidating ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Testando...</>
             ) : (
-              <><Wifi className="w-4 h-4 text-sky-400" /> Testar Conexão</>
+              <><Wifi className="w-4 h-4 text-sky-500" /> Testar Conexão</>
             )}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving || cnpjValid === false}
             title={cnpjValid === false ? 'CNPJ inválido — corrija antes de salvar' : ''}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm ${
               cnpjValid === false
-                ? 'bg-red-500/30 text-red-300 border border-red-500/50'
-                : 'bg-indigo-500 hover:bg-indigo-400 text-white'
+                ? 'bg-red-500/30 text-red-700 dark:text-red-300 border border-red-500/50'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
             }`}
           >
             <Save className="w-5 h-5" />
@@ -217,30 +217,30 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
       {validateResult && (
         <div className={`border rounded-2xl p-4 flex flex-col gap-3 ${
           validateResult.ok
-            ? 'bg-emerald-500/10 border-emerald-500/30'
-            : 'bg-red-500/10 border-red-500/30'
+            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
+            : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
         }`}>
           <div className="flex items-center gap-2">
             {validateResult.ok
-              ? <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-              : <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+              ? <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-500 shrink-0" />
+              : <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
             }
-            <span className={`font-bold text-sm ${validateResult.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`font-bold text-sm ${validateResult.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
               {validateResult.ok ? 'Conexão com a Focus NFe: OK' : 'Falha na Conexão'}
             </span>
             {validateResult.ambiente && (
-              <span className="ml-auto text-xs text-slate-400">{validateResult.ambiente}</span>
+              <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">{validateResult.ambiente}</span>
             )}
           </div>
           {validateResult.ok && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
-              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-300">
+              <div className="bg-white dark:bg-slate-950/50 rounded-xl p-3 border border-slate-200 dark:border-slate-800 shadow-xs">
                 <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Empresas na Conta</p>
-                <p className="font-bold text-white">{validateResult.totalEmpresas} empresa(s)</p>
+                <p className="font-bold text-slate-900 dark:text-white">{validateResult.totalEmpresas} empresa(s)</p>
               </div>
-              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-800">
+              <div className="bg-white dark:bg-slate-950/50 rounded-xl p-3 border border-slate-200 dark:border-slate-800 shadow-xs">
                 <p className="text-slate-500 text-[10px] uppercase font-bold mb-1">Status do CNPJ</p>
-                <p className={`font-bold leading-snug ${validateResult.empresaCadastrada?.includes('não localizado') ? 'text-amber-400' : 'text-white'}`}>
+                <p className={`font-bold leading-snug ${validateResult.empresaCadastrada?.includes('não localizado') ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
                   {validateResult.empresaCadastrada}
                 </p>
               </div>
@@ -248,33 +248,33 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           )}
           {/* Aviso acionável quando CNPJ não está cadastrado na Focus NFe */}
           {validateResult.ok && validateResult.empresaCadastrada?.includes('não localizado') && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-3">
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-amber-300 font-bold text-sm">CNPJ não localizado — siga os passos abaixo</p>
-                  <ol className="text-amber-200/80 text-xs leading-relaxed list-none space-y-2">
+                  <p className="text-amber-800 dark:text-amber-300 font-bold text-sm">CNPJ não localizado — siga os passos abaixo</p>
+                  <ol className="text-amber-900/80 dark:text-amber-200/80 text-xs leading-relaxed list-none space-y-2">
                     <li className="flex gap-2">
                       <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
                       <span>
-                        <strong className="text-white">Cadastre a empresa no painel da Focus NFe:</strong>{' '}
+                        <strong className="text-slate-900 dark:text-white">Cadastre a empresa no painel da Focus NFe:</strong>{' '}
                         acesse{' '}
-                        <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline hover:text-sky-300">
+                        <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 underline hover:text-sky-500">
                           app.focusnfe.com.br
                         </a>
-                        {' '}→ <strong className="text-white">Empresas → Nova Empresa</strong> e preencha os dados do seu CNPJ lá.
+                        {' '}→ <strong className="text-slate-900 dark:text-white">Empresas → Nova Empresa</strong> e preencha os dados do seu CNPJ lá.
                       </span>
                     </li>
                     <li className="flex gap-2">
                       <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>
                       <span>
-                        <strong className="text-white">Preencha os campos abaixo</strong> (Razão Social, endereço, CSC e ID Token NFC-e) e clique em{' '}
-                        <strong className="text-white">"Cadastrar Dados da Empresa"</strong> para sincronizar com a API.
+                        <strong className="text-slate-900 dark:text-white">Preencha os campos abaixo</strong> (Razão Social, endereço, CSC e ID Token NFC-e) e clique em{' '}
+                        <strong className="text-slate-900 dark:text-white">"Cadastrar Dados da Empresa"</strong> para sincronizar com a API.
                       </span>
                     </li>
                     <li className="flex gap-2">
                       <span className="bg-amber-500 text-slate-950 font-black rounded-full w-4 h-4 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">3</span>
-                      <span>Após concluir, clique em <strong className="text-white">"Testar Conexão"</strong> novamente para confirmar.</span>
+                      <span>Após concluir, clique em <strong className="text-slate-900 dark:text-white">"Testar Conexão"</strong> novamente para confirmar.</span>
                     </li>
                   </ol>
                 </div>
@@ -283,7 +283,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                 <button
                   onClick={handleSave}
                   disabled={isSaving || cnpjValid === false}
-                  className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-amber-500/20"
+                  className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 disabled:opacity-50 shadow-lg shadow-amber-500/20 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   {isSaving ? 'Cadastrando empresa na Focus NFe...' : '📋 Cadastrar Empresa Agora na Focus NFe'}
@@ -291,7 +291,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                 <button
                   onClick={handleDiagnose}
                   disabled={isDiagnosing}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition disabled:opacity-50 cursor-pointer"
                 >
                   {isDiagnosing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Diagnosticando...</> : <>🔍 Diagnóstico Focus NFe</>}
                 </button>
@@ -300,13 +300,13 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           )}
           {!validateResult.ok && (
             <div className="space-y-2">
-              <p className="text-sm text-red-300 leading-relaxed">{validateResult.error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{validateResult.error}</p>
               {validateResult.error?.includes('Token') && (
-                <div className="bg-slate-950/60 rounded-xl p-3 text-xs text-slate-400 space-y-1">
-                  <p className="font-bold text-slate-300">Verifique:</p>
+                <div className="bg-white dark:bg-slate-950/60 rounded-xl p-3 text-xs text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200 dark:border-slate-800">
+                  <p className="font-bold text-slate-800 dark:text-slate-300">Verifique:</p>
                   <ul className="list-disc list-inside space-y-0.5 pl-1">
                     <li>O token deve ser do mesmo ambiente (Homologação ou Produção) configurado acima</li>
-                    <li>Copie o token da sua conta em <span className="text-sky-400">app.focusnfe.com.br → API → Token</span></li>
+                    <li>Copie o token da sua conta em <span className="text-sky-600 dark:text-sky-400">app.focusnfe.com.br → API → Token</span></li>
                     <li>Não adicione espaços ou caracteres extras no token</li>
                   </ul>
                 </div>
@@ -318,24 +318,24 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
 
       {/* Painel de diagnóstico RAW da Focus NFe */}
       {diagnoseResult && (
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3 shadow-xs">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">🔍 Diagnóstico Focus NFe — {diagnoseResult.ambiente}</span>
+            <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">🔍 Diagnóstico Focus NFe — {diagnoseResult.ambiente}</span>
           </div>
           <div className="space-y-2 text-xs">
-            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+            <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800">
               <p className="text-slate-500 font-bold mb-1">CNPJ configurado</p>
-              <p className="text-white font-mono">{diagnoseResult.cnpjConfigurado || '(não configurado)'}</p>
+              <p className="text-slate-900 dark:text-white font-mono">{diagnoseResult.cnpjConfigurado || '(não configurado)'}</p>
             </div>
-            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+            <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800">
               <p className="text-slate-500 font-bold mb-1">GET /v2/empresas — Status {diagnoseResult.listaEmpresasStatus}</p>
-              <pre className="text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all">
+              <pre className="text-slate-700 dark:text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all font-mono">
                 {JSON.stringify(diagnoseResult.listaEmpresasResposta, null, 2)}
               </pre>
             </div>
-            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+            <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800">
               <p className="text-slate-500 font-bold mb-1">GET /v2/empresas/{diagnoseResult.cnpjConfigurado} — Status {diagnoseResult.buscaDiretaStatus}</p>
-              <pre className="text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all">
+              <pre className="text-slate-700 dark:text-slate-300 text-[10px] overflow-auto max-h-48 whitespace-pre-wrap break-all font-mono">
                 {JSON.stringify(diagnoseResult.buscaDiretaResposta, null, 2)}
               </pre>
             </div>
@@ -345,52 +345,52 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
 
       <div className="space-y-6">
         {/* API Credentials */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
             <Key className="w-5 h-5 text-amber-500" />
-            <h3 className="text-lg font-bold text-white">Token da API de Emissão</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Token da API de Emissão</h3>
           </div>
           <div>
-            <label htmlFor="fisc-token" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Token da API (Focus NFe)</label>
+            <label htmlFor="fisc-token" className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 cursor-pointer">Token da API (Focus NFe)</label>
             <input
               id="fisc-token"
               type="password"
               value={settings.apiToken || ''}
               onChange={e => handleChange('apiToken', e.target.value)}
               placeholder="Cole o token da Focus NFe aqui..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition cursor-text"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition cursor-text shadow-xs"
             />
           </div>
         </div>
 
         {/* Dados da Empresa */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
             <Building2 className="w-5 h-5 text-emerald-500" />
-            <h3 className="text-lg font-bold text-white">Dados da Empresa (Cliente)</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Dados da Empresa (Cliente)</h3>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label htmlFor="fisc-razao" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Razão Social</label>
+              <label htmlFor="fisc-razao" className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 cursor-pointer">Razão Social</label>
               <input
                 id="fisc-razao"
                 type="text"
                 value={settings.razaoSocial || ''}
                 onChange={e => handleChange('razaoSocial', e.target.value)}
                 placeholder="Razão Social exata do CNPJ"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition cursor-text"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition cursor-text shadow-xs"
               />
             </div>
             <div>
-              <label htmlFor="fisc-fantasia" className="block text-xs font-bold text-slate-400 uppercase mb-2 cursor-pointer">Nome Fantasia</label>
+              <label htmlFor="fisc-fantasia" className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 cursor-pointer">Nome Fantasia</label>
               <input
                 id="fisc-fantasia"
                 type="text"
                 value={settings.nomeFantasia || ''}
                 onChange={e => handleChange('nomeFantasia', e.target.value)}
                 placeholder="Opcional"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition cursor-text"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition cursor-text shadow-xs"
               />
             </div>
           </div>
@@ -399,20 +399,20 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <label htmlFor="fisc-cnpj" className="text-xs font-bold text-slate-400 uppercase cursor-pointer">CNPJ</label>
+                  <label htmlFor="fisc-cnpj" className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase cursor-pointer">CNPJ</label>
                   {isFetchingCnpj && (
-                    <span className="flex items-center gap-1 text-[10px] text-sky-400 font-bold">
+                    <span className="flex items-center gap-1 text-[10px] text-sky-500 font-bold">
                       <Loader2 className="w-3 h-3 animate-spin" /> Buscando dados...
                     </span>
                   )}
                 </div>
                 {cnpjValid === true && (
-                  <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400">
+                  <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
                     <CheckCircle className="w-3 h-3" /> CNPJ Válido
                   </span>
                 )}
                 {cnpjValid === false && (
-                  <span className="flex items-center gap-1 text-[10px] font-black text-red-400">
+                  <span className="flex items-center gap-1 text-[10px] font-black text-red-600 dark:text-red-400">
                     <XCircle className="w-3 h-3" /> CNPJ Inválido
                   </span>
                 )}
@@ -424,36 +424,36 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                 onChange={e => handleCnpjChange(e.target.value)}
                 placeholder="00.000.000/0000-00"
                 maxLength={18}
-                className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white font-mono outline-none transition cursor-text ${
+                className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono outline-none transition cursor-text shadow-xs ${
                   cnpjValid === true
                     ? 'border-emerald-500 focus:border-emerald-400'
                     : cnpjValid === false
                     ? 'border-red-500 focus:border-red-400'
-                    : 'border-slate-800 focus:border-indigo-500'
+                    : 'border-slate-300 dark:border-slate-800 focus:border-indigo-500'
                 }`}
               />
               {cnpjValid === false && (
-                <p className="text-xs text-red-400 mt-1.5 font-bold">
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-bold">
                   ⚠️ Dígitos verificadores incorretos. Verifique o CNPJ.
                 </p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Inscrição Estadual (IE)</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Inscrição Estadual (IE)</label>
               <input
                 type="text"
                 value={settings.ie || ''}
                 onChange={e => handleChange('ie', e.target.value)}
                 placeholder="Ex: ISENTO ou Número"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition shadow-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Regime Tributário (CRT)</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Regime Tributário (CRT)</label>
               <select
                 value={settings.crt || ''}
                 onChange={e => handleChange('crt', e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:border-emerald-500 outline-none transition shadow-xs"
               >
                 <option value="">Selecione...</option>
                 <option value="1">Simples Nacional</option>
@@ -463,49 +463,49 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pt-4 border-t border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pt-4 border-t border-slate-200 dark:border-slate-800">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">ID do CSC</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">ID do CSC</label>
               <input
                 type="text"
                 value={settings.cscId || ''}
                 onChange={e => handleChange('cscId', e.target.value)}
                 placeholder="Ex: 000001"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition shadow-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Código CSC (SEFAZ)</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Código CSC (SEFAZ)</label>
               <input
                 type="password"
                 value={settings.cscSecret || ''}
                 onChange={e => handleChange('cscSecret', e.target.value)}
                 placeholder="Alfanumérico..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Ambiente SEFAZ</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Ambiente SEFAZ</label>
               <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-white cursor-pointer">
+                <label className="flex items-center gap-2 text-slate-800 dark:text-white cursor-pointer">
                   <input
                     type="radio"
                     name="env"
                     value="homologacao"
                     checked={settings.environment === 'homologacao' || !settings.environment}
                     onChange={e => handleChange('environment', e.target.value)}
-                    className="w-4 h-4 text-emerald-500 bg-slate-900 border-slate-700"
+                    className="w-4 h-4 text-emerald-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                   />
                   <span>Homologação (Testes)</span>
                 </label>
-                <label className="flex items-center gap-2 text-white cursor-pointer">
+                <label className="flex items-center gap-2 text-slate-800 dark:text-white cursor-pointer">
                   <input
                     type="radio"
                     name="env"
                     value="producao"
                     checked={settings.environment === 'producao'}
                     onChange={e => handleChange('environment', e.target.value)}
-                    className="w-4 h-4 text-amber-500 bg-slate-900 border-slate-700"
+                    className="w-4 h-4 text-amber-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
                   />
                   <span>Produção (Valendo)</span>
                 </label>
@@ -514,21 +514,21 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           </div>
 
           {/* Numeração e Sequência da NFC-e */}
-          <div className="p-5 bg-slate-950/60 rounded-2xl border border-slate-800/80 mb-6 space-y-4">
+          <div className="p-5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800/80 mb-6 space-y-4 shadow-xs">
             <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-amber-400" />
-              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              <Key className="w-4 h-4 text-amber-500" />
+              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
                 Sequência & Numeração da NFC-e (Continuidade Fiscal)
               </h4>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Configure aqui a numeração para não quebrar a sequência da SEFAZ ou inicie uma nova série recomendada para transição de software.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">
                   Série da NFC-e
                 </label>
                 <input
@@ -536,7 +536,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                   value={settings.serieNfce ?? '1'}
                   onChange={e => handleChange('serieNfce', e.target.value)}
                   placeholder="Ex: 1 ou 2"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono focus:border-amber-500 outline-none transition"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:border-amber-500 outline-none transition shadow-xs"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
                   Padrão: <strong>1</strong>. (Contadores recomendam iniciar na Série <strong>2</strong> ao trocar de emissor para evitar conflitos).
@@ -544,7 +544,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">
                   Próximo Número da NFC-e
                 </label>
                 <input
@@ -553,7 +553,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
                   value={settings.proximoNumeroNfce ?? 1}
                   onChange={e => handleChange('proximoNumeroNfce', e.target.value)}
                   placeholder="Ex: 1543"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono focus:border-amber-500 outline-none transition"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:border-amber-500 outline-none transition shadow-xs"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
                   Ex: Se a última nota no sistema anterior foi a <strong>1542</strong>, digite <strong>1543</strong> para continuar sem pular números.
@@ -562,117 +562,117 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mb-4 pt-4 border-t border-slate-800">
-            <MapPin className="w-5 h-5 text-indigo-400" />
-            <h4 className="text-sm font-bold text-white uppercase">Endereço do Cliente (Obrigatório)</h4>
+          <div className="flex items-center gap-3 mb-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <MapPin className="w-5 h-5 text-indigo-500" />
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase">Endereço do Cliente (Obrigatório)</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="sm:col-span-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">CEP</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">CEP</label>
               <input
                 type="text"
                 value={settings.cep || ''}
                 onChange={e => handleChange('cep', e.target.value)}
                 placeholder="00000000"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Logradouro</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Logradouro</label>
               <input
                 type="text"
                 value={settings.logradouro || ''}
                 onChange={e => handleChange('logradouro', e.target.value)}
                 placeholder="Rua, Avenida..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Número</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Número</label>
               <input
                 type="text"
                 value={settings.numero || ''}
                 onChange={e => handleChange('numero', e.target.value)}
                 placeholder="Ex: 123"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Bairro</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Bairro</label>
               <input
                 type="text"
                 value={settings.bairro || ''}
                 onChange={e => handleChange('bairro', e.target.value)}
                 placeholder="Centro"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Município</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Município</label>
               <input
                 type="text"
                 value={settings.municipio || ''}
                 onChange={e => handleChange('municipio', e.target.value)}
                 placeholder="Tailândia"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition shadow-xs"
               />
             </div>
             <div className="sm:col-span-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">UF</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">UF</label>
               <input
                 type="text"
                 value={settings.uf || ''}
                 onChange={e => handleChange('uf', e.target.value)}
                 placeholder="PA"
                 maxLength={2}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none transition uppercase"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 outline-none transition uppercase shadow-xs"
               />
             </div>
           </div>
         </div>
 
         {/* Certificado A1 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl">
           <div className="flex items-center gap-3 mb-2">
             <UploadCloud className="w-5 h-5 text-sky-500" />
-            <h3 className="text-lg font-bold text-white">Certificado Digital (A1)</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Certificado Digital (A1)</h3>
           </div>
-          <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-            O certificado é enviado <strong className="text-slate-300">diretamente para a Focus NFe</strong> de forma independente das outras configurações.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+            O certificado é enviado <strong className="text-slate-700 dark:text-slate-300">diretamente para a Focus NFe</strong> de forma independente das outras configurações.
             A empresa já deve estar cadastrada em{' '}
-            <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">app.focusnfe.com.br</a> antes de enviar.
+            <a href="https://app.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 underline">app.focusnfe.com.br</a> antes de enviar.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Arquivo .PFX / .P12</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Arquivo .PFX / .P12</label>
               <input
                 type="file"
                 accept=".pfx,.p12"
                 onChange={e => { setCertFile(e.target.files ? e.target.files[0] : null); setCertUploadResult(null); }}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-4 py-2.5 focus:border-sky-500 outline-none transition file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sky-500/10 file:text-sky-400 hover:file:bg-sky-500/20"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl px-4 py-2.5 focus:border-sky-500 outline-none transition file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sky-50 dark:file:bg-sky-500/10 file:text-sky-600 dark:file:text-sky-400 hover:file:bg-sky-100 dark:hover:file:bg-sky-500/20 shadow-xs"
               />
               {certFile && (
-                <p className="text-xs text-emerald-400 mt-1.5">📎 {certFile.name} ({(certFile.size / 1024).toFixed(1)} KB)</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 font-bold">📎 {certFile.name} ({(certFile.size / 1024).toFixed(1)} KB)</p>
               )}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Senha do Certificado</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2">Senha do Certificado</label>
               <input
                 type="password"
                 value={certPassword}
                 onChange={e => { setCertPassword(e.target.value); setCertUploadResult(null); }}
                 placeholder="Senha do arquivo A1"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-sky-500 outline-none transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-sky-500 outline-none transition shadow-xs"
               />
             </div>
           </div>
 
           {/* Resultado do upload */}
           {certUploadResult && (
-            <div className={`rounded-xl p-3 mb-4 text-sm font-medium ${certUploadResult.ok ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+            <div className={`rounded-xl p-3 mb-4 text-sm font-medium ${certUploadResult.ok ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30'}`}>
               {certUploadResult.ok ? certUploadResult.mensagem : `❌ ${certUploadResult.error}`}
               {certUploadResult.ok && certUploadResult.arquivo && (
-                <p className="text-xs text-emerald-300/70 mt-1">Arquivo: {certUploadResult.arquivo} • {certUploadResult.tamanho}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-300/70 mt-1">Arquivo: {certUploadResult.arquivo} • {certUploadResult.tamanho}</p>
               )}
             </div>
           )}
@@ -680,7 +680,7 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
           <button
             onClick={handleUploadCert}
             disabled={isUploadingCert || !certFile || !certPassword}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-sky-600 hover:bg-sky-500 text-white transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-sky-600 hover:bg-sky-500 text-white transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md shadow-sky-600/20"
           >
             {isUploadingCert
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando para Focus NFe...</>

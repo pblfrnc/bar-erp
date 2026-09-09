@@ -135,15 +135,15 @@ export const TablesView: React.FC<TablesViewProps> = ({
     <div className="space-y-4 pb-20">
       {/* Top Banner de Métricas Rápidas do Salão */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+        <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400">
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
               Ocupação
             </span>
-            <span className="text-xl font-black text-white">
+            <span className="text-xl font-black text-slate-900 dark:text-white">
               {stats.occupied + stats.closing} / {stats.total}{' '}
               <span className="text-xs text-slate-400 font-normal">
                 ({stats.total > 0 ? Math.round(((stats.occupied + stats.closing) / stats.total) * 100) : 0}%)
@@ -152,43 +152,43 @@ export const TablesView: React.FC<TablesViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+        <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 dark:text-emerald-400">
             <LayoutGrid className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
               Livres
             </span>
-            <span className="text-xl font-black text-emerald-400">
+            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
               {stats.available} mesas
             </span>
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+        <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400">
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
               Fechando
             </span>
-            <span className="text-xl font-black text-amber-400">
+            <span className="text-xl font-black text-amber-600 dark:text-amber-400">
               {stats.closing} contas
             </span>
           </div>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+        <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 flex items-center gap-3 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 dark:text-purple-400">
             <DollarSign className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold block">
+            <span className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
               Em Aberto
             </span>
-            <span className="text-xl font-black text-white">
+            <span className="text-xl font-black text-slate-900 dark:text-white">
               R$ {stats.totalOpenRevenue.toFixed(2)}
             </span>
           </div>
@@ -196,7 +196,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
       </div>
 
       {/* Barra de Filtros e Busca */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 space-y-3">
+      <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-3 shadow-xs">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           {/* Busca rápida */}
           <div className="relative flex-1">
@@ -206,14 +206,14 @@ export const TablesView: React.FC<TablesViewProps> = ({
               placeholder="Buscar mesa ou cliente (ex: 2, Mariana)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onRefresh}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
               title="Atualizar salão"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -222,7 +222,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
             <button
               onClick={() => setShowOrderHistory(true)}
-              className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
               title="Consultar comandas finalizadas e histórico"
             >
               <FileText className="w-3.5 h-3.5 text-amber-500" />
@@ -231,7 +231,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
             <button
               onClick={() => setIsManageTablesOpen(true)}
-              className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
               title="Gerenciar e editar locais e mesas do bar"
             >
               <MapPin className="w-3.5 h-3.5" />
@@ -240,7 +240,7 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
             <button
               onClick={() => setShowNewTableModal(true)}
-              className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95"
+              className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Nova Mesa</span>
@@ -249,15 +249,15 @@ export const TablesView: React.FC<TablesViewProps> = ({
         </div>
 
         {/* Filtros de Ambiente e Status */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/60">
           {/* Áreas do Bar */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setSelectedSection('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 selectedSection === 'ALL'
-                  ? 'bg-amber-500 text-slate-950'
-                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
             >
               Todas as Áreas
@@ -266,10 +266,10 @@ export const TablesView: React.FC<TablesViewProps> = ({
               <button
                 key={sec}
                 onClick={() => setSelectedSection(sec)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   selectedSection === sec
-                    ? 'bg-amber-500 text-slate-950'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
                 {sec}
@@ -278,35 +278,35 @@ export const TablesView: React.FC<TablesViewProps> = ({
           </div>
 
           {/* Status */}
-          <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-xl border border-slate-800/80">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
             <button
               onClick={() => setSelectedStatus('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                selectedStatus === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedStatus === 'ALL' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Todas ({tables.length})
             </button>
             <button
               onClick={() => setSelectedStatus('AVAILABLE')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                selectedStatus === 'AVAILABLE' ? 'bg-emerald-950/60 text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedStatus === 'AVAILABLE' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Livres ({stats.available})
             </button>
             <button
               onClick={() => setSelectedStatus('OCCUPIED')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                selectedStatus === 'OCCUPIED' ? 'bg-blue-950/60 text-blue-400' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedStatus === 'OCCUPIED' ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Ocupadas ({stats.occupied})
             </button>
             <button
               onClick={() => setSelectedStatus('CLOSING')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                selectedStatus === 'CLOSING' ? 'bg-amber-950/60 text-amber-400' : 'text-slate-400 hover:text-slate-200'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                selectedStatus === 'CLOSING' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Fechando ({stats.closing})
@@ -317,9 +317,9 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
       {/* Grid de Mesas */}
       {filteredTables.length === 0 ? (
-        <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-slate-800/60">
-          <LayoutGrid className="w-12 h-12 stroke-[1.5] text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-300">Nenhuma mesa encontrada</h3>
+        <div className="text-center py-16 bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800/60 shadow-xs">
+          <LayoutGrid className="w-12 h-12 stroke-[1.5] text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-300">Nenhuma mesa encontrada</h3>
           <p className="text-xs text-slate-500 mt-1">Tente alterar os filtros ou adicione uma nova mesa.</p>
         </div>
       ) : (
@@ -411,12 +411,12 @@ export const TablesView: React.FC<TablesViewProps> = ({
 
       {/* Modal Criar Nova Mesa */}
       {showNewTableModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-            <h2 className="text-xl font-black text-white mb-4">Adicionar Nova Mesa</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 dark:bg-black/80 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white mb-4">Adicionar Nova Mesa</h2>
             <form onSubmit={handleCreateNewTable} className="space-y-4">
               <div>
-                <label htmlFor="tbl-num" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="tbl-num" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Número da Mesa *
                 </label>
                 <input
@@ -427,13 +427,13 @@ export const TablesView: React.FC<TablesViewProps> = ({
                   placeholder="Ex: 13"
                   value={newTableNumber}
                   onChange={(e) => setNewTableNumber(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-bold"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-bold"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label htmlFor="tbl-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="tbl-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Nome / Identificação (Opcional)
                 </label>
                 <input
@@ -442,12 +442,12 @@ export const TablesView: React.FC<TablesViewProps> = ({
                   placeholder="Ex: Mesa 13, Bistrô 01, VIP 02"
                   value={newTableName}
                   onChange={(e) => setNewTableName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-medium"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-medium"
                 />
               </div>
 
               <div>
-                <label htmlFor="tbl-cap" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="tbl-cap" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Capacidade (Lugares)
                 </label>
                 <input
@@ -457,18 +457,18 @@ export const TablesView: React.FC<TablesViewProps> = ({
                   max="30"
                   value={newTableCapacity}
                   onChange={(e) => setNewTableCapacity(parseInt(e.target.value) || 4)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
                   Ambiente / Área
                 </label>
                 <select
                   value={newTableSection}
                   onChange={(e) => setNewTableSection(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none"
                 >
                   <option value="Salão Principal">Salão Principal</option>
                   <option value="Deck Externo">Deck Externo</option>
@@ -481,13 +481,13 @@ export const TablesView: React.FC<TablesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowNewTableModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow cursor-pointer"
                 >
                   Criar Mesa
                 </button>

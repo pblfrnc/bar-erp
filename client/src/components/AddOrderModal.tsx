@@ -185,20 +185,20 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 dark:bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Cabeçalho */}
-        <div className="p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/90">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30">
                 LANÇAMENTO DE PEDIDO
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 Comanda #{table.activeOrder.orderNumber}
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
               {table.name || `Mesa ${table.number}`}
               {table.customerName ? ` • ${table.customerName}` : ''}
             </h2>
@@ -206,7 +206,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 hover:bg-slate-800 transition"
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -215,9 +215,9 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
         {/* Corpo: Grade de Produtos + Carrinho Lateral/Inferior */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* LADO ESQUERDO: Catálogo e Busca */}
-          <div className="flex-1 flex flex-col border-r border-slate-800 overflow-hidden">
+          <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-800 overflow-hidden">
             {/* Barra de Busca e Categorias */}
-            <div className="p-3 sm:p-4 space-y-3 bg-slate-950/40 border-b border-slate-800">
+            <div className="p-3 sm:p-4 space-y-3 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200 dark:border-slate-800">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -225,7 +225,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                   placeholder="Buscar produto (ex: chope, batata, caipirinha)..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm"
                 />
               </div>
 
@@ -233,10 +233,10 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   onClick={() => setSelectedCategoryId('ALL')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                     selectedCategoryId === 'ALL'
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                      : 'bg-white hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -247,10 +247,10 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategoryId(cat.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                       selectedCategoryId === cat.id
                         ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                        : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                        : 'bg-white hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     {getCategoryIcon(cat.icon)}
@@ -283,12 +283,12 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         className={`group relative p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between select-none ${
                           totalInCart > 0
                             ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-500/30'
-                            : 'bg-slate-950/60 border-slate-800/90 hover:border-slate-700 hover:bg-slate-850'
+                            : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 shadow-xs'
                         }`}
                       >
                         <div>
                           <div className="flex items-start justify-between gap-1 mb-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                               {prod.kdsStation === 'BAR' ? '🍺 Bar' : '🍳 Cozinha'}
                             </span>
                             {totalInCart > 0 && (
@@ -297,11 +297,11 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <h4 className="text-sm font-bold text-white line-clamp-2 leading-snug">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug">
                             {prod.name}
                           </h4>
                           {prod.description && (
-                            <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                               {prod.description}
                             </p>
                           )}
@@ -309,23 +309,23 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
 
                         {/* Seletor Visual: Unidade vs Caixa */}
                         {prod.hasBoxPrice && prod.boxPrice ? (
-                          <div className="mt-3 pt-2 border-t border-slate-800/60 space-y-1.5">
+                          <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/60 space-y-1.5">
                             <div className="grid grid-cols-2 gap-1">
                               {/* Botão Unidade Avulsa */}
                               <button
                                 type="button"
                                 onClick={() => addToCart(prod, 'UNIT')}
-                                className="px-2 py-1.5 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/u active:scale-95"
+                                className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/u active:scale-95"
                                 title="Adicionar 1 Unidade"
                               >
-                                <span className="text-[9px] uppercase font-bold text-slate-400 group-hover/u:text-slate-900">
+                                <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 group-hover/u:text-slate-900">
                                   Unidade
                                 </span>
-                                <span className="text-xs font-black font-mono text-emerald-400 group-hover/u:text-slate-950">
+                                <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400 group-hover/u:text-slate-950">
                                   R$ {prod.price.toFixed(2)}
                                 </span>
                                 {cartUnits && (
-                                  <span className="text-[9px] font-bold text-amber-400 group-hover/u:text-slate-950">
+                                  <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 group-hover/u:text-slate-950">
                                     ({cartUnits.quantity}x)
                                   </span>
                                 )}
@@ -335,17 +335,17 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => addToCart(prod, 'BOX')}
-                                className="px-2 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/cx active:scale-95"
+                                className="px-2 py-1.5 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/cx active:scale-95"
                                 title={`Adicionar Caixa com ${prod.boxQuantity || 24} unidades`}
                               >
                                 <span className="text-[9px] uppercase font-black tracking-wider flex items-center gap-0.5 group-hover/cx:text-slate-950">
                                   <Package className="w-2.5 h-2.5" /> Cx {prod.boxQuantity || 24}x
                                 </span>
-                                <span className="text-xs font-black font-mono text-white group-hover/cx:text-slate-950">
+                                <span className="text-xs font-black font-mono text-slate-900 dark:text-white group-hover/cx:text-slate-950">
                                   R$ {Number(prod.boxPrice).toFixed(2)}
                                 </span>
                                 {cartBoxes && (
-                                  <span className="text-[9px] font-black text-amber-400 group-hover/cx:text-slate-950">
+                                  <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 group-hover/cx:text-slate-950">
                                     ({cartBoxes.quantity} cx)
                                   </span>
                                 )}
@@ -353,14 +353,14 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60">
-                            <span className="text-sm font-extrabold text-amber-400">
+                          <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/60">
+                            <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
                               R$ {prod.price.toFixed(2)}
                             </span>
                             <button
                               type="button"
                               onClick={() => addToCart(prod, 'UNIT')}
-                              className="p-1 rounded-lg bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-950 transition cursor-pointer"
+                              className="p-1 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-950 group-hover:bg-amber-500 group-hover:text-slate-950 transition cursor-pointer"
                             >
                               <Plus className="w-4 h-4 stroke-[2.5]" />
                             </button>
@@ -375,20 +375,20 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
           </div>
 
           {/* LADO DIREITO: Carrinho de Envio ao KDS */}
-          <div className="w-full md:w-80 lg:w-96 bg-slate-950/80 flex flex-col border-t md:border-t-0 md:border-l border-slate-800">
-            <div className="p-3 sm:p-4 border-b border-slate-800 flex items-center justify-between">
+          <div className="w-full md:w-80 lg:w-96 bg-slate-50 dark:bg-slate-950/80 flex flex-col border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800">
+            <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-200">
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-slate-200">
                   Itens a Enviar
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {cart.length} produto(s) selecionado(s)
                 </span>
               </div>
               {cart.length > 0 && (
                 <button
                   onClick={() => setCart([])}
-                  className="text-xs text-red-400 hover:text-red-300 font-medium flex items-center gap-1"
+                  className="text-xs text-red-500 hover:text-red-400 font-medium flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Limpar
@@ -399,10 +399,10 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
             {/* Lista dos Itens no Carrinho */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
-                  <Beer className="w-10 h-10 stroke-[1.5] text-slate-600 mb-2" />
-                  <p className="text-sm font-medium">Nenhum item selecionado</p>
-                  <p className="text-xs text-slate-600 mt-1">
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 dark:text-slate-500">
+                  <Beer className="w-10 h-10 stroke-[1.5] text-slate-300 dark:text-slate-600 mb-2" />
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Nenhum item selecionado</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">
                     Toque nos produtos ao lado para adicionar à rodada.
                   </p>
                 </div>
@@ -410,43 +410,43 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                 cart.map((item) => (
                   <div
                     key={`${item.product.id}-${item.unitType}`}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2"
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-2 shadow-xs"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-bold text-white block">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white block">
                             {item.product.name}
                           </span>
                           {item.unitType === 'BOX' ? (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
                               <Package className="w-2.5 h-2.5" /> Cx {item.product.boxQuantity || 24}x
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">
+                            <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] font-bold border border-slate-200 dark:border-slate-700">
                               Un
                             </span>
                           )}
                         </div>
-                        <span className="text-xs font-semibold text-amber-400">
+                        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
                           R$ {(item.unitPrice * item.quantity).toFixed(2)}
                         </span>
                       </div>
 
                       {/* Controle de Quantidade */}
-                      <div className="flex items-center gap-1 bg-slate-950 rounded-xl p-0.5 border border-slate-800">
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 rounded-xl p-0.5 border border-slate-200 dark:border-slate-800">
                         <button
                           onClick={() => updateQuantity(item.product.id, item.unitType, -1)}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                          className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="font-bold text-sm text-white px-2 font-mono">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white px-2 font-mono">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => updateQuantity(item.product.id, item.unitType, 1)}
-                          className="p-1.5 text-amber-400 hover:text-amber-300 rounded-lg hover:bg-slate-800 transition"
+                          className="p-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -460,7 +460,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         placeholder="Observação (ex: sem gelo, bem passada)..."
                         value={item.notes}
                         onChange={(e) => updateNotes(item.product.id, item.unitType, e.target.value)}
-                        className="w-full text-xs px-2.5 py-1.5 bg-slate-950 border border-slate-800/80 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                        className="w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-amber-500"
                       />
 
                       {/* Chips rápidos de observação */}
@@ -470,7 +470,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             key={chip}
                             type="button"
                             onClick={() => appendQuickNote(item.product.id, item.unitType, chip)}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition border border-slate-200 dark:border-transparent"
                           >
                             + {chip}
                           </button>
@@ -483,12 +483,12 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
             </div>
 
             {/* Rodapé com Total e Botão de Envio para Bar/Cozinha */}
-            <div className="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 space-y-3">
+            <div className="p-3 sm:p-4 bg-slate-100/80 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">
+                <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">
                   Total desta Rodada
                 </span>
-                <span className="text-xl font-black text-amber-400">
+                <span className="text-xl font-black text-amber-600 dark:text-amber-400">
                   R$ {cartTotal.toFixed(2)}
                 </span>
               </div>

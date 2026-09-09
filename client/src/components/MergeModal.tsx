@@ -44,33 +44,33 @@ export const MergeModal: React.FC<MergeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <span className="text-xs uppercase tracking-wider text-purple-400 font-bold">
+            <span className="text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400 font-bold">
               Junção de Mesas
             </span>
-            <h2 className="text-xl font-black text-white">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">
               Unir à {mainTable.name || `Mesa ${mainTable.number}`}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 transition"
+            className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="mt-4 space-y-4">
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
             Selecione a outra mesa ocupada cujos itens e comandas serão integrados à {mainTable.name || `Mesa ${mainTable.number}`}:
           </p>
 
           {otherTables.length === 0 ? (
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2 text-xs text-slate-400">
-              <AlertCircle className="w-4 h-4 shrink-0 text-slate-500" />
+            <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <AlertCircle className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" />
               <span>Não há outras mesas ocupadas disponíveis para unir neste momento.</span>
             </div>
           ) : (
@@ -82,17 +82,17 @@ export const MergeModal: React.FC<MergeModalProps> = ({
                   onClick={() => setSelectedSecondId(t.id)}
                   className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition ${
                     selectedSecondId === t.id
-                      ? 'bg-purple-600/20 border-purple-500 text-white ring-1 ring-purple-500'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      ? 'bg-purple-600/15 border-purple-500 text-purple-900 dark:text-white ring-1 ring-purple-500'
+                      : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <div>
                     <div className="font-bold text-sm">#{t.number} - {t.name || `Mesa ${t.number}`}</div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
                       {t.customerName || 'Cliente'} • {t.activeOrder?.items?.length || 0} itens
                     </div>
                   </div>
-                  <span className="text-sm font-mono font-bold text-emerald-400">
+                  <span className="text-sm font-mono font-bold text-emerald-600 dark:text-emerald-400">
                     R$ {(t.activeOrder?.total || 0).toFixed(2)}
                   </span>
                 </button>
@@ -104,7 +104,7 @@ export const MergeModal: React.FC<MergeModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+              className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition"
             >
               Cancelar
             </button>

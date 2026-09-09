@@ -44,33 +44,33 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <span className="text-xs uppercase tracking-wider text-blue-400 font-bold">
+            <span className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold">
               Transferência
             </span>
-            <h2 className="text-xl font-black text-white">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">
               Transferir {sourceTable.name || `Mesa ${sourceTable.number}`}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 transition"
+            className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="mt-4 space-y-4">
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
             Selecione a mesa de destino livre para onde todos os itens e a comanda ativa serão transferidos:
           </p>
 
           {availableTables.length === 0 ? (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/50 flex items-center gap-2 text-xs text-amber-300">
-              <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
               <span>Não há mesas livres no salão no momento para realizar a transferência.</span>
             </div>
           ) : (
@@ -82,12 +82,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   onClick={() => setSelectedTargetId(t.id)}
                   className={`p-3 rounded-xl border text-left transition ${
                     selectedTargetId === t.id
-                      ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      ? 'bg-blue-600/15 border-blue-500 text-blue-900 dark:text-white ring-1 ring-blue-500'
+                      : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <div className="font-bold text-sm">#{t.number} - {t.name || `Mesa ${t.number}`}</div>
-                  <div className="text-[11px] text-slate-400">{t.section} • {t.capacity}p</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{t.section} • {t.capacity}p</div>
                 </button>
               ))}
             </div>
@@ -97,7 +97,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+              className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition"
             >
               Cancelar
             </button>

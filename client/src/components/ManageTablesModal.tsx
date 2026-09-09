@@ -166,24 +166,24 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 dark:text-amber-400">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">Editar Locais & Mesas</h2>
-              <p className="text-xs text-slate-400">
+              <h2 className="text-lg font-black text-slate-900 dark:text-white">Editar Locais & Mesas</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Organize os setores do bar, crie novos locais e mova ou edite cada mesa
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -191,26 +191,26 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
 
         {/* Notificações e Feedback */}
         {errorMsg && (
-          <div className="bg-rose-500/10 border-b border-rose-500/30 px-4 py-2 text-rose-400 text-xs font-semibold flex items-center justify-between">
+          <div className="bg-rose-500/10 border-b border-rose-500/30 px-4 py-2 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between">
             <span>{errorMsg}</span>
             <button onClick={() => setErrorMsg(null)} className="hover:underline">Fechar</button>
           </div>
         )}
         {successMsg && (
-          <div className="bg-emerald-500/10 border-b border-emerald-500/30 px-4 py-2 text-emerald-400 text-xs font-semibold">
+          <div className="bg-emerald-500/10 border-b border-emerald-500/30 px-4 py-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
             {successMsg}
           </div>
         )}
 
         {/* Ações Rápidas do Topo */}
-        <div className="p-3 bg-slate-950/50 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="font-bold text-slate-200">{tables.length}</span> mesas cadastradas em{' '}
-            <span className="font-bold text-amber-400">{Object.keys(tablesBySection).length}</span> setores
+        <div className="p-3 bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-bold text-slate-900 dark:text-slate-200">{tables.length}</span> mesas cadastradas em{' '}
+            <span className="font-bold text-amber-600 dark:text-amber-400">{Object.keys(tablesBySection).length}</span> setores
           </div>
           <button
             onClick={() => setIsAddingTable(!isAddingTable)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 shadow-xs"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Adicionar Nova Mesa</span>
@@ -219,48 +219,48 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
 
         {/* Formulário de Adicionar Nova Mesa */}
         {isAddingTable && (
-          <div className="p-4 bg-slate-800/40 border-b border-amber-500/30 space-y-3">
-            <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border-b border-amber-500/30 space-y-3">
+            <h3 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
               Cadastrar Nova Mesa
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
               <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">Número:</label>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Número:</label>
                 <input
                   type="number"
                   min={1}
                   value={newNumber}
                   onChange={(e) => setNewNumber(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-bold"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">Nome/Identificação:</label>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Nome/Identificação:</label>
                 <input
                   type="text"
                   placeholder={`Mesa ${newNumber}`}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">Capacidade (Lugares):</label>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Capacidade (Lugares):</label>
                 <input
                   type="number"
                   min={1}
                   value={newCapacity}
                   onChange={(e) => setNewCapacity(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-bold"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">Local / Setor:</label>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Local / Setor:</label>
                 <select
                   value={newSection}
                   onChange={(e) => setNewSection(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-semibold"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-semibold"
                 >
                   {existingSections.map((sec) => (
                     <option key={sec} value={sec}>{sec}</option>
@@ -277,7 +277,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                   placeholder="Digite o nome do novo setor (ex: Deck Superior, Piscina, Área VIP)"
                   value={customSectionInput}
                   onChange={(e) => setCustomSectionInput(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-amber-500/50 rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-500 font-semibold"
+                  className="flex-1 bg-white dark:bg-slate-900 border border-amber-500/50 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 font-semibold"
                 />
               </div>
             )}
@@ -286,7 +286,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAddingTable(false)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 Cancelar
               </button>
@@ -308,16 +308,16 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
             const isRenamingThis = renamingSection === sectionName;
 
             return (
-              <div key={sectionName} className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 space-y-3">
+              <div key={sectionName} className="bg-slate-50/70 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3.5 space-y-3">
                 {/* Cabeçalho do Setor com Renomeação */}
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                   {isRenamingThis ? (
                     <div className="flex items-center gap-2 flex-1 max-w-sm">
                       <input
                         type="text"
                         defaultValue={sectionName}
                         onChange={(e) => setNewSectionName(e.target.value)}
-                        className="flex-1 bg-slate-900 border border-amber-500 rounded-lg px-2 py-1 text-sm font-bold text-white outline-none"
+                        className="flex-1 bg-white dark:bg-slate-900 border border-amber-500 rounded-lg px-2 py-1 text-sm font-bold text-slate-900 dark:text-white outline-none"
                         autoFocus
                       />
                       <button
@@ -329,16 +329,16 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                       </button>
                       <button
                         onClick={() => setRenamingSection(null)}
-                        className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                        className="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                      <h3 className="text-sm font-black text-white">{sectionName}</h3>
-                      <span className="text-[11px] font-semibold text-slate-400">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{sectionName}</h3>
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                         ({sectionTables.length} {sectionTables.length === 1 ? 'mesa' : 'mesas'})
                       </span>
                       <button
@@ -346,7 +346,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                           setRenamingSection(sectionName);
                           setNewSectionName(sectionName);
                         }}
-                        className="p-1 rounded text-slate-500 hover:text-amber-400 transition"
+                        className="p-1 rounded text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 transition"
                         title="Renomear este setor/local"
                       >
                         <FolderEdit className="w-3.5 h-3.5" />
@@ -364,47 +364,47 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                       return (
                         <div
                           key={table.id}
-                          className="bg-slate-900 border border-amber-500 rounded-xl p-3 space-y-2.5 shadow-lg"
+                          className="bg-white dark:bg-slate-900 border border-amber-500 rounded-xl p-3 space-y-2.5 shadow-lg"
                         >
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] text-slate-400 block">Número:</label>
+                              <label className="text-[10px] text-slate-500 dark:text-slate-400 block">Número:</label>
                               <input
                                 type="number"
                                 value={editNumber}
                                 onChange={(e) => setEditNumber(Number(e.target.value))}
-                                className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs font-bold text-white"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs font-bold text-slate-900 dark:text-white"
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-slate-400 block">Lugares:</label>
+                              <label className="text-[10px] text-slate-500 dark:text-slate-400 block">Lugares:</label>
                               <input
                                 type="number"
                                 value={editCapacity}
                                 onChange={(e) => setEditCapacity(Number(e.target.value))}
-                                className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs font-bold text-white"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs font-bold text-slate-900 dark:text-white"
                               />
                             </div>
                           </div>
 
                           <div>
-                            <label className="text-[10px] text-slate-400 block">Nome:</label>
+                            <label className="text-[10px] text-slate-500 dark:text-slate-400 block">Nome:</label>
                             <input
                               type="text"
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white"
                             />
                           </div>
 
                           <div>
-                            <label className="text-[10px] text-slate-400 block">Mover para Setor:</label>
+                            <label className="text-[10px] text-slate-500 dark:text-slate-400 block">Mover para Setor:</label>
                             <input
                               type="text"
                               value={editSection}
                               onChange={(e) => setEditSection(e.target.value)}
                               list="sections-list"
-                              className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs font-semibold text-amber-300"
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs font-semibold text-amber-600 dark:text-amber-300"
                             />
                             <datalist id="sections-list">
                               {existingSections.map((s) => (
@@ -417,7 +417,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setEditingTableId(null)}
-                              className="px-2 py-1 rounded text-xs text-slate-400 hover:text-white"
+                              className="px-2 py-1 rounded text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                             >
                               Cancelar
                             </button>
@@ -437,18 +437,18 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                     return (
                       <div
                         key={table.id}
-                        className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between hover:border-slate-700 transition"
+                        className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xs"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-black text-sm text-amber-400 border border-slate-700">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-sm text-amber-600 dark:text-amber-400 border border-slate-200 dark:border-slate-700">
                             {table.number}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-white leading-tight">{table.name}</p>
-                            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{table.name}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               {table.capacity} lugares •{' '}
-                              <span className={table.status === 'OCCUPIED' ? 'text-blue-400' : 'text-emerald-400'}>
+                              <span className={table.status === 'OCCUPIED' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}>
                                 {table.status === 'OCCUPIED' ? 'Ocupada' : 'Livre'}
                               </span>
                             </p>
@@ -458,7 +458,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleStartEdit(table)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             title="Editar número, nome ou setor da mesa"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -466,7 +466,7 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
                           {table.status === 'AVAILABLE' && (
                             <button
                               onClick={() => handleDeleteTable(table)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                               title="Excluir mesa"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -483,10 +483,10 @@ export const ManageTablesModal: React.FC<ManageTablesModalProps> = ({
         </div>
 
         {/* Rodapé */}
-        <div className="p-3 bg-slate-900 border-t border-slate-800 flex justify-end">
+        <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-black bg-slate-800 hover:bg-slate-700 text-white transition active:scale-95"
+            className="px-4 py-2 rounded-xl text-xs font-black bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 transition active:scale-95"
           >
             Concluir Edição
           </button>

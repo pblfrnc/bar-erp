@@ -179,26 +179,26 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
         {/* Cabeçalho */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shadow-sm">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shadow-xs">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white flex items-center gap-2">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 Equipe & Permissões de Acesso
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Cadastre colaboradores e defina exatamente quais módulos cada um tem autorização para operar.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -206,14 +206,14 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
 
         {/* Mensagens de Status */}
         {error && (
-          <div className="m-4 mb-0 p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-2 text-xs text-red-400 font-medium">
+          <div className="m-4 mb-0 p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-medium">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="m-4 mb-0 p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-xs text-emerald-400 font-bold">
+          <div className="m-4 mb-0 p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
             <Check className="w-4 h-4 shrink-0" />
             <span>{successMsg}</span>
           </div>
@@ -221,9 +221,9 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LADO ESQUERDO: Formulário (5 colunas) */}
-          <div className="lg:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4.5 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+          <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4.5 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                 <UserPlus className="w-4 h-4" />
                 {editingStaff ? 'Editar Colaborador' : 'Novo Colaborador'}
               </span>
@@ -231,7 +231,7 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+                  className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white underline cursor-pointer"
                 >
                   Cancelar Edição
                 </button>
@@ -241,7 +241,7 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
             <form onSubmit={handleSubmit} className="space-y-3.5">
               {/* Nome */}
               <div>
-                <label htmlFor="staff-name-input" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="staff-name-input" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Nome Completo *
                 </label>
                 <input
@@ -251,20 +251,20 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                   placeholder="Ex: Carlos Silva, Ana Caixa..."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-medium"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text font-medium placeholder-slate-400 dark:placeholder-slate-500"
                 />
               </div>
 
               {/* Cargo / Função */}
               <div>
-                <label htmlFor="staff-role-select" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="staff-role-select" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Função Principal / Cargo *
                 </label>
                 <select
                   id="staff-role-select"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer font-bold"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer font-bold"
                 >
                   <option value="ADMIN">Administrador (Acesso Total)</option>
                   <option value="GERENTE">Gerente de Turno</option>
@@ -278,32 +278,32 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
 
               {/* Senha / PIN */}
               <div>
-                <label htmlFor="staff-password-input" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="staff-password-input" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   {editingStaff ? 'Nova Senha / PIN (Deixe em branco p/ manter)' : 'Senha ou PIN de Acesso *'}
                 </label>
                 <div className="relative">
-                  <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     id="staff-password-input"
                     type="text"
                     placeholder="Ex: 1234 ou senha forte"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text placeholder-slate-400 dark:placeholder-slate-500"
                   />
                 </div>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
                   Pode ser um PIN numérico rápido (ex: 4 dígitos) para facilitar no touchscreen.
                 </span>
               </div>
 
               {/* Status Ativo / Inativo */}
-              <div className="flex items-center justify-between p-2.5 bg-slate-900/80 border border-slate-800 rounded-xl">
+              <div className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
                 <div>
-                  <label htmlFor="staff-status-active" className="text-xs font-bold text-slate-200 block cursor-pointer">
+                  <label htmlFor="staff-status-active" className="text-xs font-bold text-slate-800 dark:text-slate-200 block cursor-pointer">
                     Colaborador Ativo
                   </label>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
                     Se desativado, o login no sistema será bloqueado.
                   </span>
                 </div>
@@ -319,28 +319,28 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
               {/* Presets Rápidos de Permissões */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold uppercase text-slate-400">
+                  <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400">
                     Módulos Liberados:
                   </label>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => applyPreset('ALL')}
-                      className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-bold transition cursor-pointer"
+                      className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 font-bold transition cursor-pointer"
                     >
                       Todos
                     </button>
                     <button
                       type="button"
                       onClick={() => applyPreset('CAIXA')}
-                      className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold transition cursor-pointer"
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold transition cursor-pointer"
                     >
                       Caixa
                     </button>
                     <button
                       type="button"
                       onClick={() => applyPreset('GARCOM')}
-                      className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold transition cursor-pointer"
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold transition cursor-pointer"
                     >
                       Garçom
                     </button>
@@ -358,12 +358,12 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                         htmlFor={`perm-${mod.id}`}
                         className={`flex items-center justify-between p-2 rounded-xl border transition cursor-pointer ${
                           isChecked
-                            ? 'bg-amber-500/10 border-amber-500/30 text-white'
-                            : 'bg-slate-900/50 border-slate-800/70 text-slate-400 hover:bg-slate-900'
+                            ? 'bg-amber-500/10 border-amber-500/40 text-slate-900 dark:text-white'
+                            : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800/70 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isChecked ? 'text-amber-400' : 'text-slate-500'}`} />
+                          <Icon className={`w-4 h-4 ${isChecked ? 'text-amber-500 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'}`} />
                           <div>
                             <div className="text-xs font-bold leading-tight">{mod.label}</div>
                             <div className="text-[10px] text-slate-500 leading-tight">{mod.desc}</div>
@@ -396,9 +396,9 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
 
           {/* LADO DIREITO: Lista de Funcionários Cadastrados (7 colunas) */}
           <div className="lg:col-span-7 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <Users className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                 <span>Colaboradores Cadastrados ({staffList.length})</span>
               </h3>
               <span className="text-[10px] text-slate-500">
@@ -407,9 +407,9 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-slate-500 text-xs">Carregando colaboradores...</div>
+              <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs">Carregando colaboradores...</div>
             ) : staffList.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-xs">
+              <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs">
                 Nenhum colaborador cadastrado. Crie o primeiro ao lado.
               </div>
             ) : (
@@ -421,22 +421,22 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                       editingStaff?.id === staff.id
                         ? 'bg-amber-500/10 border-amber-500/40 shadow-md'
                         : staff.active
-                        ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                        : 'bg-slate-950/30 border-slate-900 opacity-60'
+                        ? 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-900 opacity-60'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 font-black text-sm shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 font-black text-sm shrink-0">
                         {staff.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-white">{staff.name}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{staff.name}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                             {staff.role}
                           </span>
                           {!staff.active && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-300">
                               Inativo
                             </span>
                           )}
@@ -450,7 +450,7 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                             return (
                               <span
                                 key={pId}
-                                className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 border border-slate-700/60 font-medium"
+                                className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 font-medium"
                               >
                                 {found.label}
                               </span>
@@ -464,7 +464,7 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleStartEdit(staff)}
-                        className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                        className="p-2 text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
                         title="Editar Colaborador"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -472,7 +472,7 @@ export const ManageStaffModal: React.FC<ManageStaffModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleDelete(staff)}
-                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
                         title="Excluir Colaborador"
                       >
                         <Trash2 className="w-4 h-4" />

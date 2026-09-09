@@ -670,32 +670,32 @@ export const ProductsView: React.FC = () => {
         /* TELA INTEIRA DE CADASTRO / EDIÇÃO DE PRODUTO */
         <div className="space-y-6 pb-28 max-w-6xl w-full mx-auto animate-in fade-in duration-200">
           {/* Cabeçalho Superior */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-sm dark:shadow-xl">
             <div className="flex items-center gap-3.5">
               <button
                 type="button"
                 onClick={() => setShowProductModal(false)}
-                className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl transition border border-slate-700/60 active:scale-95 group"
+                className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-2xl transition border border-slate-200 dark:border-slate-700/60 active:scale-95 group cursor-pointer"
                 title="Voltar para a Lista de Produtos"
               >
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
               </button>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-black text-white">
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white">
                     {editingProduct ? `Editar: ${editingProduct.name}` : 'Cadastrar Novo Produto'}
                   </h2>
                   {editingProduct ? (
-                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 text-xs font-mono font-bold">
                       {editingProduct.code ? `#${editingProduct.code}` : 'SEM CÓDIGO'}
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30 text-xs font-bold">
                       NOVO ITEM
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {editingProduct
                     ? 'Atualize preços, custos, estoque, fornecedor e regras tributárias'
                     : 'Preencha o cadastro completo com automação de código de barras, tributação e custos'}
@@ -708,7 +708,7 @@ export const ProductsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
-                  className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                  className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
                   title="Excluir este produto permanentemente"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -718,14 +718,14 @@ export const ProductsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowProductModal(false)}
-                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+                className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSaveProduct}
-                className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
+                className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>Salvar Produto</span>
@@ -734,20 +734,20 @@ export const ProductsView: React.FC = () => {
           </div>
 
           {/* Bloco de Busca Inteligente por EAN / Código de Barras */}
-          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-3">
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-50 to-white dark:from-amber-500/10 dark:via-slate-900 dark:to-slate-900 border border-amber-300/80 dark:border-amber-500/30 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <span>Preenchimento Automático por Código de Barras</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold font-mono">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold font-mono">
                       EAN / GTIN / SEFAZ
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Bipe com leitor USB ou digite o EAN para cruzar com notas recebidas na SEFAZ e catálogo nacional (nome, marca, fornecedor, NCM, CEST e custo).
                   </p>
                 </div>
@@ -769,7 +769,7 @@ export const ProductsView: React.FC = () => {
                     }
                   }}
                   placeholder="Bipe com o leitor ou digite o código de barras EAN (ex: 7896045506040)..."
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-950 border border-slate-700 rounded-2xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text shadow-inner"
+                  className="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-inner"
                 />
               </div>
 
@@ -828,10 +828,10 @@ export const ProductsView: React.FC = () => {
               <div
                 className={`text-xs p-3 rounded-xl border flex items-start gap-2.5 animate-in fade-in ${
                   lookupFeedback.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
                     : lookupFeedback.type === 'error'
-                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300'
+                    : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300'
                 }`}
               >
                 <span className="text-xs leading-relaxed">{lookupFeedback.message}</span>
@@ -844,14 +844,14 @@ export const ProductsView: React.FC = () => {
               {/* COLUNA ESQUERDA (7 colunas) */}
               <div className="lg:col-span-7 space-y-6">
                 {/* Card 1: Identificação do Produto */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
-                    <Tag className="w-5 h-5 text-amber-400" />
-                    <h3 className="text-base font-black text-white">Identificação & Básico</h3>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <Tag className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">Identificação & Básico</h3>
                   </div>
 
                   <div>
-                    <label htmlFor="prod-form-name" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                       Nome do Item / Produto *
                     </label>
                     <input
@@ -873,13 +873,13 @@ export const ProductsView: React.FC = () => {
                           }
                         }
                       }}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-base font-bold focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="prod-form-code" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-code" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Código Interno (#)
                       </label>
                       <input
@@ -888,7 +888,7 @@ export const ProductsView: React.FC = () => {
                         placeholder="Ex: 5001 ou BEB-01"
                         value={formCode}
                         onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase placeholder:text-slate-600 cursor-text"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none uppercase placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                       />
                       <span className="text-[10px] text-slate-500 mt-1 block">
                         Sequencial por categoria ou código de referência interno.
@@ -897,13 +897,13 @@ export const ProductsView: React.FC = () => {
 
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label htmlFor="prod-form-category" className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
+                        <label htmlFor="prod-form-category" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 cursor-pointer">
                           Categoria *
                         </label>
                         <button
                           type="button"
                           onClick={() => setShowCategoryModal(true)}
-                          className="text-xs text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 transition"
+                          className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-bold flex items-center gap-1 transition cursor-pointer"
                         >
                           <Plus className="w-3 h-3" /> Nova
                         </button>
@@ -921,7 +921,7 @@ export const ProductsView: React.FC = () => {
                             } catch {}
                           }
                         }}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer shadow-xs"
                       >
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
@@ -934,7 +934,7 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="prod-form-brand" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-brand" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Marca / Fabricante
                       </label>
                       <input
@@ -943,12 +943,12 @@ export const ProductsView: React.FC = () => {
                         placeholder="Ex: Heineken, Ambev, Coca-Cola"
                         value={formBrand}
                         onChange={(e) => setFormBrand(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="prod-form-unit" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-unit" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Unidade de Medida
                       </label>
                       <input
@@ -957,7 +957,7 @@ export const ProductsView: React.FC = () => {
                         placeholder="un, lata, garrafa, dose..."
                         value={formUnit}
                         onChange={(e) => setFormUnit(e.target.value.toLowerCase())}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none lowercase placeholder:text-slate-600 cursor-text"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none lowercase placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                       />
                       <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
                         <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Sugestões:</span>
@@ -966,10 +966,10 @@ export const ProductsView: React.FC = () => {
                             key={u}
                             type="button"
                             onClick={() => setFormUnit(u)}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
                               formUnit.toLowerCase() === u
                                 ? 'bg-amber-500 text-slate-950'
-                                : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                                : 'bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
                             }`}
                           >
                             {u}
@@ -980,7 +980,7 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="prod-form-desc" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-desc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                       Descrição / Ingredientes (Exibido no Cardápio)
                     </label>
                     <textarea
@@ -989,21 +989,21 @@ export const ProductsView: React.FC = () => {
                       placeholder="Ex: Chopp puro malte artesanal com lúpulos aromáticos. Teor alcoólico 5.0%..."
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 resize-none cursor-text"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none cursor-text shadow-xs"
                     />
                   </div>
                 </div>
 
                 {/* Card 2: Formação de Preço & Custos */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
-                    <DollarSign className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-base font-black text-white">Preços, Custos & Rentabilidade</h3>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <DollarSign className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">Preços, Custos & Rentabilidade</h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="prod-form-price" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-price" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Preço de Venda (R$) *
                       </label>
                       <div className="relative">
@@ -1018,7 +1018,7 @@ export const ProductsView: React.FC = () => {
                           placeholder="14,00"
                           value={formPrice}
                           onChange={(e) => setFormPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                         />
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">
@@ -1027,7 +1027,7 @@ export const ProductsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="prod-form-cost" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-cost" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Preço de Custo (R$)
                       </label>
                       <div className="relative">
@@ -1041,7 +1041,7 @@ export const ProductsView: React.FC = () => {
                           placeholder="4,50"
                           value={formCostPrice}
                           onChange={(e) => setFormCostPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                         />
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">
@@ -1051,17 +1051,17 @@ export const ProductsView: React.FC = () => {
                   </div>
 
                   {/* Widget de Rentabilidade em Tempo Real */}
-                  <div className="bg-slate-950/90 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+                  <div className="bg-slate-50 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                         Simulador de Margem Comercial em Tempo Real
                       </span>
                       {isComposed && recipeCost > 0 && (
                         <button
                           type="button"
                           onClick={() => setFormCostPrice(recipeCost.toFixed(2))}
-                          className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
+                          className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 flex items-center gap-1 transition cursor-pointer"
                           title="Copiar custo calculado dos ingredientes da receita para o campo Preço de Custo"
                         >
                           <Sparkles className="w-3.5 h-3.5" /> Usar Custo da Receita (R$ {recipeCost.toFixed(2)})
@@ -1070,31 +1070,31 @@ export const ProductsView: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 shadow-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
                           Lucro Bruto
                         </span>
-                        <span className={`text-base font-black font-mono ${grossProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <span className={`text-base font-black font-mono ${grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           R$ {grossProfit.toFixed(2)}
                         </span>
                       </div>
 
-                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 shadow-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
                           Margem de Lucro
                         </span>
                         <span className={`text-base font-black font-mono ${
-                          profitMargin >= 50 ? 'text-emerald-400' : profitMargin >= 25 ? 'text-amber-400' : profitMargin > 0 ? 'text-orange-400' : 'text-rose-400'
+                          profitMargin >= 50 ? 'text-emerald-600 dark:text-emerald-400' : profitMargin >= 25 ? 'text-amber-600 dark:text-amber-400' : profitMargin > 0 ? 'text-orange-500 dark:text-orange-400' : 'text-rose-600 dark:text-rose-400'
                         }`}>
                           {vPrice > 0 ? `${profitMargin.toFixed(1)}%` : '0.0%'}
                         </span>
                       </div>
 
-                      <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 shadow-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
                           Markup s/ Custo
                         </span>
-                        <span className="text-base font-black font-mono text-slate-200">
+                        <span className="text-base font-black font-mono text-slate-800 dark:text-slate-200">
                           {cPrice > 0 ? `+${markup.toFixed(1)}%` : '—'}
                         </span>
                       </div>
@@ -1103,13 +1103,13 @@ export const ProductsView: React.FC = () => {
                 </div>
 
                 {/* Card Especial: Venda por Caixa / Fardo Fechado */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2.5">
-                      <Package className="w-5 h-5 text-amber-400" />
+                      <Package className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                       <div>
-                        <h3 className="text-base font-black text-white">Venda por Caixa / Fardo Fechado</h3>
-                        <p className="text-xs text-slate-400">Permite alternar entre preço avulso e preço de caixa no Caixa (PDV) e Mesas</p>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white">Venda por Caixa / Fardo Fechado</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Permite alternar entre preço avulso e preço de caixa no Caixa (PDV) e Mesas</p>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -1119,15 +1119,15 @@ export const ProductsView: React.FC = () => {
                         onChange={(e) => setFormHasBoxPrice(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      <div className="w-11 h-6 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
                     </label>
                   </div>
 
                   {formHasBoxPrice && (
-                    <div className="space-y-4 bg-slate-950/70 p-4 rounded-2xl border border-slate-800 animate-in fade-in">
+                    <div className="space-y-4 bg-slate-50 dark:bg-slate-950/70 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                          <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                             Qtd de Unidades por Caixa *
                           </label>
                           <input
@@ -1137,7 +1137,7 @@ export const ProductsView: React.FC = () => {
                             placeholder="Ex: 6, 12, 15, 24"
                             value={formBoxQuantity}
                             onChange={(e) => setFormBoxQuantity(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text"
+                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                           />
                           <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
                             <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Comuns:</span>
@@ -1149,7 +1149,7 @@ export const ProductsView: React.FC = () => {
                                 className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
                                   formBoxQuantity === q
                                     ? 'bg-amber-500 text-slate-950'
-                                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                                    : 'bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
                                 }`}
                               >
                                 {q} un
@@ -1159,7 +1159,7 @@ export const ProductsView: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                          <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                             Preço Total da Caixa (R$) *
                           </label>
                           <div className="relative">
@@ -1172,7 +1172,7 @@ export const ProductsView: React.FC = () => {
                               placeholder="216,00"
                               value={formBoxPrice}
                               onChange={(e) => setFormBoxPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                              className="w-full pl-11 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                             />
                           </div>
                           {(() => {
@@ -1183,7 +1183,7 @@ export const ProductsView: React.FC = () => {
                               const unitOriginal = parseFloat((formPrice || '0').replace(',', '.')) || 0;
                               const diff = unitOriginal - unitInBox;
                               return (
-                                <span className="text-[11px] text-emerald-400 font-medium mt-1 block">
+                                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
                                   Sai a <strong>R$ {unitInBox.toFixed(2)}</strong> por unidade {diff > 0 ? `(Economia de R$ ${diff.toFixed(2)}/un)` : ''}
                                 </span>
                               );
@@ -1194,17 +1194,17 @@ export const ProductsView: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                        <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                           Código de Barras da Caixa (DUN-14 / EAN da Caixa Fechada)
                         </label>
                         <div className="relative">
-                          <Barcode className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <Barcode className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             type="text"
                             placeholder="Opcional: bipe a caixa fechada para adicionar no caixa direto como caixa"
                             value={formBoxEan}
                             onChange={(e) => setFormBoxEan(e.target.value.trim())}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                           />
                         </div>
                         <span className="text-[10px] text-slate-500 mt-1 block">
@@ -1216,11 +1216,11 @@ export const ProductsView: React.FC = () => {
                 </div>
 
                 {/* Card 3: Ficha Técnica & Produto Composto */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2.5">
-                      <Layers className="w-5 h-5 text-indigo-400" />
-                      <h3 className="text-base font-black text-white">Ficha Técnica & Composição (Receita)</h3>
+                      <Layers className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Ficha Técnica & Composição (Receita)</h3>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -1229,22 +1229,22 @@ export const ProductsView: React.FC = () => {
                         onChange={(e) => setIsComposed(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      <div className="w-11 h-6 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
                     </label>
                   </div>
 
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                     Ative caso este item seja produzido no estabelecimento (ex: <strong>Torre de Chopp</strong> descontando litros do barril, <strong>Cocktails & Drinks</strong> descontando doses, <strong>Pizzas, Pratos e Porções</strong> descontando insumos).
                   </p>
 
                   {isComposed && (
-                    <div className="space-y-3 bg-slate-950/70 p-4 rounded-2xl border border-slate-800">
+                    <div className="space-y-3 bg-slate-50 dark:bg-slate-950/70 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold uppercase text-slate-300">
+                        <span className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300">
                           Ingredientes / Insumos que Compõem Este Item:
                         </span>
                         {recipeCost > 0 && (
-                          <span className="text-xs text-emerald-400 font-mono font-bold">
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-bold">
                             Custo Somado: R$ {recipeCost.toFixed(2)}
                           </span>
                         )}
@@ -1257,7 +1257,7 @@ export const ProductsView: React.FC = () => {
                         const subtotal = cCost * cQty;
 
                         return (
-                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 bg-slate-900 border border-slate-800/80 rounded-xl">
+                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl shadow-xs">
                             <select
                               value={comp.componentId}
                               onChange={(e) => {
@@ -1265,7 +1265,7 @@ export const ProductsView: React.FC = () => {
                                 newComps[idx].componentId = e.target.value;
                                 setFormComponents(newComps);
                               }}
-                              className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-500 focus:outline-none cursor-pointer"
+                              className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-pointer"
                             >
                               <option value="">Selecione um insumo do estoque...</option>
                               {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
@@ -1276,8 +1276,8 @@ export const ProductsView: React.FC = () => {
                             </select>
 
                             <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-700">
-                                <span className="text-[11px] text-slate-400 font-bold select-none">Qtd:</span>
+                              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700">
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold select-none">Qtd:</span>
                                 <input
                                   type="text"
                                   inputMode="decimal"
@@ -1288,7 +1288,7 @@ export const ProductsView: React.FC = () => {
                                     newComps[idx].quantity = e.target.value.replace(/[^0-9.,]/g, '');
                                     setFormComponents(newComps);
                                   }}
-                                  className="w-16 bg-transparent text-white font-mono text-xs focus:outline-none text-right font-bold cursor-text"
+                                  className="w-16 bg-transparent text-slate-900 dark:text-white font-mono text-xs focus:outline-none text-right font-bold cursor-text"
                                 />
                                 <span className="text-[10px] text-slate-500 font-mono select-none">
                                   {selProd?.unit || 'un'}
@@ -1296,7 +1296,7 @@ export const ProductsView: React.FC = () => {
                               </div>
 
                               {subtotal > 0 && (
-                                <span className="text-[11px] text-slate-400 font-mono whitespace-nowrap min-w-16 text-right">
+                                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap min-w-16 text-right">
                                   = R$ {subtotal.toFixed(2)}
                                 </span>
                               )}
@@ -1308,7 +1308,7 @@ export const ProductsView: React.FC = () => {
                                   newComps.splice(idx, 1);
                                   setFormComponents(newComps);
                                 }}
-                                className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                                 title="Remover este insumo"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1321,7 +1321,7 @@ export const ProductsView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setFormComponents([...formComponents, { componentId: '', quantity: '1' }])}
-                        className="w-full py-2.5 border border-dashed border-slate-700 hover:border-amber-500/50 text-slate-400 hover:text-amber-300 rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 border border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-500/50 text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-300 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-900 transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" /> Adicionar Insumo / Ingrediente
                       </button>
@@ -1333,23 +1333,23 @@ export const ProductsView: React.FC = () => {
               {/* COLUNA DIREITA (5 colunas) */}
               <div className="lg:col-span-5 space-y-6">
                 {/* Card 4: Fornecedor & Distribuidora */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2.5">
-                      <Truck className="w-5 h-5 text-emerald-400" />
-                      <h3 className="text-base font-black text-white">Fornecedor & Compras</h3>
+                      <Truck className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Fornecedor & Compras</h3>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowQuickSupplierModal(true)}
-                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition"
+                      className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 font-bold flex items-center gap-1 transition cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Novo
                     </button>
                   </div>
 
                   <div>
-                    <label htmlFor="prod-form-supplier-id" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-supplier-id" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                       Selecionar Fornecedor Cadastrado
                     </label>
                     <select
@@ -1365,7 +1365,7 @@ export const ProductsView: React.FC = () => {
                           setFormSupplier('');
                         }
                       }}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer shadow-xs"
                     >
                       <option value="">Nenhum fornecedor vinculado</option>
                       {suppliers.map(s => (
@@ -1380,24 +1380,24 @@ export const ProductsView: React.FC = () => {
                     const sel = suppliers.find(s => s.id === formSupplierId);
                     if (!sel) return null;
                     return (
-                      <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs text-slate-400">
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2 text-xs text-slate-600 dark:text-slate-400">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-white text-xs">{sel.tradeName || sel.name}</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-xs">{sel.tradeName || sel.name}</span>
                           {sel.document && (
-                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400">
                               {sel.document}
                             </span>
                           )}
                         </div>
                         {sel.contactName && (
-                          <p className="text-[11px] text-slate-400">Contato: {sel.contactName}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">Contato: {sel.contactName}</p>
                         )}
                         {sel.phone && (
                           <a
                             href={`https://wa.me/55${sel.phone.replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold text-xs mt-1"
+                            className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 font-bold text-xs mt-1 cursor-pointer"
                           >
                             <Phone className="w-3.5 h-3.5" /> Falar no WhatsApp ({sel.phone})
                           </a>
@@ -1408,7 +1408,7 @@ export const ProductsView: React.FC = () => {
 
                   {!formSupplierId && (
                     <div>
-                      <label htmlFor="prod-form-supplier-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                      <label htmlFor="prod-form-supplier-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                         Ou Nome Avulso do Fornecedor
                       </label>
                       <input
@@ -1417,28 +1417,28 @@ export const ProductsView: React.FC = () => {
                         placeholder="Ex: Distribuidora Central, Padaria São Paulo..."
                         value={formSupplier}
                         onChange={(e) => setFormSupplier(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-600 cursor-text"
+                        className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-300 text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 cursor-text shadow-xs"
                       />
                     </div>
                   )}
                 </div>
 
                 {/* Card 5: Estoque & Destino no KDS */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-800">
-                    <Package className="w-5 h-5 text-amber-400" />
-                    <h3 className="text-base font-black text-white">Estoque & Destino KDS</h3>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <Package className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">Estoque & Destino KDS</h3>
                   </div>
 
                   <div>
-                    <label htmlFor="prod-form-kds" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-kds" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                       Destino da Comanda no KDS
                     </label>
                     <select
                       id="prod-form-kds"
                       value={formKdsStation}
                       onChange={(e) => setFormKdsStation(e.target.value as KdsStation)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-pointer shadow-xs"
                     >
                       <option value="BAR">🍺 Barman / Balcão (Bebidas, Chopp, Doses)</option>
                       <option value="KITCHEN">🍳 Cozinha (Pratos, Petiscos, Pizzas, Lanches)</option>
@@ -1448,7 +1448,7 @@ export const ProductsView: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label htmlFor="prod-form-stock" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-stock" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Estoque Atual
                       </label>
                       <input
@@ -1457,12 +1457,12 @@ export const ProductsView: React.FC = () => {
                         inputMode="decimal"
                         value={formStock}
                         onChange={(e) => setFormStock(e.target.value.replace(/[^0-9.,]/g, ''))}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="prod-form-min-stock" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-min-stock" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Estoque Mínimo
                       </label>
                       <input
@@ -1471,7 +1471,7 @@ export const ProductsView: React.FC = () => {
                         inputMode="decimal"
                         value={formMinStock}
                         onChange={(e) => setFormMinStock(e.target.value.replace(/[^0-9.,]/g, ''))}
-                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-base font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                       />
                       <span className="text-[10px] text-slate-500 mt-1 block">
                         Alerta de reposição.
@@ -1481,31 +1481,31 @@ export const ProductsView: React.FC = () => {
                 </div>
 
                 {/* Card 6: Dados Fiscais (NFC-e / SAT) */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2.5">
-                      <ShieldCheck className="w-5 h-5 text-cyan-400" />
-                      <h3 className="text-base font-black text-white">Tributação Fiscal (NFC-e / SAT)</h3>
+                      <ShieldCheck className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Tributação Fiscal (NFC-e / SAT)</h3>
                     </div>
-                    <span className="text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                    <span className="text-[10px] text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-200 dark:border-cyan-500/20 font-bold">
                       SEFAZ
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Estes códigos fiscais são transmitidos à SEFAZ em cada venda na NFC-e para evitar bitributação e rejeições.
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label htmlFor="prod-form-ncm" className="block text-[11px] font-bold uppercase text-slate-400 cursor-pointer">
+                        <label htmlFor="prod-form-ncm" className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 cursor-pointer">
                           NCM (8 dígitos)
                         </label>
                         <button
                           type="button"
                           onClick={() => setShowNcmModal(true)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold underline cursor-pointer"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold underline cursor-pointer"
                         >
                           Buscar NCM
                         </button>
@@ -1517,23 +1517,23 @@ export const ProductsView: React.FC = () => {
                         onChange={(e) => setFormNcm(e.target.value.replace(/\D/g, ''))}
                         placeholder="Ex: 22030000"
                         maxLength={8}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                       />
                       {ncmValidation && (
                         <div className="mt-1">
                           {ncmValidation.loading ? (
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                               <Loader2 className="w-2.5 h-2.5 animate-spin" /> Verificando na Receita...
                             </span>
                           ) : ncmValidation.valido ? (
-                            <div className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded p-1">
+                            <div className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded p-1">
                               <p className="font-semibold line-clamp-1">✓ {ncmValidation.descricao}</p>
                               {ncmValidation.aliqNac !== undefined && (
-                                <p className="text-[9px] text-emerald-300/80">IBPT: {ncmValidation.aliqNac}%</p>
+                                <p className="text-[9px] text-emerald-800/80 dark:text-emerald-300/80">IBPT: {ncmValidation.aliqNac}%</p>
                               )}
                             </div>
                           ) : (
-                            <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
                               <AlertTriangle className="w-2.5 h-2.5" /> NCM não localizado
                             </span>
                           )}
@@ -1542,7 +1542,7 @@ export const ProductsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="prod-form-cest" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                      <label htmlFor="prod-form-cest" className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         CEST (Subst. Tributária)
                       </label>
                       <input
@@ -1551,13 +1551,13 @@ export const ProductsView: React.FC = () => {
                         value={formCest}
                         onChange={(e) => setFormCest(e.target.value)}
                         placeholder="Ex: 03.001.00"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="prod-form-cfop" className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+                    <label htmlFor="prod-form-cfop" className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                       CFOP
                     </label>
                     <input
@@ -1567,7 +1567,7 @@ export const ProductsView: React.FC = () => {
                       onChange={(e) => setFormCfop(e.target.value.replace(/\D/g, ''))}
                       placeholder="5102 / 5405 / 5101"
                       maxLength={4}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                     />
                     <div className="flex items-center gap-1.5 flex-wrap pt-1.5">
                       <span className="text-[10px] uppercase font-bold text-slate-500 mr-0.5">Padrões:</span>
@@ -1580,10 +1580,10 @@ export const ProductsView: React.FC = () => {
                           key={item.code}
                           type="button"
                           onClick={() => setFormCfop(item.code)}
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition ${
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
                             formCfop === item.code
                               ? 'bg-amber-500 text-slate-950'
-                              : 'bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                              : 'bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
                           }`}
                         >
                           {item.label}
@@ -1596,29 +1596,29 @@ export const ProductsView: React.FC = () => {
             </div>
 
             {/* Rodapé Fixo de Ações (Sticky Bottom Bar) */}
-            <div className="sticky bottom-4 z-30 bg-slate-900/95 backdrop-blur border border-slate-800 p-4 rounded-3xl shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div className="sticky bottom-4 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-200 dark:border-slate-800 p-4 rounded-3xl shadow-xl dark:shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-black">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-black">
                   R$
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-white truncate max-w-xs">
+                    <span className="text-sm font-black text-slate-900 dark:text-white truncate max-w-xs">
                       {formName || 'Novo Produto'}
                     </span>
                     {formCode && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                         #{formCode}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
-                    <span>Venda: <strong className="text-white">R$ {vPrice.toFixed(2)}</strong></span>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <span>Venda: <strong className="text-slate-900 dark:text-white">R$ {vPrice.toFixed(2)}</strong></span>
                     {cPrice > 0 && (
-                      <span>Custo: <strong className="text-slate-300">R$ {cPrice.toFixed(2)}</strong></span>
+                      <span>Custo: <strong className="text-slate-700 dark:text-slate-300">R$ {cPrice.toFixed(2)}</strong></span>
                     )}
                     {vPrice > 0 && cPrice > 0 && (
-                      <span className={profitMargin >= 50 ? 'text-emerald-400 font-bold' : profitMargin >= 20 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'}>
+                      <span className={profitMargin >= 50 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : profitMargin >= 20 ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
                         Margem: {profitMargin.toFixed(1)}%
                       </span>
                     )}
@@ -1631,7 +1631,7 @@ export const ProductsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteProduct(editingProduct.id, editingProduct.name)}
-                    className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95"
+                    className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                     <span className="hidden sm:inline">Excluir</span>
@@ -1640,13 +1640,13 @@ export const ProductsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowProductModal(false)}
-                  className="py-2.5 px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+                  className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-sm font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
+                  className="py-2.5 px-6 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-sm font-black transition flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
                   <span>{editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}</span>
@@ -1658,14 +1658,14 @@ export const ProductsView: React.FC = () => {
       ) : (
         <div className="space-y-4 pb-20 max-w-6xl mx-auto">
       {/* Cabeçalho */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm dark:shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
             <UtensilsCrossed className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">Cardápio & Estoque</h2>
-            <p className="text-xs text-slate-400">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">Cardápio & Estoque</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Controle de preços, códigos internos, EAN de barras e tributação fiscal
             </p>
           </div>
@@ -1674,36 +1674,36 @@ export const ProductsView: React.FC = () => {
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setShowImportXmlModal(true)}
-            className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 cursor-pointer"
+            className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 cursor-pointer"
             title="Importar produtos, categorias e fornecedores de arquivo XML"
           >
-            <UploadCloud className="w-4 h-4 text-sky-400" />
+            <UploadCloud className="w-4 h-4 text-sky-500 dark:text-sky-400" />
             <span>Importar XML</span>
           </button>
 
           <button
             onClick={handleOrganizeBarKitchen}
             disabled={organizingLoading}
-            className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 disabled:opacity-50 cursor-pointer"
+            className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 disabled:opacity-50 cursor-pointer"
             title="Classifica automaticamente produtos com volume em ml para o Bar e alimentos para a Cozinha"
           >
             {organizingLoading ? (
-              <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+              <Loader2 className="w-4 h-4 text-amber-500 dark:text-amber-400 animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             )}
             <span>Organizar Bar (ml) / Cozinha</span>
           </button>
 
           <button
             onClick={() => setShowSuppliersModal(true)}
-            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700/50 cursor-pointer"
+            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 cursor-pointer"
             title="Gerenciar Fornecedores Cadastrados"
           >
-            <Truck className="w-4 h-4 text-emerald-400" />
+            <Truck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             <span>Fornecedores</span>
             {suppliers.length > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-[10px] text-emerald-300 font-mono font-bold">
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-emerald-500/10 dark:bg-emerald-500/20 text-[10px] text-emerald-700 dark:text-emerald-300 font-mono font-bold">
                 {suppliers.length}
               </span>
             )}
@@ -1711,9 +1711,9 @@ export const ProductsView: React.FC = () => {
 
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
-            <Tag className="w-4 h-4 text-purple-400" />
+            <Tag className="w-4 h-4 text-purple-500 dark:text-purple-400" />
             <span>Nova Categoria</span>
           </button>
 
@@ -1721,11 +1721,11 @@ export const ProductsView: React.FC = () => {
             onClick={handleBackfillCodes}
             disabled={isBackfilling}
             title="Atribuir códigos internos sequenciais a todos os produtos sem código"
-            className="py-2.5 px-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             {isBackfilling
               ? <><span className="animate-spin">⟳</span> <span>Gerando...</span></>
-              : <><span className="text-sky-400 font-mono text-sm">#</span> <span>Gerar Códigos</span></>
+              : <><span className="text-sky-500 dark:text-sky-400 font-mono text-sm">#</span> <span>Gerar Códigos</span></>
             }
           </button>
 
@@ -1740,7 +1740,7 @@ export const ProductsView: React.FC = () => {
       </div>
 
       {/* Barra de Filtros */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-3">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-sm">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -1748,17 +1748,17 @@ export const ProductsView: React.FC = () => {
             placeholder="Buscar por nome, código interno (#BEB-01), EAN/barras, marca ou fornecedor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500"
           />
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setSelectedCategory('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
               selectedCategory === 'ALL'
                 ? 'bg-amber-500 text-slate-950'
-                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent'
             }`}
           >
             Todas ({products.length})
@@ -1766,10 +1766,10 @@ export const ProductsView: React.FC = () => {
           {categories.map((cat) => (
             <div
               key={cat.id}
-              className={`inline-flex items-center gap-1 rounded-xl text-xs font-bold transition whitespace-nowrap pl-3 pr-1 py-1 ${
+              className={`inline-flex items-center gap-1 rounded-xl text-xs font-bold transition whitespace-nowrap pl-3 pr-1 py-1 cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'bg-amber-500 text-slate-950'
-                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent'
               }`}
             >
               <button
@@ -1797,10 +1797,10 @@ export const ProductsView: React.FC = () => {
       </div>
 
       {/* Tabela / Lista de Produtos */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 uppercase text-[10px] tracking-wider text-slate-400 font-bold border-b border-slate-800">
+          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-950/80 uppercase text-[10px] tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="py-3 px-4">Produto</th>
                 <th className="py-3 px-4">Categoria</th>
@@ -1812,7 +1812,7 @@ export const ProductsView: React.FC = () => {
                 <th className="py-3 px-4 text-center">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
               {filteredProducts.map((p) => {
                 const isLowStock = p.stock <= p.minStock;
                 const margin = p.costPrice
@@ -1820,31 +1820,31 @@ export const ProductsView: React.FC = () => {
                   : null;
 
                 return (
-                  <tr key={p.id} className="hover:bg-slate-850/50 transition">
+                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
                     <td className="py-3 px-4 cursor-pointer group" onClick={() => openEditModal(p)} title="Clique para abrir e editar este produto">
-                      <div className="font-bold text-white text-sm flex items-center gap-2 flex-wrap group-hover:text-amber-400 transition-colors">
+                      <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2 flex-wrap group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
                         <span>{p.name}</span>
                         {p.code && (
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono" title="Código Interno">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-mono" title="Código Interno">
                             #{p.code}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {p.brand && (
-                          <span className="text-[11px] text-amber-400 font-medium">
+                          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                             {p.brand}
                           </span>
                         )}
                         {(p.supplierRel?.tradeName || p.supplierRel?.name || p.supplier) && (
-                          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40" title="Fornecedor">
-                            <Truck className="w-3 h-3 text-emerald-400" />
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40" title="Fornecedor">
+                            <Truck className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
                             {p.supplierRel?.tradeName || p.supplierRel?.name || p.supplier}
                           </span>
                         )}
                         {p.ean && (
-                          <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-800" title="Código de Barras EAN">
-                            <Barcode className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-600 dark:text-slate-400 font-mono flex items-center gap-1 bg-slate-100 dark:bg-slate-950/60 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800" title="Código de Barras EAN">
+                            <Barcode className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                             {p.ean}
                           </span>
                         )}
@@ -1856,7 +1856,7 @@ export const ProductsView: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px]">
                         {p.category?.name || 'Geral'}
                       </span>
                     </td>
@@ -1864,42 +1864,42 @@ export const ProductsView: React.FC = () => {
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                           p.kdsStation === 'BAR'
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20'
+                            : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
                         }`}
                       >
                         {p.kdsStation === 'BAR' ? <Beer className="w-3 h-3" /> : <ChefHat className="w-3 h-3" />}
                         {p.kdsStation === 'BAR' ? 'Bar' : 'Cozinha'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 text-sm whitespace-nowrap">
+                    <td className="py-3 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
                       <div>R$ {p.price.toFixed(2)}</div>
                       {p.hasBoxPrice && p.boxPrice && (
-                        <div className="text-[10px] text-emerald-400 font-sans font-normal mt-0.5 flex items-center justify-end gap-1">
-                          <Package className="w-3 h-3 text-emerald-400" />
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-normal mt-0.5 flex items-center justify-end gap-1">
+                          <Package className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
                           <span>Cx {p.boxQuantity || 24}x: R$ {p.boxPrice.toFixed(2)}</span>
                         </div>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-slate-400 whitespace-nowrap">
+                    <td className="py-3 px-4 text-right font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {p.costPrice ? `R$ ${p.costPrice.toFixed(2)}` : '-'}
                       {margin !== null && (
-                        <span className="block text-[10px] text-emerald-400 font-sans">
+                        <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-sans">
                           {margin}% margem
                         </span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       {p.components && p.components.length > 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30">
                           Composto (Ficha)
                         </span>
                       ) : (
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
                             isLowStock
-                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                              : 'bg-slate-800 text-slate-300'
+                              ? 'bg-rose-50 dark:bg-red-500/20 text-rose-600 dark:text-red-400 border border-rose-200 dark:border-red-500/30'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           {isLowStock && <AlertTriangle className="w-3 h-3" />}
@@ -1912,14 +1912,14 @@ export const ProductsView: React.FC = () => {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleQuickStock(p.id, -1)}
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs"
+                            className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono text-xs cursor-pointer"
                             title="-1 unidade"
                           >
                             -1
                           </button>
                           <button
                             onClick={() => handleQuickStock(p.id, 10)}
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 font-mono text-xs font-bold"
+                            className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold cursor-pointer"
                             title="+10 unidades"
                           >
                             +10
@@ -1931,21 +1931,21 @@ export const ProductsView: React.FC = () => {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleDuplicateProduct(p)}
-                          className="p-1.5 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-slate-800 transition"
+                          className="p-1.5 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                           title="Duplicar Produto (Gera novo código sequencial)"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => openEditModal(p)}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                          className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                           title="Editar Produto"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteProduct(p.id, p.name)}
-                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                           title="Excluir Produto do Cardápio"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1959,15 +1959,15 @@ export const ProductsView: React.FC = () => {
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400">
-                        {/^\d{7,14}$/.test(search.trim()) ? <Barcode className="w-6 h-6 text-amber-400" /> : <Search className="w-6 h-6" />}
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                        {/^\d{7,14}$/.test(search.trim()) ? <Barcode className="w-6 h-6 text-amber-500 dark:text-amber-400" /> : <Search className="w-6 h-6" />}
                       </div>
-                      <p className="text-sm font-bold text-slate-300">
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                         Nenhum produto cadastrado encontrado {search.trim() ? `para "${search.trim()}"` : ''}
                       </p>
                       {/^\d{7,14}$/.test(search.trim()) ? (
                         <div className="space-y-2">
-                          <p className="text-xs text-slate-400 max-w-sm">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
                             Este código de barras ainda não está no cardápio. Deseja cadastrá-lo agora com preenchimento automático?
                           </p>
                           <button
@@ -1988,7 +1988,7 @@ export const ProductsView: React.FC = () => {
                         <button
                           type="button"
                           onClick={openCreateModal}
-                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer"
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer"
                         >
                           + Cadastrar Novo Produto
                         </button>
@@ -2005,14 +2005,15 @@ export const ProductsView: React.FC = () => {
   )}
 
 
+
       {/* Modal Criar Categoria */}
       {showCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="text-lg font-black text-white mb-3">Nova Categoria</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-3">Nova Categoria</h3>
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div>
-                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Nome da Categoria *
                 </label>
                 <input
@@ -2021,14 +2022,14 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: Doces & Balas, Sobremesas"
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none shadow-xs"
                   id="formNameInput"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label htmlFor="cat-code-start" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="cat-code-start" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Faixa Numérica do Código (Opcional)
                 </label>
                 <input
@@ -2038,7 +2039,7 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: 5001 para bebidas, 6001 para chicletes/balas"
                   value={newCatCodeStart}
                   onChange={(e) => setNewCatCodeStart(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
                   Os produtos desta categoria receberão códigos sequenciais automáticos a partir deste número (ex: 6001, 6002...).
@@ -2049,13 +2050,13 @@ export const ProductsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer"
                 >
                   Criar Categoria
                 </button>
@@ -2067,16 +2068,16 @@ export const ProductsView: React.FC = () => {
       {/* Modal Gerenciar Fornecedores */}
       {showSuppliersModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Cabeçalho */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <Truck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-white">Gestão de Fornecedores</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Gestão de Fornecedores</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Cadastre distribuidores, cervejarias e parceiros para vincular aos produtos e cruzar com NF-e
                   </p>
                 </div>
@@ -2084,14 +2085,14 @@ export const ProductsView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={openCreateSupplierModal}
-                  className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95"
+                  className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Novo Fornecedor</span>
                 </button>
                 <button
                   onClick={() => setShowSuppliersModal(false)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                  className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2099,7 +2100,7 @@ export const ProductsView: React.FC = () => {
             </div>
 
             {/* Barra de Busca de Fornecedores */}
-            <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -2107,7 +2108,7 @@ export const ProductsView: React.FC = () => {
                   placeholder="Buscar por Razão Social, Nome Fantasia, CNPJ, contato ou cidade..."
                   value={supplierSearch}
                   onChange={(e) => setSupplierSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
             </div>
@@ -2129,7 +2130,7 @@ export const ProductsView: React.FC = () => {
                   return (
                     <div className="text-center py-12 text-slate-500">
                       <Truck className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" />
-                      <p className="font-bold text-slate-400 text-sm">
+                      <p className="font-bold text-slate-700 dark:text-slate-400 text-sm">
                         {suppliers.length === 0 ? 'Nenhum fornecedor cadastrado ainda' : 'Nenhum fornecedor encontrado para esta busca'}
                       </p>
                       <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
@@ -2138,7 +2139,7 @@ export const ProductsView: React.FC = () => {
                       {suppliers.length === 0 && (
                         <button
                           onClick={openCreateSupplierModal}
-                          className="mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition"
+                          className="mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition cursor-pointer"
                         >
                           + Cadastrar Primeiro Fornecedor
                         </button>
@@ -2150,52 +2151,52 @@ export const ProductsView: React.FC = () => {
                 return filtered.map((s) => (
                   <div
                     key={s.id}
-                    className="p-4 bg-slate-950 border border-slate-800 rounded-2xl hover:border-slate-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-slate-300 dark:hover:border-slate-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-white text-sm">
+                        <span className="font-black text-slate-900 dark:text-white text-sm">
                           {s.tradeName || s.name}
                         </span>
                         {s.tradeName && s.name && (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             ({s.name})
                           </span>
                         )}
                         {s.document && (
-                          <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] font-mono text-emerald-400">
+                          <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-mono text-emerald-700 dark:text-emerald-400">
                             {s.document.length === 14
                               ? s.document.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
                               : s.document}
                           </span>
                         )}
                         {s._count?.products !== undefined && (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 font-bold">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-bold">
                             {s._count.products} {s._count.products === 1 ? 'produto vinculado' : 'produtos vinculados'}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-slate-400 flex-wrap">
+                      <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                         {s.phone && (
-                          <span className="flex items-center gap-1 text-slate-300">
-                            <Phone className="w-3 h-3 text-emerald-400" />
+                          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                            <Phone className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                             {s.phone}
                           </span>
                         )}
                         {s.email && (
-                          <span className="flex items-center gap-1 text-slate-300">
-                            <Mail className="w-3 h-3 text-cyan-400" />
+                          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                            <Mail className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
                             {s.email}
                           </span>
                         )}
                         {s.contactName && (
-                          <span className="text-slate-400">
-                            Contato: <strong className="text-slate-200">{s.contactName}</strong>
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Contato: <strong className="text-slate-800 dark:text-slate-200">{s.contactName}</strong>
                           </span>
                         )}
                         {s.city && (
-                          <span className="text-slate-400">
+                          <span className="text-slate-500 dark:text-slate-400">
                             {s.city}{s.state ? ` - ${s.state}` : ''}
                           </span>
                         )}
@@ -2211,15 +2212,15 @@ export const ProductsView: React.FC = () => {
                     <div className="flex items-center gap-2 self-end sm:self-center">
                       <button
                         onClick={() => openEditSupplierModal(s)}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-xs font-bold flex items-center gap-1"
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition text-xs font-bold flex items-center gap-1 cursor-pointer"
                         title="Editar Fornecedor"
                       >
-                        <Edit2 className="w-3.5 h-3.5 text-amber-400" />
+                        <Edit2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                         <span className="hidden sm:inline">Editar</span>
                       </button>
                       <button
                         onClick={() => handleDeleteSupplier(s.id, s.tradeName || s.name)}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-400 transition"
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-900/40 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                         title="Excluir Fornecedor"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -2236,15 +2237,15 @@ export const ProductsView: React.FC = () => {
       {/* Modal Formulário Completo de Fornecedor (Criar / Editar) */}
       {showSupplierFormModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Truck className="w-5 h-5 text-emerald-400" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                 <span>{editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}</span>
               </h3>
               <button
                 onClick={() => setShowSupplierFormModal(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2252,7 +2253,7 @@ export const ProductsView: React.FC = () => {
 
             <form onSubmit={handleSaveSupplier} className="space-y-4">
               <div>
-                <label htmlFor="pv-sup-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="pv-sup-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome Principal *
                 </label>
                 <input
@@ -2262,14 +2263,14 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: Cervejaria Ambev S.A. ou Distribuidora Modelo"
                   value={supplierFormName}
                   onChange={(e) => setSupplierFormName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   autoFocus
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="pv-sup-trade" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-trade" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Nome Fantasia
                   </label>
                   <input
@@ -2278,11 +2279,11 @@ export const ProductsView: React.FC = () => {
                     placeholder="Ex: Ambev Chopp"
                     value={supplierFormTradeName}
                     onChange={(e) => setSupplierFormTradeName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="pv-sup-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-doc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     CNPJ ou CPF
                   </label>
                   <input
@@ -2291,14 +2292,14 @@ export const ProductsView: React.FC = () => {
                     placeholder="00.000.000/0000-00"
                     value={supplierFormDocument}
                     onChange={(e) => setSupplierFormDocument(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="pv-sup-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-phone" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Telefone / WhatsApp
                   </label>
                   <input
@@ -2307,11 +2308,11 @@ export const ProductsView: React.FC = () => {
                     placeholder="(11) 98888-7777"
                     value={supplierFormPhone}
                     onChange={(e) => setSupplierFormPhone(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="pv-sup-ie" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-ie" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Inscrição Estadual (IE)
                   </label>
                   <input
@@ -2320,14 +2321,14 @@ export const ProductsView: React.FC = () => {
                     placeholder="Ex: 123456789"
                     value={supplierFormIe}
                     onChange={(e) => setSupplierFormIe(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="pv-sup-email" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-email" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     E-mail
                   </label>
                   <input
@@ -2336,11 +2337,11 @@ export const ProductsView: React.FC = () => {
                     placeholder="pedidos@fornecedor.com.br"
                     value={supplierFormEmail}
                     onChange={(e) => setSupplierFormEmail(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="pv-sup-contact" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-contact" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Contato / Vendedor
                   </label>
                   <input
@@ -2349,14 +2350,14 @@ export const ProductsView: React.FC = () => {
                     placeholder="Ex: Carlos Representante"
                     value={supplierFormContactName}
                     onChange={(e) => setSupplierFormContactName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label htmlFor="pv-sup-city" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-city" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Cidade
                   </label>
                   <input
@@ -2365,11 +2366,11 @@ export const ProductsView: React.FC = () => {
                     placeholder="Ex: São Paulo"
                     value={supplierFormCity}
                     onChange={(e) => setSupplierFormCity(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="pv-sup-uf" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="pv-sup-uf" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     UF
                   </label>
                   <input
@@ -2379,13 +2380,13 @@ export const ProductsView: React.FC = () => {
                     maxLength={2}
                     value={supplierFormState}
                     onChange={(e) => setSupplierFormState(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="pv-sup-addr" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="pv-sup-addr" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Endereço
                 </label>
                 <input
@@ -2394,12 +2395,12 @@ export const ProductsView: React.FC = () => {
                   placeholder="Rua, número, bairro..."
                   value={supplierFormAddress}
                   onChange={(e) => setSupplierFormAddress(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
                   Observações / Condições Comerciais
                 </label>
                 <textarea
@@ -2407,21 +2408,21 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: Entrega às terças-feiras. Pedido mínimo R$ 500. Boleto 28 dias."
                   value={supplierFormNotes}
                   onChange={(e) => setSupplierFormNotes(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none resize-none"
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none resize-none shadow-xs"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex gap-2">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowSupplierFormModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/10"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
                 >
                   {editingSupplier ? 'Atualizar Fornecedor' : 'Salvar Fornecedor'}
                 </button>
@@ -2434,18 +2435,18 @@ export const ProductsView: React.FC = () => {
       {/* Modal Rápido de Fornecedor (+ Novo direto do produto) */}
       {showQuickSupplierModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="text-base font-black text-white mb-1 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-amber-400" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
+            <h3 className="text-base font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               <span>Adicionar Fornecedor Rápido</span>
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
               Cadastre e vincule este fornecedor imediatamente ao produto atual.
             </p>
 
             <form onSubmit={handleSaveQuickSupplier} className="space-y-3">
               <div>
-                <label htmlFor="quick-sup-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="quick-sup-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome *
                 </label>
                 <input
@@ -2455,13 +2456,13 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: Cervejaria Heineken do Brasil"
                   value={quickSupplierName}
                   onChange={(e) => setQuickSupplierName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label htmlFor="quick-sup-trade" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="quick-sup-trade" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Nome Fantasia
                 </label>
                 <input
@@ -2470,12 +2471,12 @@ export const ProductsView: React.FC = () => {
                   placeholder="Ex: Heineken"
                   value={quickSupplierTradeName}
                   onChange={(e) => setQuickSupplierTradeName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                 />
               </div>
 
               <div>
-                <label htmlFor="quick-sup-doc" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="quick-sup-doc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   CNPJ ou CPF (Opcional)
                 </label>
                 <input
@@ -2484,12 +2485,12 @@ export const ProductsView: React.FC = () => {
                   placeholder="00.000.000/0000-00"
                   value={quickSupplierDoc}
                   onChange={(e) => setQuickSupplierDoc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                 />
               </div>
 
               <div>
-                <label htmlFor="quick-sup-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="quick-sup-phone" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Telefone / WhatsApp (Opcional)
                 </label>
                 <input
@@ -2498,7 +2499,7 @@ export const ProductsView: React.FC = () => {
                   placeholder="(11) 99999-8888"
                   value={quickSupplierPhone}
                   onChange={(e) => setQuickSupplierPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:border-amber-500 focus:outline-none cursor-text"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                 />
               </div>
 
@@ -2506,13 +2507,13 @@ export const ProductsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowQuickSupplierModal(false)}
-                  className="flex-1 py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                  className="flex-1 py-2 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition"
+                  className="flex-1 py-2 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer"
                 >
                   Vincular Agora
                 </button>

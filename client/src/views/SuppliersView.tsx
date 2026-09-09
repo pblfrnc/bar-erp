@@ -173,14 +173,14 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
   return (
     <div className="space-y-6 pb-20 max-w-6xl mx-auto">
       {/* Cabeçalho */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-sm dark:shadow-2xl">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
             <Truck className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">Módulo de Fornecedores</h2>
-            <p className="text-xs text-slate-400">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">Módulo de Fornecedores</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Controle de distribuidoras, cervejarias, contatos comerciais e cruzamento com notas da SEFAZ
             </p>
           </div>
@@ -191,13 +191,13 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
             <div className="flex flex-col items-end gap-1">
               <button
                 onClick={() => setShowImportXml(true)}
-                className="py-2.5 px-4 bg-red-900/60 hover:bg-red-800/80 text-red-300 border border-red-700/60 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer"
+                className="py-2.5 px-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/60 dark:hover:bg-red-800/80 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700/60 rounded-xl text-xs font-bold transition flex items-center gap-2 active:scale-95 cursor-pointer shadow-xs"
                 title="⚠️ USO EXCLUSIVO DO DESENVOLVEDOR — Importar fornecedores e produtos do sistema anterior"
               >
-                <UploadCloud className="w-4 h-4 text-red-400" />
+                <UploadCloud className="w-4 h-4 text-red-600 dark:text-red-400" />
                 <span>Importar XML</span>
               </button>
-              <span className="text-[10px] text-red-500/80 font-medium leading-none pr-1">
+              <span className="text-[10px] text-red-600 dark:text-red-500/80 font-medium leading-none pr-1">
                 ⚠️ Apenas desenvolvedor
               </span>
             </div>
@@ -221,41 +221,41 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
 
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs uppercase font-bold text-slate-400">Total Cadastrados</span>
-            <p className="text-2xl font-black text-white mt-0.5">{suppliers.length}</p>
+            <span className="text-xs uppercase font-bold text-slate-500 dark:text-slate-400">Total Cadastrados</span>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{suppliers.length}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
             <Building2 className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs uppercase font-bold text-slate-400">Com CNPJ Validado</span>
-            <p className="text-2xl font-black text-emerald-400 mt-0.5">
+            <span className="text-xs uppercase font-bold text-slate-500 dark:text-slate-400">Com CNPJ Validado</span>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
               {suppliers.filter(s => s.document && s.document.length >= 11).length}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent">
             <UserCheck className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-xs uppercase font-bold text-slate-400">Produtos Vinculados</span>
-            <p className="text-2xl font-black text-amber-400 mt-0.5">{totalProductsLinked}</p>
+            <span className="text-xs uppercase font-bold text-slate-500 dark:text-slate-400">Produtos Vinculados</span>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{totalProductsLinked}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-transparent">
             <Package className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       {/* Barra de Pesquisa */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-xs">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -263,21 +263,21 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
             placeholder="Pesquisar por Razão Social, Nome Fantasia, CNPJ/CPF, cidade ou telefone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-xs"
           />
         </div>
       </div>
 
       {/* Lista / Grid de Fornecedores */}
       {loading ? (
-        <div className="py-16 text-center text-slate-400">
+        <div className="py-16 text-center text-slate-500 dark:text-slate-400">
           <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-xs font-bold">Carregando fornecedores...</p>
         </div>
       ) : filteredSuppliers.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center text-slate-500">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-500 shadow-xs">
           <Truck className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" />
-          <h3 className="font-bold text-slate-300 text-sm">
+          <h3 className="font-bold text-slate-800 dark:text-slate-300 text-sm">
             {suppliers.length === 0 ? 'Nenhum fornecedor cadastrado' : 'Nenhum fornecedor encontrado para esta busca'}
           </h3>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
@@ -305,25 +305,25 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
             return (
               <div
                 key={s.id}
-                className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition flex flex-col justify-between gap-4"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:border-slate-300 dark:hover:border-slate-700 transition flex flex-col justify-between gap-4 shadow-xs"
               >
                 <div className="space-y-3">
                   {/* Topo do Card */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="text-base font-black text-white leading-tight">
+                      <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">
                         {s.tradeName || s.name}
                       </h4>
                       {s.tradeName && s.name && (
-                        <p className="text-xs text-slate-400 mt-0.5">{s.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{s.name}</p>
                       )}
                     </div>
                     {s._count?.products !== undefined && s._count.products > 0 ? (
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
                         {s._count.products} {s._count.products === 1 ? 'produto' : 'produtos'}
                       </span>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-full bg-slate-800 text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         Sem itens
                       </span>
                     )}
@@ -332,34 +332,34 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                   {/* Informações Fiscais e Cadastrais */}
                   <div className="space-y-1.5 text-xs">
                     {formattedDoc && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-slate-500 font-bold">CNPJ/CPF:</span>
-                        <span className="font-mono text-emerald-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[11px]">
+                        <span className="font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-slate-100 dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
                           {formattedDoc}
                         </span>
                         {s.ie && (
-                          <span className="text-slate-400 text-[11px]">
-                            • IE: <strong className="font-mono text-slate-300">{s.ie}</strong>
+                          <span className="text-slate-500 dark:text-slate-400 text-[11px]">
+                            • IE: <strong className="font-mono text-slate-700 dark:text-slate-300">{s.ie}</strong>
                           </span>
                         )}
                       </div>
                     )}
 
                     {s.contactName && (
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <UserCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>Contato: <strong className="text-white">{s.contactName}</strong></span>
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <UserCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span>Contato: <strong className="text-slate-900 dark:text-white">{s.contactName}</strong></span>
                       </div>
                     )}
 
                     {s.phone && (
                       <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <a
                           href={`https://wa.me/55${s.phone.replace(/\D/g, '')}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-emerald-400 hover:underline font-mono text-[11px]"
+                          className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono text-[11px]"
                           title="Abrir no WhatsApp"
                         >
                           {s.phone}
@@ -369,10 +369,10 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
 
                     {s.email && (
                       <div className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-cyan-400 shrink-0" />
                         <a
                           href={`mailto:${s.email}`}
-                          className="text-cyan-400 hover:underline truncate"
+                          className="text-sky-600 dark:text-cyan-400 hover:underline truncate"
                         >
                           {s.email}
                         </a>
@@ -380,8 +380,8 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     )}
 
                     {(s.city || s.address) && (
-                      <div className="flex items-start gap-2 text-slate-400 text-[11px]">
-                        <MapPin className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-2 text-slate-500 dark:text-slate-400 text-[11px]">
+                        <MapPin className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />
                         <span>
                           {s.address ? `${s.address} • ` : ''}
                           {s.city}{s.state ? ` - ${s.state}` : ''}
@@ -390,7 +390,7 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     )}
 
                     {s.notes && (
-                      <div className="mt-2 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 italic">
+                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 italic">
                         "{s.notes}"
                       </div>
                     )}
@@ -398,17 +398,17 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                 </div>
 
                 {/* Ações do Card */}
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-end gap-2">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end gap-2">
                   <button
                     onClick={() => openEditModal(s)}
-                    className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Edit2 className="w-3.5 h-3.5 text-amber-400" />
+                    <Edit2 className="w-3.5 h-3.5 text-amber-500" />
                     <span>Editar</span>
                   </button>
                   <button
                     onClick={() => handleDelete(s)}
-                    className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-rose-950/50 text-slate-400 hover:text-rose-400 transition text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/50 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Excluir</span>
@@ -422,16 +422,16 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
 
       {/* Modal Formulário Completo de Fornecedor */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Truck className="w-5 h-5 text-emerald-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                 <span>{editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}</span>
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -439,7 +439,7 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label htmlFor="sup-form-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="sup-form-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Razão Social / Nome Principal *
                 </label>
                 <input
@@ -449,14 +449,14 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                   placeholder="Ex: Cervejaria Ambev S.A. ou Distribuidora Modelo"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   autoFocus
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="sup-form-trade-name" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-trade-name" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Nome Fantasia
                   </label>
                   <input
@@ -465,19 +465,19 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="Ex: Ambev Chopp"
                     value={formTradeName}
                     onChange={(e) => setFormTradeName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="sup-form-doc" className="block text-xs font-bold uppercase text-slate-400 cursor-pointer">
+                    <label htmlFor="sup-form-doc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 cursor-pointer">
                       CNPJ ou CPF
                     </label>
                     <button
                       type="button"
                       disabled={searchingCnpj}
                       onClick={handleConsultarCnpj}
-                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer disabled:opacity-50"
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold underline cursor-pointer disabled:opacity-50"
                     >
                       {searchingCnpj ? 'Consultando...' : 'Buscar Receita'}
                     </button>
@@ -488,14 +488,14 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="00.000.000/0000-00"
                     value={formDocument}
                     onChange={(e) => setFormDocument(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="sup-form-phone" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-phone" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Telefone / WhatsApp
                   </label>
                   <input
@@ -504,11 +504,11 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="(11) 98888-7777"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="sup-form-ie" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-ie" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Inscrição Estadual (IE)
                   </label>
                   <input
@@ -517,14 +517,14 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="Ex: 123456789"
                     value={formIe}
                     onChange={(e) => setFormIe(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="sup-form-email" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-email" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     E-mail
                   </label>
                   <input
@@ -533,11 +533,11 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="pedidos@fornecedor.com.br"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="sup-form-contact" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-contact" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Contato / Vendedor
                   </label>
                   <input
@@ -546,14 +546,14 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="Ex: Carlos Representante"
                     value={formContactName}
                     onChange={(e) => setFormContactName(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label htmlFor="sup-form-city" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-city" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     Cidade
                   </label>
                   <input
@@ -562,11 +562,11 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     placeholder="Ex: São Paulo"
                     value={formCity}
                     onChange={(e) => setFormCity(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
                 <div>
-                  <label htmlFor="sup-form-state" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                  <label htmlFor="sup-form-state" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                     UF
                   </label>
                   <input
@@ -576,13 +576,13 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                     maxLength={2}
                     value={formState}
                     onChange={(e) => setFormState(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="sup-form-address" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="sup-form-address" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Endereço
                 </label>
                 <input
@@ -591,12 +591,12 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                   placeholder="Rua, número, bairro..."
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
                 />
               </div>
 
               <div>
-                <label htmlFor="sup-form-notes" className="block text-xs font-bold uppercase text-slate-400 mb-1 cursor-pointer">
+                <label htmlFor="sup-form-notes" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Observações / Condições Comerciais
                 </label>
                 <textarea
@@ -605,21 +605,21 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
                   placeholder="Ex: Entrega às terças-feiras. Pedido mínimo R$ 500. Boleto 28 dias."
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none resize-none cursor-text"
+                  className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:border-emerald-500 focus:outline-none resize-none cursor-text shadow-xs"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex gap-2">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/10 cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/10 cursor-pointer active:scale-95"
                 >
                   {editingSupplier ? 'Atualizar Fornecedor' : 'Salvar Fornecedor'}
                 </button>

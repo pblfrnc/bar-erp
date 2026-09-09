@@ -163,18 +163,18 @@ export function KdsApp() {
 
   const getUrgencyColor = (dateString: string) => {
     const diff = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 60000);
-    if (diff >= 25) return 'border-rose-500 bg-rose-950/20 text-rose-400';
-    if (diff >= 15) return 'border-amber-500 bg-amber-950/20 text-amber-400';
-    return 'border-slate-800 bg-slate-900/60 text-slate-300';
+    if (diff >= 25) return 'border-rose-300 dark:border-rose-500 bg-rose-50/70 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 shadow-sm';
+    if (diff >= 15) return 'border-amber-300 dark:border-amber-500 bg-amber-50/70 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 shadow-sm';
+    return 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-800 dark:text-slate-300 shadow-sm';
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col select-none transition-colors duration-200">
       {/* Ticket de Impressão Térmica (visível na impressora) */}
       <KitchenTicketReceipt ticket={printTicket} />
 
       {/* Cabeçalho da Cozinha / KDS */}
-      <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 shadow-md">
+      <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center shadow-lg shadow-orange-600/20 text-white">
@@ -182,12 +182,12 @@ export function KdsApp() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black text-white tracking-tight leading-none">BarERP Cozinha</h1>
+                <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">BarERP Cozinha</h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-black bg-orange-500 text-slate-950 uppercase tracking-wide">
                   KDS Produção
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                 {items.length} {items.length === 1 ? 'item pendente' : 'itens em produção'}
               </p>
             </div>
@@ -196,11 +196,11 @@ export function KdsApp() {
           {/* Controles: Estação, Som, Auto-Impressão, Fullscreen */}
           <div className="flex items-center gap-2">
             {/* Filtro de Estação */}
-            <div className="hidden sm:flex items-center bg-slate-950 rounded-xl p-1 border border-slate-800">
+            <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-950 rounded-xl p-1 border border-slate-200 dark:border-slate-800">
               <button
                 onClick={() => setStationFilter('ALL')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  stationFilter === 'ALL' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  stationFilter === 'ALL' ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Todos
@@ -208,7 +208,7 @@ export function KdsApp() {
               <button
                 onClick={() => setStationFilter('KITCHEN')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                  stationFilter === 'KITCHEN' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+                  stationFilter === 'KITCHEN' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Utensils className="w-3.5 h-3.5" />
@@ -217,7 +217,7 @@ export function KdsApp() {
               <button
                 onClick={() => setStationFilter('BAR')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                  stationFilter === 'BAR' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  stationFilter === 'BAR' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Wine className="w-3.5 h-3.5" />
@@ -228,10 +228,10 @@ export function KdsApp() {
             {/* Toggle Alerta Sonoro */}
             <button
               onClick={toggleSound}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 shadow-xs ${
                 soundAlert
-                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
-                  : 'bg-slate-800 text-slate-500 border-slate-700'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-500/40'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
               }`}
               title={soundAlert ? 'Som ativado quando chegar pedido' : 'Som desativado'}
             >
@@ -242,10 +242,10 @@ export function KdsApp() {
             {/* Toggle Auto-Impressão Térmica */}
             <button
               onClick={toggleAutoPrint}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 shadow-xs ${
                 autoPrint
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                  ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
               }`}
               title={autoPrint ? 'Auto-impressão de pedidos ligada' : 'Auto-impressão desligada'}
             >
@@ -256,16 +256,16 @@ export function KdsApp() {
             {/* Atualizar */}
             <button
               onClick={loadKdsItems}
-              className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white transition border border-slate-700"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition border border-slate-200 dark:border-slate-700 shadow-xs"
               title="Atualizar KDS"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-500' : ''}`} />
             </button>
 
             {/* Tela Cheia */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white transition border border-slate-700"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition border border-slate-200 dark:border-slate-700 shadow-xs"
               title={isFullscreen ? 'Sair da tela cheia' : 'Modo Monitor de Cozinha'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -277,7 +277,7 @@ export function KdsApp() {
                 localStorage.setItem('bar_app_mode', 'admin');
                 window.location.href = '/';
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 hover:text-white border border-orange-500/30 transition active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-white border border-orange-500/30 transition active:scale-95 shadow-xs"
               title="Voltar ao Painel Administrativo / Caixa"
             >
               <LayoutDashboard className="w-4 h-4" />
@@ -290,10 +290,10 @@ export function KdsApp() {
       {/* Conteúdo Principal do KDS */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
         {Object.keys(ordersGrouped).length === 0 ? (
-          <div className="py-24 text-center bg-slate-900/40 rounded-3xl border border-slate-800 flex flex-col items-center justify-center">
-            <CheckCircle2 className="w-16 h-16 text-emerald-500/80 mb-3" />
-            <h3 className="text-xl font-black text-white">Todos os pedidos foram atendidos!</h3>
-            <p className="text-slate-400 text-sm mt-1">A cozinha e o bar estão com todas as comandas zeradas.</p>
+          <div className="py-24 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center shadow-sm">
+            <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-3" />
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">Todos os pedidos foram atendidos!</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">A cozinha e o bar estão com todas as comandas zeradas.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -304,21 +304,21 @@ export function KdsApp() {
               return (
                 <div
                   key={orderId}
-                  className={`border rounded-2xl p-4 flex flex-col justify-between shadow-lg transition duration-150 ${urgencyClasses}`}
+                  className={`border rounded-2xl p-4 flex flex-col justify-between shadow-sm transition duration-150 ${urgencyClasses}`}
                 >
                   <div>
                     {/* Topo do Card de Comanda */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                       <div>
-                        <span className="text-xs font-black text-amber-400 uppercase tracking-wide">
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wide">
                           Comanda #{orderGroup.orderNumber}
                         </span>
-                        <h4 className="text-lg font-black text-white leading-tight">
+                        <h4 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
                           {orderGroup.tableName}
                         </h4>
                       </div>
                       <div className="flex flex-col items-end">
-                        <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-950/40 border border-slate-800">
+                        <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                           <Clock className="w-3 h-3" />
                           {elapsed}
                         </span>
@@ -336,7 +336,7 @@ export function KdsApp() {
                               }))
                             })
                           }
-                          className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition"
+                          className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition"
                           title="Reimprimir comanda na impressora térmica"
                         >
                           <Printer className="w-3 h-3" />
@@ -354,7 +354,7 @@ export function KdsApp() {
                         return (
                           <div
                             key={item.id}
-                            className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 space-y-1.5"
+                            className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/80 rounded-xl p-2.5 space-y-1.5"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-start gap-2">
@@ -362,11 +362,11 @@ export function KdsApp() {
                                   {item.quantity}x
                                 </span>
                                 <div>
-                                  <p className="text-sm font-bold text-white leading-snug">
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
                                     {item.product.name}
                                   </p>
                                   {item.notes && (
-                                    <p className="text-xs font-black text-amber-300 bg-amber-950/40 border-l-2 border-amber-400 px-1.5 py-0.5 mt-1 rounded-r">
+                                    <p className="text-xs font-black text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-950/40 border-l-2 border-amber-500 px-1.5 py-0.5 mt-1 rounded-r">
                                       OBS: {item.notes}
                                     </p>
                                   )}
@@ -379,7 +379,7 @@ export function KdsApp() {
                               {isPending && (
                                 <button
                                   onClick={() => handleUpdateStatus(item.id, 'PREPARING')}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 hover:bg-amber-500 hover:text-slate-950 border border-amber-500/30 transition flex items-center gap-1"
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/15 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-slate-950 border border-amber-300 dark:border-amber-500/30 transition flex items-center gap-1 shadow-xs"
                                 >
                                   <Flame className="w-3 h-3" />
                                   <span>Iniciar</span>
@@ -388,7 +388,7 @@ export function KdsApp() {
                               {isPreparing && (
                                 <button
                                   onClick={() => handleUpdateStatus(item.id, 'READY')}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition flex items-center gap-1 shadow-sm active:scale-95"
+                                  className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 shadow-xs active:scale-95"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
                                   <span>Pronto</span>
@@ -402,16 +402,16 @@ export function KdsApp() {
                   </div>
 
                   {/* Ações em Massa da Comanda */}
-                  <div className="pt-2 border-t border-slate-800/80 flex gap-2">
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex gap-2">
                     <button
                       onClick={() => handleBatchStatus(orderId, 'PREPARING')}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 transition"
+                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700 transition"
                     >
                       Iniciar Todos
                     </button>
                     <button
                       onClick={() => handleBatchStatus(orderId, 'READY')}
-                      className="flex-1 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition active:scale-95 shadow-md shadow-emerald-950/20"
+                      className="flex-1 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white transition active:scale-95 shadow-sm shadow-emerald-950/20"
                     >
                       Concluir Todos
                     </button>

@@ -233,29 +233,29 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in fade-in duration-150 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 dark:bg-slate-950 animate-in fade-in duration-150 overflow-hidden">
       <div className="flex-1 flex flex-col w-full h-full overflow-hidden">
         
         {/* Header do PDV Expresso */}
-        <div className="px-6 py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/70 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-md shadow-amber-500/10">
-              <Zap className="w-5 h-5 fill-amber-400" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 dark:text-amber-400 shadow-md shadow-amber-500/10">
+              <Zap className="w-5 h-5 fill-amber-500 dark:fill-amber-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white tracking-tight">Venda Rápida de Balcão (PDV Tela Cheia)</h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Venda Rápida de Balcão (PDV Tela Cheia)</h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                   PDV Expresso
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Atendimento ágil direto no balcão sem necessidade de abrir mesa</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Atendimento ágil direto no balcão sem necessidade de abrir mesa</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/60 hover:bg-slate-800 transition cursor-pointer"
+            className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -264,18 +264,18 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
         {/* Notificação de Sucesso Rápida */}
         {lastSuccess && (
           <div className="bg-emerald-500/10 border-b border-emerald-500/30 px-6 py-2.5 flex items-center justify-between animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="w-4 h-4" />
               <span>Venda #{lastSuccess.order.orderNumber} finalizada com sucesso!</span>
               {lastSuccess.change > 0 && (
-                <span className="bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/40 text-white font-mono">
+                <span className="bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/40 text-slate-900 dark:text-white font-mono">
                   Troco: R$ {lastSuccess.change.toFixed(2)}
                 </span>
               )}
             </div>
             <button
               onClick={() => setLastSuccess(null)}
-              className="text-emerald-400 hover:text-white text-xs underline cursor-pointer"
+              className="text-emerald-600 dark:text-emerald-400 hover:underline text-xs cursor-pointer"
             >
               Dispensar
             </button>
@@ -286,9 +286,9 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
           {/* Lado Esquerdo: Catálogo de Produtos */}
-          <div className="flex-1 flex flex-col border-r border-slate-800 overflow-hidden bg-slate-900/50">
+          <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
             {/* Barra de Pesquisa e Categorias */}
-            <div className="p-4 border-b border-slate-800 space-y-3 bg-slate-900">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
               <div className="relative flex items-center">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                 <input
@@ -303,7 +303,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text select-text"
+                  className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text select-text"
                 />
                 {search && (
                   <button
@@ -312,7 +312,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                       setSearch('');
                       searchInputRef.current?.focus();
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer z-10"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:hover:text-white p-1 rounded-lg transition cursor-pointer z-10"
                     title="Limpar busca"
                   >
                     <X className="w-4 h-4" />
@@ -327,7 +327,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                     selectedCategory === 'ALL'
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                      : 'bg-slate-800/80 text-slate-400 hover:bg-slate-800 hover:text-white'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white border border-slate-200 dark:border-transparent'
                   }`}
                 >
                   Todos ({products.length})
@@ -339,7 +339,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                       selectedCategory === cat.id
                         ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                        : 'bg-slate-800/80 text-slate-400 hover:bg-slate-800 hover:text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white border border-slate-200 dark:border-transparent'
                     }`}
                   >
                     {cat.name}
@@ -374,7 +374,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                         className={`p-3 rounded-2xl border text-left transition relative flex flex-col justify-between ${
                           totalCartCount > 0
                             ? 'bg-amber-500/10 border-amber-500/40 shadow-sm shadow-amber-500/10'
-                            : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-800/50'
+                            : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 shadow-xs'
                         }`}
                       >
                         {totalCartCount > 0 && (
@@ -385,17 +385,17 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
                         <div className="mb-2">
                           <div className="flex items-start justify-between gap-1 mb-0.5">
-                            <span className="font-bold text-xs text-white line-clamp-2 leading-snug flex-1">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 leading-snug flex-1">
                               {product.name}
                             </span>
                             {product.code && (
-                              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800 shrink-0">
+                              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 shrink-0">
                                 #{product.code}
                               </span>
                             )}
                           </div>
                           {product.description && (
-                            <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                               {product.description}
                             </div>
                           )}
@@ -403,23 +403,23 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
                         {/* Seletor Visual de Preço: Unidade vs Caixa */}
                         {product.hasBoxPrice && product.boxPrice ? (
-                          <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
+                          <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800/60">
                             <div className="grid grid-cols-2 gap-1">
                               {/* Botão Unidade Avulsa */}
                               <button
                                 type="button"
                                 onClick={() => handleAddToCart(product, 'UNIT')}
-                                className="px-2 py-1.5 rounded-xl bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-300 border border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/btn active:scale-95"
+                                className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/btn active:scale-95"
                                 title="Adicionar 1 Unidade Avulsa"
                               >
-                                <span className="text-[9px] uppercase font-bold text-slate-400 group-hover/btn:text-slate-900">
+                                <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 group-hover/btn:text-slate-900">
                                   Unidade
                                 </span>
-                                <span className="text-[11px] font-black font-mono text-emerald-400 group-hover/btn:text-slate-950">
+                                <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-emerald-400 group-hover/btn:text-slate-950">
                                   R$ {Number(product.price || 0).toFixed(2)}
                                 </span>
                                 {cartUnits && (
-                                  <span className="text-[9px] font-bold text-amber-400 group-hover/btn:text-slate-950">
+                                  <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 group-hover/btn:text-slate-950">
                                     ({cartUnits.quantity}x)
                                   </span>
                                 )}
@@ -429,30 +429,30 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                               <button
                                 type="button"
                                 onClick={() => handleAddToCart(product, 'BOX')}
-                                className="px-2 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/box active:scale-95"
+                                className="px-2 py-1.5 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/box active:scale-95"
                                 title={`Adicionar Caixa com ${product.boxQuantity || 24} unidades`}
                               >
                                 <span className="text-[9px] uppercase font-black tracking-wider flex items-center gap-0.5 group-hover/box:text-slate-950">
                                   <Package className="w-2.5 h-2.5" /> Cx {product.boxQuantity || 24}x
                                 </span>
-                                <span className="text-[11px] font-black font-mono text-white group-hover/box:text-slate-950">
+                                <span className="text-[11px] font-black font-mono text-slate-900 dark:text-white group-hover/box:text-slate-950">
                                   R$ {Number(product.boxPrice).toFixed(2)}
                                 </span>
                                 {cartBoxes && (
-                                  <span className="text-[9px] font-black text-amber-400 group-hover/box:text-slate-950">
+                                  <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 group-hover/box:text-slate-950">
                                     ({cartBoxes.quantity} cx)
                                   </span>
                                 )}
                               </button>
                             </div>
 
-                            <div className="flex items-center justify-between text-[9px] text-slate-400 px-0.5">
+                            <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 px-0.5">
                               {product.trackStock && (
-                                <span className={isLowStock ? 'text-rose-400 font-bold' : ''}>
+                                <span className={isLowStock ? 'text-rose-500 dark:text-rose-400 font-bold' : ''}>
                                   Estoque: {product.stock} un
                                 </span>
                               )}
-                              <span className="text-[9px] text-emerald-400/90 font-mono">
+                              <span className="text-[9px] text-emerald-600 dark:text-emerald-400/90 font-mono">
                                 R$ {(Number(product.boxPrice) / (product.boxQuantity || 24)).toFixed(2)}/un
                               </span>
                             </div>
@@ -462,17 +462,17 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                           <button
                             type="button"
                             onClick={() => handleAddToCart(product, 'UNIT')}
-                            className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/50 w-full hover:text-amber-400 transition cursor-pointer"
+                            className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/50 w-full hover:text-amber-500 transition cursor-pointer"
                           >
-                            <span className="text-xs font-black text-emerald-400 font-mono">
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
                               R$ {Number(product.price || 0).toFixed(2)}
                             </span>
 
                             {product.trackStock && (
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
                                 isLowStock 
-                                  ? 'bg-rose-500/20 text-rose-300' 
-                                  : 'bg-slate-800 text-slate-400'
+                                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300' 
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-transparent'
                               }`}>
                                 {product.stock} un
                               </span>
@@ -488,17 +488,17 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
           </div>
 
           {/* Lado Direito: Carrinho & Pagamento Instantâneo */}
-          <div className="w-full md:w-96 flex flex-col bg-slate-950 justify-between">
+          <div className="w-full md:w-96 flex flex-col bg-slate-50 dark:bg-slate-950 justify-between border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800">
             
             {/* Lista de Itens do Carrinho */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-300">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900/80">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-300">
                 Itens da Venda ({cart.reduce((a, b) => a + b.quantity, 0)})
               </span>
               {cart.length > 0 && (
                 <button
                   onClick={() => setCart([])}
-                  className="text-[11px] font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition cursor-pointer"
+                  className="text-[11px] font-bold text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 transition cursor-pointer"
                 >
                   <Trash2 className="w-3 h-3" /> Limpar
                 </button>
@@ -507,8 +507,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs text-center py-10">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-slate-600 mb-2">
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs text-center py-10">
+                  <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-600 mb-2">
                     <Zap className="w-6 h-6" />
                   </div>
                   <span>Clique nos produtos ao lado para adicionar à venda rápida.</span>
@@ -517,52 +517,52 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                 cart.map(item => (
                   <div
                     key={`${item.product.id}-${item.unitType}`}
-                    className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex items-center justify-between gap-2"
+                    className="p-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2 shadow-xs"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-white truncate">{item.product.name}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{item.product.name}</span>
                         {item.unitType === 'BOX' ? (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black border border-amber-500/30 flex items-center gap-1">
                             <Package className="w-2.5 h-2.5" /> Cx {item.product.boxQuantity || 24}x
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">
+                          <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] font-bold border border-slate-200 dark:border-transparent">
                             Un
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                         R$ {item.unitPrice.toFixed(2)} {item.unitType === 'BOX' ? 'cx' : 'un'}
                       </div>
                     </div>
 
                     {/* Controles de Quantidade */}
-                    <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
                       <button
                         onClick={() => handleUpdateQuantity(item.product.id, item.unitType, -1)}
-                        className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                        className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-0.5 cursor-pointer"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-xs font-bold text-white w-5 text-center font-mono">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white w-5 text-center font-mono">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => handleUpdateQuantity(item.product.id, item.unitType, 1)}
-                        className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                        className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-0.5 cursor-pointer"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
 
                     <div className="text-right min-w-[65px]">
-                      <div className="text-xs font-black text-emerald-400 font-mono">
+                      <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
                         R$ {(item.unitPrice * item.quantity).toFixed(2)}
                       </div>
                       <button
                         onClick={() => handleRemoveFromCart(item.product.id, item.unitType)}
-                        className="text-slate-500 hover:text-rose-400 p-0.5 transition cursor-pointer"
+                        className="text-slate-400 hover:text-rose-500 p-0.5 transition cursor-pointer"
                         title="Remover item do carrinho"
                       >
                         <Trash2 className="w-3 h-3 ml-auto" />
@@ -574,12 +574,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
             </div>
 
             {/* Painel de Fechamento & Pagamento */}
-            <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-3">
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 space-y-3">
               
               {/* Desconto e Cliente */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
                     Desconto (R$)
                   </label>
                   <input
@@ -588,12 +588,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     placeholder="0,00"
                     value={discountValue}
                     onChange={e => setDiscountValue(e.target.value.replace(',', '.'))}
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:border-amber-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
                     Cliente (Opcional)
                   </label>
                   <input
@@ -601,14 +601,14 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     placeholder="Nome ou CPF"
                     value={customerName}
                     onChange={e => setCustomerName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:border-amber-500 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:border-amber-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-600"
                   />
                 </div>
               </div>
 
               {/* Seletor de Forma de Pagamento */}
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1.5">
+                <label className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1.5">
                   Forma de Pagamento
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
@@ -617,8 +617,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     onClick={() => setPaymentMethod('PIX')}
                     className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'PIX'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50'
+                        : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     <QrCode className="w-3.5 h-3.5" />
@@ -630,8 +630,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     onClick={() => setPaymentMethod('CASH')}
                     className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'CASH'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
+                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50'
+                        : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     <Banknote className="w-3.5 h-3.5" />
@@ -643,8 +643,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     onClick={() => setPaymentMethod('CREDIT_CARD')}
                     className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'CREDIT_CARD'
-                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
+                        ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50'
+                        : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     <CreditCard className="w-3.5 h-3.5" />
@@ -656,8 +656,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     onClick={() => setPaymentMethod('DEBIT_CARD')}
                     className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'DEBIT_CARD'
-                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
+                        ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/50'
+                        : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     <CreditCard className="w-3.5 h-3.5" />
@@ -668,16 +668,16 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
               {/* Troco em Dinheiro */}
               {paymentMethod === 'CASH' && (
-                <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
+                <div className="bg-slate-50 dark:bg-slate-950/80 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-slate-400">Valor Entregue:</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Valor Entregue:</span>
                     <input
                       type="text"
                       inputMode="decimal"
                       placeholder={`R$ ${total.toFixed(2)}`}
                       value={cashTendered}
                       onChange={e => setCashTendered(e.target.value.replace(',', '.'))}
-                      className="w-28 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white font-mono text-right font-bold focus:border-amber-500 focus:outline-none"
+                      className="w-28 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white font-mono text-right font-bold focus:border-amber-500 focus:outline-none"
                     />
                   </div>
 
@@ -688,7 +688,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                         key={val}
                         type="button"
                         onClick={() => setCashTendered(String(val))}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition cursor-pointer"
+                        className="px-2 py-0.5 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md transition cursor-pointer"
                       >
                         R${val}
                       </button>
@@ -696,14 +696,14 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                     <button
                       type="button"
                       onClick={() => setCashTendered(total.toFixed(2))}
-                      className="px-2 py-0.5 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-md transition cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 rounded-md transition cursor-pointer"
                     >
                       Exato
                     </button>
                   </div>
 
                   {change > 0 && (
-                    <div className="flex items-center justify-between text-xs font-black text-amber-400 pt-1 border-t border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-black text-amber-600 dark:text-amber-400 pt-1 border-t border-slate-200 dark:border-slate-800">
                       <span>Troco a Devolver:</span>
                       <span className="font-mono text-sm">R$ {change.toFixed(2)}</span>
                     </div>
@@ -712,27 +712,27 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
               )}
 
               {/* Totalizador */}
-              <div className="pt-2 border-t border-slate-800 flex items-baseline justify-between">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-baseline justify-between">
                 <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Total a Pagar</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Total a Pagar</span>
                   {discountNum > 0 && (
-                    <span className="text-[10px] text-slate-500 line-through">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
                       R$ {subtotal.toFixed(2)}
                     </span>
                   )}
                 </div>
-                <span className="text-2xl font-black text-emerald-400 font-mono">
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
                   R$ {total.toFixed(2)}
                 </span>
               </div>
 
               {/* Opção de Impressão */}
-              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+              <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={printReceipt}
                   onChange={e => setPrintReceipt(e.target.checked)}
-                  className="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0"
+                  className="rounded bg-slate-100 dark:bg-slate-950 border-slate-300 dark:border-slate-800 text-amber-500 focus:ring-0"
                 />
                 <Printer className="w-3.5 h-3.5" />
                 <span>Imprimir comprovante térmico</span>

@@ -276,24 +276,24 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   return (
     <div className="space-y-6 max-w-6xl w-full mx-auto pb-24 animate-in fade-in duration-200">
       {/* Cabeçalho de Navegação */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-sm dark:shadow-xl">
         <div className="flex items-center gap-3.5">
           <button
             type="button"
             onClick={onBack}
-            className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl transition border border-slate-700/60 active:scale-95 group cursor-pointer"
+            className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-2xl transition border border-slate-200 dark:border-slate-700/60 active:scale-95 group cursor-pointer"
             title="Voltar ao Painel Fiscal"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-black text-white">Emissor Fiscal de NFC-e (Tela Cheia)</h2>
-              <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white">Emissor Fiscal de NFC-e (Tela Cheia)</h2>
+              <span className="px-2 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/20 text-xs font-bold">
                 SEFAZ ONLINE
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Busque produtos por iniciais ou bipe código de barras com adição automática ao teclar Enter
             </p>
           </div>
@@ -304,7 +304,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
             <button
               type="button"
               onClick={() => setItems([])}
-              className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
               <span>Limpar Itens</span>
@@ -319,19 +319,19 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
         {/* COLUNA ESQUERDA (7 colunas): Busca Inteligente & Tabela de Itens */}
         <div className="lg:col-span-7 space-y-5">
           {/* Card de Busca Rápida de Produtos */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm dark:shadow-xl space-y-3">
             <div className="flex items-center justify-between">
-              <label htmlFor="nfce-search-input" className="text-xs font-bold uppercase text-slate-400 flex items-center gap-1.5 cursor-pointer">
-                <Search className="w-4 h-4 text-amber-400" />
+              <label htmlFor="nfce-search-input" className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
+                <Search className="w-4 h-4 text-amber-500" />
                 <span>Busca Rápida de Produtos (Iniciais, Código ou Barcode)</span>
               </label>
-              <span className="text-[10px] text-slate-500 font-mono">
-                Pressione <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">Enter</kbd> para adicionar
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                Pressione <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-amber-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700">Enter</kbd> para adicionar
               </span>
             </div>
 
             <div className="relative">
-              <Barcode className="w-5 h-5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Barcode className="w-5 h-5 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="nfce-search-input"
                 ref={searchInputRef}
@@ -344,12 +344,12 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                 }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Digite as iniciais (ex: HEIN, AGUA, 5001) ou bipe o EAN..."
-                className="w-full pl-11 pr-24 py-3.5 bg-slate-950 border border-slate-700 rounded-2xl text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-600 font-medium cursor-text"
+                className="w-full pl-11 pr-24 py-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 font-medium cursor-text shadow-xs"
               />
 
               {searchTerm && (
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <span className="text-[10px] font-mono px-2 py-1 rounded-lg bg-slate-800 text-slate-300">
+                  <span className="text-[10px] font-mono px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                     {filteredSearch.length} {filteredSearch.length === 1 ? 'item' : 'itens'}
                   </span>
                   <button
@@ -358,7 +358,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                       setSearchTerm('');
                       setShowDropdownResults(false);
                     }}
-                    className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg cursor-pointer"
                   >
                     ×
                   </button>
@@ -367,7 +367,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
 
               {/* Lista Flutuante de Resultados da Busca */}
               {showDropdownResults && searchTerm.trim() !== '' && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-30 max-h-72 overflow-y-auto divide-y divide-slate-800">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-30 max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredSearch.length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-400">
                       Nenhum produto encontrado com "{searchTerm}".
@@ -377,29 +377,29 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                       <div
                         key={p.id}
                         onClick={() => handleAddProduct(p)}
-                        className="p-3 hover:bg-slate-800/80 cursor-pointer flex items-center justify-between gap-3 transition group"
+                        className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer flex items-center justify-between gap-3 transition group"
                       >
                         <div className="flex-1">
-                          <div className="text-sm font-bold text-white group-hover:text-amber-400 flex items-center gap-2">
+                          <div className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 flex items-center gap-2">
                             <span>{p.name}</span>
                             {p.code && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
                                 #{p.code}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                             {p.brand && <span>{p.brand}</span>}
-                            {p.ncm && <span className="font-mono text-cyan-400">NCM: {p.ncm}</span>}
-                            {p.cfop && <span className="font-mono text-slate-500">CFOP: {p.cfop}</span>}
+                            {p.ncm && <span className="font-mono text-cyan-600 dark:text-cyan-400">NCM: {p.ncm}</span>}
+                            {p.cfop && <span className="font-mono text-slate-400 dark:text-slate-500">CFOP: {p.cfop}</span>}
                           </div>
                         </div>
 
                         <div className="text-right">
-                          <div className="text-sm font-black font-mono text-amber-400">
+                          <div className="text-sm font-black font-mono text-amber-600 dark:text-amber-400">
                             R$ {p.price.toFixed(2)}
                           </div>
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 justify-end">
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 justify-end">
                             <Plus className="w-3 h-3" /> Adicionar
                           </span>
                         </div>
@@ -412,31 +412,31 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
           </div>
 
           {/* Tabela de Itens da NFC-e */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-xl">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm font-black text-white">
+                <FileText className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">
                   Itens a Serem Emitidos ({items.reduce((a, b) => a + b.quantity, 0)} unidades)
                 </h3>
               </div>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                 {items.length} {items.length === 1 ? 'produto único' : 'produtos'}
               </span>
             </div>
 
             {items.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">
+              <div className="p-12 text-center text-slate-400 dark:text-slate-500">
                 <Package className="w-12 h-12 mx-auto mb-2 opacity-30 text-slate-400" />
-                <p className="text-sm font-bold text-slate-400">Nenhum produto adicionado ainda</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-400">Nenhum produto adicionado ainda</p>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                   Digite as iniciais do produto no campo de busca acima e pressione Enter para incluí-lo automaticamente.
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950/80 uppercase text-[10px] tracking-wider text-slate-400 font-bold border-b border-slate-800">
+                <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                  <thead className="bg-slate-50 dark:bg-slate-950/80 uppercase text-[10px] tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="py-3 px-4">Produto & Dados Fiscais</th>
                       <th className="py-3 px-4 text-center">Qtd</th>
@@ -445,55 +445,55 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                       <th className="py-3 px-4 text-center">Remover</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {items.map((item, index) => {
                       const itemSubtotal = item.product.price * item.quantity;
                       return (
-                        <tr key={index} className="hover:bg-slate-850/50 transition">
+                        <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
                           <td className="py-3 px-4">
-                            <div className="font-bold text-white text-sm">
+                            <div className="font-bold text-slate-900 dark:text-white text-sm">
                               {item.product.name}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px] text-slate-400 font-mono">
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                               {item.product.code && (
-                                <span className="text-slate-500">#{item.product.code}</span>
+                                <span className="text-slate-400 dark:text-slate-500">#{item.product.code}</span>
                               )}
-                              <span className="text-cyan-400 bg-cyan-950/40 px-1 rounded border border-cyan-900/40">
+                              <span className="text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 px-1 rounded border border-cyan-200 dark:border-cyan-900/40">
                                 NCM: {item.product.ncm || '22030000'}
                               </span>
-                              <span className="text-slate-400 bg-slate-950 px-1 rounded">
+                              <span className="text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-1 rounded">
                                 CFOP: {item.product.cfop || '5102'}
                               </span>
                             </div>
                           </td>
 
                           <td className="py-3 px-4 text-center">
-                            <div className="inline-flex items-center bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                            <div className="inline-flex items-center bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                               <button
                                 type="button"
                                 onClick={() => updateQuantity(index, item.quantity - 1)}
-                                className="px-2.5 py-1 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
+                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="px-3 font-mono font-bold text-white text-xs">
+                              <span className="px-3 font-mono font-bold text-slate-900 dark:text-white text-xs">
                                 {item.quantity}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => updateQuantity(index, item.quantity + 1)}
-                                className="px-2.5 py-1 text-slate-300 hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
+                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer"
                               >
                                 +
                               </button>
                             </div>
                           </td>
 
-                          <td className="py-3 px-4 text-right font-mono text-slate-400">
+                          <td className="py-3 px-4 text-right font-mono text-slate-500 dark:text-slate-400">
                             R$ {item.product.price.toFixed(2)}
                           </td>
 
-                          <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 text-sm">
+                          <td className="py-3 px-4 text-right font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">
                             R$ {itemSubtotal.toFixed(2)}
                           </td>
 
@@ -501,7 +501,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                             <button
                               type="button"
                               onClick={() => removeItem(index)}
-                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                               title="Remover da NFC-e"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -520,15 +520,15 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
         {/* COLUNA DIREITA (5 colunas): Destinatário, Pagamento & Transmissão */}
         <div className="lg:col-span-5 space-y-5">
           {/* Card Destinatário & Forma de Pagamento */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h3 className="text-base font-black text-white">Dados da Emissão & Pagamento</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-5">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <h3 className="text-base font-black text-slate-900 dark:text-white">Dados da Emissão & Pagamento</h3>
             </div>
 
             {/* CPF / CNPJ */}
             <div>
-              <label htmlFor="nfce-customer-cpf" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+              <label htmlFor="nfce-customer-cpf" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
                 CPF / CNPJ na Nota (Opcional)
               </label>
               <input
@@ -537,16 +537,16 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                 placeholder="000.000.000-00 (ou deixar em branco)"
                 value={customerCpf}
                 onChange={(e) => setCustomerCpf(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
               />
-              <span className="text-[10px] text-slate-500 mt-1 block">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
                 Se informado, o cupom fiscal constará o documento do comprador.
               </span>
             </div>
 
             {/* Nome do Cliente */}
             <div>
-              <label htmlFor="nfce-customer-name" className="block text-xs font-bold uppercase text-slate-400 mb-1.5 cursor-pointer">
+              <label htmlFor="nfce-customer-name" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
                 Nome do Consumidor (Opcional)
               </label>
               <input
@@ -555,13 +555,13 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                 placeholder="Ex: João da Silva"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text"
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
               />
             </div>
 
             {/* Forma de Pagamento SEFAZ */}
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-400 mb-2">
+              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">
                 Forma de Pagamento (SEFAZ) *
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -578,10 +578,10 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                       key={pm.id}
                       type="button"
                       onClick={() => setPaymentMethod(pm.id)}
-                      className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer ${
+                      className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs ${
                         isSel
-                          ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/30'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -593,15 +593,15 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
             </div>
 
             {/* Card de Resumo e Emissão */}
-            <div className="pt-4 border-t border-slate-800 space-y-4">
-              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase text-slate-400 block">Total a Emitir</span>
-                  <span className="text-xs text-slate-500 font-mono">
+                  <span className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 block">Total a Emitir</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
                     {items.reduce((a, b) => a + b.quantity, 0)} itens adicionados
                   </span>
                 </div>
-                <span className="text-3xl font-black font-mono text-emerald-400">
+                <span className="text-3xl font-black font-mono text-emerald-600 dark:text-emerald-400">
                   R$ {total.toFixed(2)}
                 </span>
               </div>
@@ -626,36 +626,36 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
 
       {/* Modal de Venda Finalizada com Sucesso & Pós-Venda */}
       {saleSuccessData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl flex flex-col gap-6 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl flex flex-col gap-6 text-center">
             
             {/* Ícone & Título */}
             <div>
-              <div className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-500/10">
+              <div className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-500/10">
                 <CheckCircle className="w-10 h-10" />
               </div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Venda Finalizada com Sucesso!</h2>
-              <p className="text-sm text-slate-400 mt-1">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Venda Finalizada com Sucesso!</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 NFC-e Autorizada e transmitida à SEFAZ
               </p>
             </div>
 
             {/* Card com Detalhes da Venda */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 text-left">
+            <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-3 text-left">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase text-slate-400">Total da Venda</span>
-                <span className="text-2xl font-mono font-black text-emerald-400">
+                <span className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Total da Venda</span>
+                <span className="text-2xl font-mono font-black text-emerald-600 dark:text-emerald-400">
                   R$ {saleSuccessData.total.toFixed(2)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-2">
                 <span>Forma de Pagamento:</span>
-                <span className="font-bold text-slate-200">{saleSuccessData.paymentMethod}</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{saleSuccessData.paymentMethod}</span>
               </div>
 
               {saleSuccessData.chaveAcesso && (
-                <div className="border-t border-slate-800/80 pt-2">
+                <div className="border-t border-slate-200 dark:border-slate-800/80 pt-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] font-bold uppercase text-slate-500">Chave de Acesso SEFAZ</span>
                     <button
@@ -665,12 +665,12 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                         setCopiedKey(true);
                         setTimeout(() => setCopiedKey(false), 2000);
                       }}
-                      className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 font-bold cursor-pointer"
+                      className="text-[11px] text-sky-600 dark:text-sky-400 hover:text-sky-500 flex items-center gap-1 font-bold cursor-pointer"
                     >
                       {copiedKey ? '✓ Copiado!' : 'Copiar Chave'}
                     </button>
                   </div>
-                  <p className="font-mono text-[11px] text-slate-400 break-all leading-tight bg-slate-900/80 p-2 rounded-lg border border-slate-800 select-all">
+                  <p className="font-mono text-[11px] text-slate-600 dark:text-slate-400 break-all leading-tight bg-white dark:bg-slate-900/80 p-2 rounded-lg border border-slate-200 dark:border-slate-800 select-all">
                     {saleSuccessData.chaveAcesso}
                   </p>
                 </div>
@@ -684,9 +684,9 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                 <button
                   type="button"
                   onClick={handlePrintDanfe}
-                  className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-white rounded-xl font-bold flex items-center justify-center gap-2.5 transition active:scale-98 cursor-pointer"
+                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl font-bold flex items-center justify-center gap-2.5 transition active:scale-98 cursor-pointer shadow-xs"
                 >
-                  <Printer className="w-4 h-4 text-sky-400" />
+                  <Printer className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                   <span>{printSuccessFeedback ? 'Reimprimir Cupom' : 'Imprimir Cupom'}</span>
                 </button>
 
@@ -695,7 +695,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                     href={saleSuccessData.danfeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 hover:text-white rounded-xl transition flex items-center justify-center"
+                    className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white rounded-xl transition flex items-center justify-center shadow-xs"
                     title="Visualizar PDF do DANFE"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -704,9 +704,9 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
               </div>
 
               {/* Seção de Envio por E-mail */}
-              <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-3 flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                  <Mail className="w-4 h-4 text-amber-400" />
+              <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <Mail className="w-4 h-4 text-amber-500" />
                   <span>Encaminhar NF por E-mail</span>
                 </div>
                 <div className="flex gap-2">
@@ -716,7 +716,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSendEmail(); }}
-                    className="flex-1 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-amber-400 transition"
+                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-amber-400 transition"
                   />
                   <button
                     type="button"
@@ -729,12 +729,12 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                   </button>
                 </div>
                 {emailSentSuccess && (
-                  <p className="text-xs text-emerald-400 font-bold text-left flex items-center gap-1">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold text-left flex items-center gap-1">
                     ✓ E-mail com XML e DANFE enviado com sucesso!
                   </p>
                 )}
                 {emailError && (
-                  <p className="text-xs text-rose-400 text-left">
+                  <p className="text-xs text-rose-600 dark:text-rose-400 text-left">
                     {emailError}
                   </p>
                 )}
