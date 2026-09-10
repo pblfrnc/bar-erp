@@ -33,6 +33,21 @@ function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: 
   }
 }
 
+// Distinção estrita entre NFC-e (Modelo 65) e NF-e (Modelo 55)
+function isNfce(n: { referencia?: string | null; chave?: string | null }): boolean {
+  if (n.referencia?.startsWith('nfce_') || n.referencia?.startsWith('cupom_')) return true;
+  if (n.chave && n.chave.length === 44 && n.chave.substring(20, 22) === '65') return true;
+  return false;
+}
+
+function isNfe(n: { referencia?: string | null; chave?: string | null }): boolean {
+  if (n.referencia?.startsWith('nfce_') || n.referencia?.startsWith('cupom_')) return false;
+  if (n.chave && n.chave.length === 44 && n.chave.substring(20, 22) === '65') return false;
+  if (n.referencia?.startsWith('nfe_')) return true;
+  if (n.chave && n.chave.length === 44 && n.chave.substring(20, 22) === '55') return true;
+  return false;
+}
+
 // Garantir que as tabelas de notas fiscais existem no banco SQLite
 async function ensureFiscalTables() {
   try {
@@ -726,28 +741,31 @@ export function createFiscalRouter() {
   });
 
   // ============================================================
-  // Listar Notas Disponíveis para Cancelamento (Prazo 30 min)
+  // Listar Notas Disponíveis para Cancelamento NFC-e (Prazo 30 min)
   // ============================================================
   router.get('/cancelable-notes', async (req, res) => {
     try {
       const notas = await (prisma as any).notaEmitida.findMany({
         where: { status: 'autorizado' },
         orderBy: { createdAt: 'desc' },
-        take: 50
+        take: 100
       });
 
       const now = Date.now();
-      const cancelable = notas.map((n: any) => {
-        const createdAtMs = new Date(n.createdAt).getTime();
-        const diffMinutes = Math.floor((now - createdAtMs) / 60000);
-        const minutesRemaining = Math.max(0, 30 - diffMinutes);
-        return {
-          ...n,
-          diffMinutes,
-          minutesRemaining,
-          isCancelable: minutesRemaining > 0
-        };
-      }).filter((n: any) => n.isCancelable);
+      const cancelable = notas
+        .filter((n: any) => isNfce(n))
+        .map((n: any) => {
+          const createdAtMs = new Date(n.createdAt).getTime();
+          const diffMinutes = Math.floor((now - createdAtMs) / 60000);
+          const minutesRemaining = Math.max(0, 30 - diffMinutes);
+          return {
+            ...n,
+            diffMinutes,
+            minutesRemaining,
+            isCancelable: minutesRemaining > 0
+          };
+        })
+        .filter((n: any) => n.isCancelable);
 
       res.json(cancelable);
     } catch (err: any) {
@@ -757,20 +775,28 @@ export function createFiscalRouter() {
   });
 
     // ============================================================
-    // Reimprimir NF-e por número (GET)
+    // Reimprimir NF-e por número (GET - Modelo 55)
     // ============================================================
     router.get('/nfe/reprint/:numero', async (req, res) => {
       try {
         const { numero } = req.params;
         const cleanNum = String(numero || '').trim();
-        if (!cleanNum) return res.status(400).json({ error: 'Número da nota não informado.' });
+        if (!cleanNum) return res.status(400).json({ error: 'Número da NF-e não informado.' });
 
-        const nota = await (prisma as any).notaEmitida.findFirst({
+        const candidatas = await (prisma as any).notaEmitida.findMany({
           where: { numero: cleanNum },
           orderBy: { createdAt: 'desc' }
         });
 
-        if (!nota) return res.status(404).json({ error: `NF-e Nº ${cleanNum} não encontrada.` });
+        const nota = candidatas.find((n: any) => isNfe(n));
+
+        if (!nota) {
+          const apenasNfce = candidatas.some((n: any) => isNfce(n));
+          if (apenasNfce) {
+            return res.status(404).json({ error: `A nota Nº ${cleanNum} foi emitida como NFC-e (Cupom Fiscal Modelo 65) e não NF-e. Consulte na tela de Reimprimir NFC-e.` });
+          }
+          return res.status(404).json({ error: `Nenhuma NF-e (Modelo 55) encontrada com o número ${cleanNum}.` });
+        }
 
         const host = req.get('host');
         const protocol = req.protocol;
@@ -785,20 +811,29 @@ export function createFiscalRouter() {
         });
       } catch (err: any) {
         console.error(err);
-        res.status(500).json({ error: 'Erro ao buscar nota para reimpressão.' });
+        res.status(500).json({ error: 'Erro ao buscar NF-e para reimpressão.' });
       }
     });
 
     // ============================================================
-    // Lista notas recentes emitidas (GET)
+    // Lista notas recentes emitidas com filtro por tipo (GET)
     // ============================================================
     router.get('/recent-notes', async (req, res) => {
       try {
+        const { tipo } = req.query;
         const notas = await (prisma as any).notaEmitida.findMany({
           orderBy: { createdAt: 'desc' },
-          take: 50
+          take: 100
         });
-        res.json(notas);
+
+        let filtradas = notas;
+        if (tipo === 'nfce') {
+          filtradas = notas.filter((n: any) => isNfce(n));
+        } else if (tipo === 'nfe') {
+          filtradas = notas.filter((n: any) => isNfe(n));
+        }
+
+        res.json(filtradas.slice(0, 50));
       } catch (err: any) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao listar notas recentes.' });
@@ -806,20 +841,28 @@ export function createFiscalRouter() {
     });
 
     // ============================================================
-    // Reimprimir NFC-e por número (GET)
+    // Reimprimir NFC-e por número (GET - Modelo 65)
     // ============================================================
     router.get('/reprint-by-number/:numero', async (req, res) => {
       try {
         const { numero } = req.params;
         const cleanNum = String(numero || '').trim();
-        if (!cleanNum) return res.status(400).json({ error: 'Número da nota não informado.' });
+        if (!cleanNum) return res.status(400).json({ error: 'Número da NFC-e não informado.' });
 
-        const nota = await (prisma as any).notaEmitida.findFirst({
+        const candidatas = await (prisma as any).notaEmitida.findMany({
           where: { numero: cleanNum },
           orderBy: { createdAt: 'desc' }
         });
 
-        if (!nota) return res.status(404).json({ error: `NFC-e Nº ${cleanNum} não localizada no histórico local.` });
+        const nota = candidatas.find((n: any) => isNfce(n));
+
+        if (!nota) {
+          const apenasNfe = candidatas.some((n: any) => isNfe(n));
+          if (apenasNfe) {
+            return res.status(404).json({ error: `A nota Nº ${cleanNum} foi emitida como NF-e (DANFE Modelo 55) e não NFC-e. Consulte na tela de Reimprimir NF-e.` });
+          }
+          return res.status(404).json({ error: `Nenhuma NFC-e (Modelo 65) localizada no histórico com o número ${cleanNum}.` });
+        }
 
         const host = req.get('host');
         const protocol = req.protocol;

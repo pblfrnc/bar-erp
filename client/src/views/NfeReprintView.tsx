@@ -30,7 +30,7 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
   const loadRecentNotas = async () => {
     try {
       setLoadingRecent(true);
-      const res = await fetch(`${api.getApiUrl()}/fiscal/recent-notes`);
+      const res = await fetch(`${api.getApiUrl()}/fiscal/recent-notes?tipo=nfe`);
       const data = await res.json();
       setRecentNotas(Array.isArray(data) ? data : []);
     } catch {
