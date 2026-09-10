@@ -155,6 +155,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Baixar Executável Windows
         uses: actions/download-artifact@v4
         with:
