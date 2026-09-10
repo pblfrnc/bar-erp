@@ -2378,6 +2378,8 @@ export function createFiscalRouter() {
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
       const autorizadorNome = uf === 'PA' ? 'SEFAZ PA (SVRS)' : `SEFAZ ${uf}`;
 
+      let focusDetail = '';
+
       // 1. Se possuir token da Focus NFe, tenta consulta oficial via Focus NFe com o estado
       if (token) {
         try {
@@ -2387,7 +2389,7 @@ export function createFiscalRouter() {
           const focusRes = await fetch(focusUrl, {
             method: 'GET',
             headers: { 'Authorization': authHeader },
-            signal: AbortSignal.timeout(4000)
+            signal: AbortSignal.timeout(6000)
           });
 
           if (focusRes.ok) {
@@ -2405,38 +2407,57 @@ export function createFiscalRouter() {
               uf: uf,
               autorizador: autorizadorNome
             });
+          } else if (focusRes.status === 401) {
+            focusDetail = `Token Focus NFe não autorizado para ${isProducao ? 'Produção' : 'Homologação'}`;
+            console.warn('[FocusNFe Sefaz Status]', focusDetail);
+          } else {
+            focusDetail = `Focus NFe retornou status HTTP ${focusRes.status}`;
           }
-        } catch (focusErr) {
-          console.warn('[FocusNFe Sefaz Status Warning]', focusErr);
+        } catch (focusErr: any) {
+          console.warn('[FocusNFe Sefaz Status Warning]', focusErr?.message || focusErr);
         }
+      } else {
+        focusDetail = 'Token fiscal não configurado neste computador';
       }
 
-      // 2. Ping direto e em tempo real na infraestrutura oficial da SEFAZ para o Pará (SVRS)
+      // 2. Ping direto e em tempo real na infraestrutura oficial da SEFAZ para o Pará (SVRS) e fallbacks
       const startPing = Date.now();
       let isOnline = false;
       let latency = 0.18;
-      try {
-        // Pará utiliza a Secretaria Virtual do RS (SVRS) para autorização de NFC-e/NF-e
-        const pingUrl = 'https://dfe-portal.svrs.rs.gov.br/Nfe/Disponibilidade';
-        const pingRes = await fetch(pingUrl, {
-          method: 'GET',
-          signal: AbortSignal.timeout(4000)
-        });
-        latency = Number(((Date.now() - startPing) / 1000).toFixed(2));
-        isOnline = pingRes.status >= 200 && pingRes.status < 500;
-      } catch {
-        isOnline = false;
+      const pingUrls = [
+        'https://dfe-portal.svrs.rs.gov.br/Nfe/Disponibilidade',
+        'https://app.sefa.pa.gov.br',
+        'https://api.focusnfe.com.br'
+      ];
+
+      for (const pingUrl of pingUrls) {
+        try {
+          const pingRes = await fetch(pingUrl, {
+            method: 'GET',
+            signal: AbortSignal.timeout(6000)
+          });
+          if (pingRes.status >= 200 && pingRes.status < 500) {
+            latency = Number(((Date.now() - startPing) / 1000).toFixed(2));
+            isOnline = true;
+            break;
+          }
+        } catch (_) {}
       }
+
+      const motivoStatus = isOnline 
+        ? (focusDetail ? `SEFAZ Ativa (${focusDetail})` : 'Serviço em Operação')
+        : (focusDetail ? `${focusDetail} e servidores SEFAZ sem resposta` : 'Servidores SEFAZ sem resposta');
 
       res.json({
         ok: true,
         online: isOnline,
         status: isOnline ? 'online' : 'offline',
         codigoStatus: isOnline ? '107' : '999',
-        motivoStatus: isOnline ? 'Serviço em Operação' : 'Servidores SEFAZ sem resposta',
+        motivoStatus: motivoStatus,
         tempoMedio: latency,
         uf: uf,
-        autorizador: autorizadorNome
+        autorizador: autorizadorNome,
+        detalheToken: focusDetail || undefined
       });
     } catch (err: any) {
       console.error('[SEFAZ Status Error]', err);

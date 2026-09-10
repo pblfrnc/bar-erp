@@ -27,7 +27,8 @@ export const SefazStatusBadge: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const isOnline = status?.online === true;
+  const isServerDisconnected = status?.motivoStatus === 'Sem conexão com servidor';
+  const isOnline = status?.online === true && !isServerDisconnected;
   const isPending = loading && !status;
 
   return (
@@ -47,12 +48,18 @@ export const SefazStatusBadge: React.FC = () => {
           isPending ? 'bg-slate-400 animate-pulse' : isOnline ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-rose-500 dark:bg-rose-400 animate-ping'
         }`} />
         <span className="text-[11px]">
-          {isPending ? 'SEFAZ...' : isOnline ? `SEFAZ Online (${status?.uf || 'PA'})` : `SEFAZ (${status?.uf || 'PA'}) Fora do Ar`}
+          {isPending 
+            ? 'SEFAZ...' 
+            : isServerDisconnected
+            ? 'Servidor ERP Desconectado'
+            : isOnline 
+            ? `SEFAZ Online (${status?.uf || 'PA'})` 
+            : `SEFAZ (${status?.uf || 'PA'}) Fora do Ar`}
         </span>
       </button>
 
       {showDetails && (
-        <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xl z-50 text-xs text-slate-600 dark:text-slate-300 space-y-2.5">
+        <div className="absolute right-0 top-full mt-2 w-76 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xl z-50 text-xs text-slate-600 dark:text-slate-300 space-y-2.5">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               <Wifi className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" /> {status?.autorizador || `SEFAZ (${status?.uf || 'PA'})`}
@@ -68,7 +75,7 @@ export const SefazStatusBadge: React.FC = () => {
           </div>
 
           <div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Status Oficial</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Status da Conexão</p>
             <p className="font-semibold text-slate-900 dark:text-white mt-0.5 flex items-center gap-1.5">
               {isOnline ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
@@ -78,6 +85,12 @@ export const SefazStatusBadge: React.FC = () => {
               {status?.motivoStatus || (isOnline ? 'Serviço em Operação' : 'Serviço Indisponível')}
             </p>
           </div>
+
+          {status?.detalheToken && (
+            <div className="p-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-[11px] text-amber-800 dark:text-amber-300">
+              {status.detalheToken}
+            </div>
+          )}
 
           {status?.codigoStatus && (
             <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200 dark:border-slate-800/80">
@@ -89,7 +102,9 @@ export const SefazStatusBadge: React.FC = () => {
           )}
 
           <div className="pt-1 text-[10px] text-slate-400 dark:text-slate-500">
-            {isOnline
+            {isServerDisconnected
+              ? 'Este PC não consegue se comunicar com o computador principal. Verifique se o IP do servidor nas configurações do app está correto.'
+              : isOnline
               ? 'Emissões fiscais de NFC-e autorizando normalmente.'
               : 'Se a SEFAZ estiver instável, a contingência offline entra em ação automaticamente.'}
           </div>
