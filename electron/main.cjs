@@ -158,7 +158,11 @@ function createWindow() {
   // Impressão silenciosa do DOM atual (80mm)
   ipcMain.on('print-silent', (event) => {
     if (mainWindow) {
-      mainWindow.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+      mainWindow.webContents.print({ 
+        silent: true, 
+        printBackground: true,
+        margins: { marginType: 'none' }
+      }, (success, failureReason) => {
         if (!success) console.error('Print failed:', failureReason);
       });
     }
@@ -169,6 +173,8 @@ function createWindow() {
     if (!pdfUrl) return;
     try {
       const printWin = new BrowserWindow({
+        width: 380,
+        height: 800,
         show: false,
         focusable: false, // Não rouba foco
         skipTaskbar: true,
@@ -177,10 +183,58 @@ function createWindow() {
         }
       });
       printWin.loadURL(pdfUrl);
-      printWin.webContents.on('did-finish-load', () => {
-        // Aguarda 800ms para renderizar o PDF na memória e dispara print silencioso
+      printWin.webContents.on('did-finish-load', async () => {
+        // Injeta estilização estrita de bobina térmica 80mm/58mm para evitar margens em branco e cortes laterais
+        try {
+          await printWin.webContents.insertCSS(`
+            @page {
+              size: 80mm auto !important;
+              margin: 0mm !important;
+            }
+            @media print, all {
+              html, body {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+              }
+              .content {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 2mm 1mm !important;
+                border: none !important;
+                box-sizing: border-box !important;
+              }
+              .tabela-nfce, table {
+                width: 100% !important;
+                max-width: 100% !important;
+              }
+              #qr-code0, #qr-code1 {
+                margin: 6px auto !important;
+                text-align: center !important;
+                display: flex !important;
+                justify-content: center !important;
+              }
+              #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+                max-width: 170px !important;
+                height: auto !important;
+                margin: 0 auto !important;
+              }
+            }
+          `);
+        } catch (cssErr) {
+          console.warn('Aviso: falha ao injetar CSS de impressão térmica no printWin:', cssErr);
+        }
+
+        // Aguarda 800ms para renderizar o QR Code/fontes na memória e dispara print silencioso
         setTimeout(() => {
-          printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+          printWin.webContents.print({ 
+            silent: true, 
+            printBackground: true,
+            margins: { marginType: 'none' }
+          }, (success, failureReason) => {
             if (!success) console.error('Silent PDF print failed:', failureReason);
             try { printWin.destroy(); } catch {}
             if (mainWindow && !mainWindow.isDestroyed()) {

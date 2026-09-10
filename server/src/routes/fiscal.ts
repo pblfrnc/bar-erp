@@ -1038,9 +1038,59 @@ export function createFiscalRouter() {
         const buffer = Buffer.from(await docRes.arrayBuffer());
 
         if (isHtml) {
+          let htmlString = buffer.toString('utf-8');
+          const customThermalStyle = `
+<style type="text/css">
+  @page {
+    size: 80mm auto !important;
+    margin: 0mm !important;
+  }
+  @media print, all {
+    html, body {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+      box-sizing: border-box !important;
+    }
+    .content {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 2mm 1mm !important;
+      border: none !important;
+      box-sizing: border-box !important;
+    }
+    .tabela-nfce, table {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    #qr-code0, #qr-code1 {
+      margin: 6px auto !important;
+      text-align: center !important;
+      display: flex !important;
+      justify-content: center !important;
+    }
+    #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+      max-width: 170px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+    }
+  }
+</style>
+`;
+          if (htmlString.includes('</head>')) {
+            htmlString = htmlString.replace('</head>', `${customThermalStyle}</head>`);
+          } else {
+            htmlString = customThermalStyle + htmlString;
+          }
+
+          const finalBuffer = Buffer.from(htmlString, 'utf-8');
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.setHeader('Content-Length', buffer.length.toString());
-          return res.send(buffer);
+          res.setHeader('Content-Length', finalBuffer.length.toString());
+          return res.send(finalBuffer);
         } else {
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', `inline; filename="danfe-${referencia}.pdf"`);
