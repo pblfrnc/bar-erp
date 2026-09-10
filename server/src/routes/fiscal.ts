@@ -747,6 +747,102 @@ export function createFiscalRouter() {
     }
   });
 
+    // ============================================================
+    // Reimprimir NF-e por número (GET)
+    // ============================================================
+    router.get('/nfe/reprint/:numero', async (req, res) => {
+      try {
+        const { numero } = req.params;
+        if (!numero) return res.status(400).json({ error: 'Número da nota não informado.' });
+        const nota = await (prisma as any).notaEmitida.findFirst({ where: { numero } });
+        if (!nota) return res.status(404).json({ error: 'Nota não encontrada.' });
+        return res.json({
+          nota,
+          status: nota.status,
+          caminhoDanfe: nota.pdfUrl,
+          chaveAcesso: nota.chave,
+          success: true
+        });
+      } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao buscar nota para reimpressão.' });
+      }
+    });
+
+    // ============================================================
+    // Lista notas recentes emitidas (GET)
+    // ============================================================
+    router.get('/recent-notes', async (req, res) => {
+      try {
+        const notas = await (prisma as any).notaEmitida.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        });
+        res.json(notas);
+      } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao listar notas recentes.' });
+      }
+    });
+
+    // ============================================================
+    // Reimprimir NFC-e por número (legacy) - kept for compatibility
+    // ============================================================
+    router.get('/reprint-by-number/:numero', async (req, res) => {
+      const { numero } = req.params;
+      const nota = await (prisma as any).notaEmitida.findFirst({ where: { numero } });
+      if (!nota) return res.status(404).json({ error: 'NFC-e não encontrada.' });
+      return res.json({
+        nota,
+        status: nota.status,
+        caminhoDanfe: nota.pdfUrl,
+        chaveAcesso: nota.chave,
+        success: true
+      });
+    });
+
+    // ============================================================
+    // Cancelar NF-e (Prazo de 30 minutos)
+    // ============================================================
+    router.post('/cancel-nfe', async (req, res) => {
+      try {
+        const { referencia, justificativa } = req.body;
+        if (!referencia) {
+          return res.status(400).json({ error: 'Referência (ID do Pedido) não informada.' });
+        }
+        if (!justificativa || justificativa.length < 15) {
+          return res.status(400).json({ error: 'A justificativa deve ter no mínimo 15 caracteres (Regra da SEFAZ).' });
+        }
+        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        if (!settings?.apiToken) {
+          return res.status(400).json({ error: 'Token da API não configurado.' });
+        }
+        const isProducao = settings.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+        const focusUrl = `${baseURL}/v2/nfe/${encodeURIComponent(referencia)}`;
+        const focusRes = await fetch(focusUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ justificativa })
+        });
+        const data = await focusRes.json().catch(() => ({}));
+        if (!focusRes.ok) {
+          console.error('[FocusNFe Cancel NFe Error]', focusRes.status, data);
+          const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
+          return res.status(focusRes.status).json({ error: `Erro ao cancelar NF-e: ${erroMsg}`, details: data });
+        }
+        await (prisma as any).notaEmitida.updateMany({ where: { referencia }, data: { status: 'cancelado' } });
+        return res.json({ ok: true, mensagem: 'NF-e cancelada com sucesso!', data });
+      } catch (err: any) {
+        console.error('[FocusNFe Cancel NFe Exception]', err);
+        return res.status(500).json({ error: 'Erro interno ao cancelar NF-e.', detail: err.message });
+      }
+    });
+
 
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {

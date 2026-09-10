@@ -7,8 +7,8 @@ import { NfReceivingView } from './NfReceivingView';
 import { api } from '../services/api';
 
 import { ManualNfceView } from './ManualNfceView';
-import { NfceCancelView } from './NfceCancelView';
-import { NfceReprintView } from './NfceReprintView';
+import { NfeCancelView } from './NfeCancelView';
+import { NfeReprintView } from './NfeReprintView';
 import { AccountantPanelView } from './AccountantPanelView';
 import { SefazStatusBadge } from '../components/SefazStatusBadge';
 import { NfceInutilizacaoModal } from './NfceInutilizacaoModal';
