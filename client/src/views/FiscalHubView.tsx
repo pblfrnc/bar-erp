@@ -14,12 +14,14 @@ import { NfeReprintView } from './NfeReprintView';
 import { AccountantPanelView } from './AccountantPanelView';
 import { SefazStatusBadge } from '../components/SefazStatusBadge';
 import { NfceInutilizacaoModal } from './NfceInutilizacaoModal';
+import { NfeInutilizacaoModal } from './NfeInutilizacaoModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
 
 export const FiscalHubView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'emitNfce' | 'settings' | 'cancelNfce' | 'cancelNfe' | 'reprintNfce' | 'reprintNfe' | 'accountant'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
   const [showInutilizacao, setShowInutilizacao] = useState(false);
+  const [showInutilizacaoNfe, setShowInutilizacaoNfe] = useState(false);
   const [showNcmLookup, setShowNcmLookup] = useState(false);
 
   // Ao clicar em "Importar Itens" na lista de recebidos, abre import com XML já baixado
@@ -237,23 +239,50 @@ export const FiscalHubView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card: Inutilizar Numeração */}
-        <button
-          onClick={() => setShowInutilizacao(true)}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/20 transition"></div>
-          <div className="w-10 h-10 text-amber-500 dark:text-amber-400 mb-6 flex items-center justify-center bg-amber-500/10 rounded-xl border border-amber-500/20">
-            <ShieldAlert className="w-6 h-6" />
+        {/* Seção: Inutilização de Numeração */}
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Inutilização de Numeração</span>
           </div>
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Inutilizar Numeração</h3>
-            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">SEFAZ</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Card: Inutilizar NFC-e */}
+            <button
+              onClick={() => setShowInutilizacao(true)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-6 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-28 h-28 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/20 transition" />
+              <div className="w-10 h-10 text-amber-500 dark:text-amber-400 mb-4 flex items-center justify-center bg-amber-500/10 rounded-xl group-hover:scale-110 transition-transform border border-amber-500/20">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Inutilizar NFC-e</h3>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">Modelo 65</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                Comunique à SEFAZ saltos de numeração em cupons fiscais NFC-e. Endpoint: <code className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1 rounded">POST /v2/nfce/inutilizacao</code>
+              </p>
+            </button>
+
+            {/* Card: Inutilizar NF-e */}
+            <button
+              onClick={() => setShowInutilizacaoNfe(true)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-6 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-28 h-28 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/20 transition" />
+              <div className="w-10 h-10 text-amber-600 dark:text-amber-500 mb-4 flex items-center justify-center bg-amber-500/10 rounded-xl group-hover:scale-110 transition-transform border border-amber-500/20">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Inutilizar NF-e</h3>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">Modelo 55</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                Comunique à SEFAZ saltos de numeração em notas fiscais NF-e (saída). Endpoint: <code className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1 rounded">POST /v2/nfe/inutilizacao</code>
+              </p>
+            </button>
           </div>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Comunique falhas de numeração ou saltos de notas fiscais à SEFAZ para manter a escrituração 100% legalizada.
-          </p>
-        </button>
+        </div>
 
         {/* Card: Consulta NCM & Tributação */}
         <button
@@ -307,6 +336,10 @@ export const FiscalHubView: React.FC = () => {
       {/* Modais */}
       {showInutilizacao && (
         <NfceInutilizacaoModal onClose={() => setShowInutilizacao(false)} />
+      )}
+
+      {showInutilizacaoNfe && (
+        <NfeInutilizacaoModal onClose={() => setShowInutilizacaoNfe(false)} />
       )}
 
       {showNcmLookup && (

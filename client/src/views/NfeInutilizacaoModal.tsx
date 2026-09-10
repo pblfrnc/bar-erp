@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldAlert, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { X, ShieldAlert, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { api } from '../services/api';
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   onSuccess?: () => void;
 }
 
-export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) => {
+export const NfeInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) => {
   const [serie, setSerie] = useState('1');
   const [numeroInicial, setNumeroInicial] = useState('');
   const [numeroFinal, setNumeroFinal] = useState('');
@@ -21,7 +21,10 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
       alert('Preencha a série e o intervalo de números.');
       return;
     }
-
+    if (parseInt(numeroFinal, 10) < parseInt(numeroInicial, 10)) {
+      alert('O número final não pode ser menor que o número inicial.');
+      return;
+    }
     if (justificativa.trim().length < 15) {
       alert('A justificativa deve ter no mínimo 15 caracteres (Exigência legal da SEFAZ).');
       return;
@@ -31,7 +34,7 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
     setResult(null);
 
     try {
-      const res = await fetch(`${api.getApiUrl()}/fiscal/inutilizar-numeracao-nfce`, {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/inutilizar-numeracao`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -44,7 +47,7 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
 
       const data = await res.json();
       if (res.ok) {
-        setResult({ ok: true, message: data.mensagem || 'Inutilização de NFC-e homologada com sucesso!' });
+        setResult({ ok: true, message: data.mensagem || 'Inutilização de NF-e homologada com sucesso!' });
         if (onSuccess) onSuccess();
       } else {
         setResult({ ok: false, message: data.error || 'Erro ao homologar na SEFAZ.' });
@@ -56,18 +59,22 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
     }
   };
 
+  const quantidadeNota = numeroInicial && numeroFinal
+    ? Math.max(0, parseInt(numeroFinal, 10) - parseInt(numeroInicial, 10) + 1)
+    : 0;
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90">
           <div className="flex items-center gap-3">
-            <div className="bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-              <ShieldAlert className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+            <div className="bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+              <ShieldAlert className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             </div>
             <div>
-              <h2 className="text-slate-900 dark:text-white font-bold text-base">Inutilizar Numeração — NFC-e</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Comunique à SEFAZ a quebra de sequência de cupons fiscais</p>
+              <h2 className="text-slate-900 dark:text-white font-bold text-base">Inutilizar Numeração — NF-e</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Comunique à SEFAZ o salto de sequência em NF-e</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition p-1 cursor-pointer">
@@ -76,13 +83,25 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Info NF-e vs NFC-e */}
+          <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300 leading-relaxed flex items-start gap-2">
+            <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+            <span>
+              <strong>Esta tela é exclusiva para NF-e</strong> (notas de saída, modelo 55).
+              Para inutilizar numeração de NFC-e (cupom fiscal, modelo 65), use a opção "Inutilizar NFC-e" ao lado.
+              A SEFAZ exige justificativa com no mínimo <strong>15 caracteres</strong>.
+            </span>
+          </div>
+
           <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-xl p-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Use quando houver salto de números de <strong className="text-slate-800 dark:text-slate-200">NFC-e (modelo 65)</strong> não emitidos (queda de energia, falhas ou testes). A SEFAZ exige justificativa com no mínimo <strong className="text-slate-900 dark:text-white">15 caracteres</strong>.
+            Utilize quando houver salto de números não emitidos (falha técnica, reinicialização do terminal ou testes). O endpoint utilizado é <code className="font-mono bg-slate-200 dark:bg-slate-700 px-1 rounded">POST /v2/nfe/inutilizacao</code> da Focus NFe.
           </div>
 
           {result && (
             <div className={`p-4 rounded-xl border text-xs flex items-center gap-2.5 ${
-              result.ok ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-400'
+              result.ok
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                : 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-400'
             }`}>
               {result.ok ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
               <span>{result.message}</span>
@@ -91,16 +110,15 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Série</label>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Série NF-e</label>
               <input
                 type="text"
                 required
                 value={serie}
                 onChange={e => setSerie(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-rose-500 outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 outline-none"
               />
             </div>
-
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Nº Inicial</label>
               <input
@@ -113,10 +131,9 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
                   setNumeroInicial(e.target.value);
                   if (!numeroFinal) setNumeroFinal(e.target.value);
                 }}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-rose-500 outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 outline-none"
               />
             </div>
-
             <div>
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Nº Final</label>
               <input
@@ -126,14 +143,20 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
                 placeholder="Ex: 10"
                 value={numeroFinal}
                 onChange={e => setNumeroFinal(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-rose-500 outline-none"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 outline-none"
               />
             </div>
           </div>
 
+          {quantidadeNota > 0 && (
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 text-center">
+              Serão inutilizadas <strong className="text-slate-800 dark:text-slate-200">{quantidadeNota} nota{quantidadeNota > 1 ? 's' : ''}</strong> (NF-e Série {serie}: {numeroInicial} → {numeroFinal})
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">Justificativa Legal (min. 15 letras)</label>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">Justificativa Legal (mín. 15 caracteres)</label>
               <span className={`text-[10px] font-mono ${justificativa.length >= 15 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                 {justificativa.length}/15 min
               </span>
@@ -141,10 +164,10 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
             <textarea
               required
               rows={3}
-              placeholder="Ex: Quebra de sequencia numerica decorrente de falha tecnica ou reinicializacao do terminal emissor"
+              placeholder="Ex: Quebra de sequencia numerica decorrente de falha tecnica no terminal emissor de NF-e"
               value={justificativa}
               onChange={e => setJustificativa(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 text-slate-900 dark:text-white text-xs focus:border-rose-500 outline-none resize-none placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3 text-slate-900 dark:text-white text-xs focus:border-amber-500 outline-none resize-none placeholder-slate-400 dark:placeholder-slate-500"
             />
           </div>
 
@@ -159,10 +182,10 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
             <button
               type="submit"
               disabled={loading || justificativa.trim().length < 15}
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-rose-600/20"
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              <span>Homologar na SEFAZ</span>
+              <span>Homologar NF-e na SEFAZ</span>
             </button>
           </div>
         </form>

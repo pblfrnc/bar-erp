@@ -2145,6 +2145,67 @@ export function createFiscalRouter() {
   });
 
   // ============================================================
+  // Inutilização de Faixa de Numeração — NFC-e
+  // ============================================================
+  router.post('/inutilizar-numeracao-nfce', async (req, res) => {
+    try {
+      const { serie, numeroInicial, numeroFinal, justificativa } = req.body;
+
+      if (!serie || !numeroInicial || !numeroFinal) {
+        return res.status(400).json({ error: 'Série, número inicial e número final são obrigatórios.' });
+      }
+
+      if (!justificativa || justificativa.trim().length < 15) {
+        return res.status(400).json({ error: 'A justificativa de inutilização deve ter no mínimo 15 caracteres (Exigência SEFAZ).' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const token = String(settings?.apiToken || '').trim();
+      const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
+
+      if (!token) return res.status(400).json({ error: 'Token da API fiscal não configurado.' });
+      if (!cnpj) return res.status(400).json({ error: 'CNPJ da empresa não configurado.' });
+
+      const isProducao = settings?.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(token + ':').toString('base64');
+
+      const focusUrl = `${baseURL}/v2/nfce/inutilizacao`;
+      const payload = {
+        cnpj,
+        serie: String(serie),
+        numero_inicial: Number(numeroInicial),
+        numero_final: Number(numeroFinal),
+        justificativa: justificativa.trim()
+      };
+
+      const focusRes = await fetch(focusUrl, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await focusRes.json().catch(() => ({}));
+
+      if (!focusRes.ok) {
+        return res.status(focusRes.status).json({
+          error: data.mensagem || data.erro || 'Erro ao homologar inutilização de NFC-e na SEFAZ.',
+          details: data
+        });
+      }
+
+      res.json({
+        ok: true,
+        mensagem: `Inutilização NFC-e da faixa ${numeroInicial} a ${numeroFinal} (Série ${serie}) homologada com sucesso na SEFAZ!`,
+        data
+      });
+    } catch (err: any) {
+      console.error('[FocusNFe Inutilizacao NFC-e Error]', err);
+      res.status(500).json({ error: 'Erro interno ao processar inutilização de NFC-e: ' + err.message });
+    }
+  });
+
+  // ============================================================
   // Consulta de Dados de CNPJ (Receita Federal / BrasilAPI)
   // ============================================================
   router.get('/consulta-cnpj/:cnpj', async (req, res) => {
