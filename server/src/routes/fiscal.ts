@@ -843,6 +843,46 @@ export function createFiscalRouter() {
       }
     });
 
+    // ============================================================
+    // Listar NF-es Disponíveis para Cancelamento (Prazo 24h SEFAZ)
+    // ============================================================
+    router.get('/nfe/cancelable-notes', async (req, res) => {
+      try {
+        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const notas = await (prisma as any).notaEmitida.findMany({
+          where: {
+            status: 'autorizado',
+            createdAt: { gte: since24h }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100
+        });
+
+        const now = Date.now();
+        const cancelable = notas
+          .filter((n: any) => !n.referencia?.startsWith('nfce_') && !n.referencia?.startsWith('cupom_'))
+          .map((n: any) => {
+            const createdAtMs = new Date(n.createdAt).getTime();
+            const diffMinutes = Math.floor((now - createdAtMs) / 60000);
+            const hoursRemaining = Math.max(0, 24 - Math.floor(diffMinutes / 60));
+            const minutesInHour = Math.max(0, 60 - (diffMinutes % 60));
+            return {
+              ...n,
+              diffMinutes,
+              hoursRemaining,
+              minutesInHour,
+              isCancelable: hoursRemaining > 0 || (hoursRemaining === 0 && minutesInHour > 0)
+            };
+          })
+          .filter((n: any) => n.isCancelable);
+
+        res.json(cancelable);
+      } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao listar NF-es para cancelamento.' });
+      }
+    });
+
 
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {
