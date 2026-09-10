@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin, CheckCircle, XCircle, Wifi, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, AlertTriangle, Key, Building2, UploadCloud, MapPin, CheckCircle, XCircle, Wifi, Loader2, FileText, Receipt } from 'lucide-react';
 import { api } from '../services/api';
 
 // Algoritmo de validação oficial do CNPJ (dois dígitos verificadores)
@@ -513,13 +513,68 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
             </div>
           </div>
 
-          {/* Numeração e Sequência da NFC-e */}
+          {/* Numeração e Sequência da NF-e (Modelo 55) */}
+          <div className="p-5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 mb-6 space-y-4 shadow-xs">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                Sequência & Numeração da NF-e (Modelo 55 — DANFE Saída)
+              </h4>
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 ml-auto">
+                Modelo 55
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Configure a série e o próximo número para emissão de <strong className="text-slate-800 dark:text-slate-200">NF-e padrão</strong> na Focus NFe e SEFAZ.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">
+                  Série da NF-e
+                </label>
+                <input
+                  type="text"
+                  value={settings.serieNfe ?? '1'}
+                  onChange={e => handleChange('serieNfe', e.target.value)}
+                  placeholder="Ex: 1"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:border-indigo-500 outline-none transition shadow-xs"
+                />
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Padrão: <strong>1</strong>. Caso já emita NF-e em outro emissor, consulte sua contabilidade.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">
+                  Próximo Número da NF-e
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={settings.proximoNumeroNfe ?? 1}
+                  onChange={e => handleChange('proximoNumeroNfe', e.target.value)}
+                  placeholder="Ex: 1"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-mono focus:border-indigo-500 outline-none transition shadow-xs"
+                />
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Ex: Se a última NF-e autorizada foi a <strong>150</strong>, informe <strong>151</strong> para sequência contínua.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Numeração e Sequência da NFC-e (Modelo 65) */}
           <div className="p-5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800/80 mb-6 space-y-4 shadow-xs">
             <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-amber-500" />
+              <Receipt className="w-4 h-4 text-amber-500" />
               <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                Sequência & Numeração da NFC-e (Continuidade Fiscal)
+                Sequência & Numeração da NFC-e (Modelo 65 — Cupom Fiscal)
               </h4>
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 ml-auto">
+                Modelo 65
+              </span>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">

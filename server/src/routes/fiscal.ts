@@ -570,6 +570,15 @@ export function createFiscalRouter() {
           empresaPayload.proximo_numero_nfce_homologacao = String(data.proximoNumeroNfce).trim();
         }
 
+        if (data.serieNfe) {
+          empresaPayload.serie_nfe_producao = String(data.serieNfe).trim();
+          empresaPayload.serie_nfe_homologacao = String(data.serieNfe).trim();
+        }
+        if (data.proximoNumeroNfe) {
+          empresaPayload.proximo_numero_nfe_producao = String(data.proximoNumeroNfe).trim();
+          empresaPayload.proximo_numero_nfe_homologacao = String(data.proximoNumeroNfe).trim();
+        }
+
         if (certBase64 && certPassword) {
            empresaPayload.arquivo_certificado_base64 = certBase64;
            empresaPayload.senha_certificado = certPassword;
@@ -1169,6 +1178,137 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error('[emit-nfce] Exceção:', err);
       res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal.' });
+    }
+  });
+
+  // ============================================================
+  // Emitir NF-e (Modelo 55 - Saída)
+  // ============================================================
+  router.post('/emit-nfe', async (req, res) => {
+    try {
+      const { items, customerCpf, customerName, paymentMethod, orderId } = req.body;
+
+      if (!items || items.length === 0) {
+        return res.status(400).json({ error: 'Nenhum item adicionado para a nota.' });
+      }
+
+      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      if (!settings || !settings.apiToken) {
+        return res.status(400).json({ error: 'Token da API Fiscal não configurado. Vá nas Configurações Fiscais.' });
+      }
+
+      const { payload, ref } = await buildNfePayload({
+        items,
+        customerDoc: customerCpf,
+        orderId,
+        settings
+      });
+
+      if (customerName && String(customerName).trim()) {
+        (payload as any).nome_destinatario = String(customerName).trim().slice(0, 60);
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const focusUrl = `${baseURL}/v2/nfe?ref=${encodeURIComponent(ref)}&dry_run=0`;
+      const cleanToken = settings.apiToken.trim();
+
+      console.log('[emit-nfe] Enviando para:', focusUrl);
+      const focusRes = await fetch(focusUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64')
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data: any = await focusRes.json().catch(() => ({}));
+
+      if (!focusRes.ok) {
+        console.error('[emit-nfe] Focus NFe recusou:', focusRes.status, data);
+        let errosFormatados = Array.isArray(data.erros)
+          ? data.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo || JSON.stringify(e)}`).join('\n')
+          : data.mensagem || JSON.stringify(data);
+        return res.status(400).json({ error: `Focus NFe (${focusRes.status}): ${errosFormatados}` });
+      }
+
+      const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+
+      if (data.status === 'autorizado') {
+        const danfeUrl = data.caminho_danfe || data.danfe_url || `${baseURL}/v2/nfe/${ref}/danfe.pdf`;
+        const xmlUrl = data.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
+        await persistNfeRecord({
+          referencia: ref,
+          chave: data.chave_nfe,
+          numero: data.numero,
+          serie: data.serie || String(settings.serieNfe || '1'),
+          pdfUrl: danfeUrl,
+          xmlUrl: xmlUrl,
+          valorTotal: totalItemsValue
+        });
+
+        return res.json({
+          success: true,
+          status: data.status,
+          referencia: ref,
+          chaveAcesso: data.chave_nfe,
+          caminhoDanfe: danfeUrl,
+          numero: data.numero,
+          serie: data.serie
+        });
+      }
+
+      if (data.status === 'processando') {
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(ref)}`, {
+          headers: { 'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64') }
+        });
+        const checkData: any = await checkRes.json().catch(() => ({}));
+
+        if (checkData.status === 'autorizado') {
+          const danfeUrl = checkData.caminho_danfe || checkData.danfe_url || `${baseURL}/v2/nfe/${ref}/danfe.pdf`;
+          const xmlUrl = checkData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
+          await persistNfeRecord({
+            referencia: ref,
+            chave: checkData.chave_nfe,
+            numero: checkData.numero,
+            serie: checkData.serie || String(settings.serieNfe || '1'),
+            pdfUrl: danfeUrl,
+            xmlUrl: xmlUrl,
+            valorTotal: totalItemsValue
+          });
+
+          return res.json({
+            success: true,
+            status: checkData.status,
+            referencia: ref,
+            chaveAcesso: checkData.chave_nfe,
+            caminhoDanfe: danfeUrl,
+            numero: checkData.numero,
+            serie: checkData.serie
+          });
+        }
+
+        if (checkData.status === 'erro_autorizacao') {
+          const errMsg = Array.isArray(checkData.erros)
+            ? checkData.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join('\n')
+            : checkData.mensagem || JSON.stringify(checkData);
+          return res.status(400).json({ error: `SEFAZ recusou a NF-e: ${errMsg}` });
+        }
+
+        return res.json({
+          success: true,
+          status: checkData.status || 'processando',
+          mensagem: 'A NF-e está na fila de processamento da SEFAZ.',
+          referencia: ref
+        });
+      }
+
+      return res.json(data);
+    } catch (err: any) {
+      console.error('[emit-nfe] Exceção:', err);
+      res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal para emitir NF-e.' });
     }
   });
 
