@@ -7,7 +7,7 @@ import { NfReceivingView } from './NfReceivingView';
 import { api } from '../services/api';
 
 import { ManualNfceView } from './ManualNfceView';
-import { NfeCancelView } from './NfeCancelView';
+import { NfceCancelView as NfeCancelView } from './NfceCancelView';
 import { NfeReprintView } from './NfeReprintView';
 import { AccountantPanelView } from './AccountantPanelView';
 import { SefazStatusBadge } from '../components/SefazStatusBadge';
@@ -57,11 +57,11 @@ export const FiscalHubView: React.FC = () => {
   }
 
   if (activeTab === 'reprint') {
-    return <NfceReprintView onBack={() => setActiveTab('hub')} />;
+    return <NfeReprintView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'cancel') {
-    return <NfceCancelView onBack={() => setActiveTab('hub')} />;
+    return <NfeCancelView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'settings') {
