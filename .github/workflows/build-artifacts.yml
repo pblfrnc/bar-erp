@@ -188,13 +188,15 @@ jobs:
         run: |
           TAG="latest"
           TITLE="BarERP - Versão de Produção"
-          BODY="Baixe aqui os instaladores atualizados da última versão do BarERP:
+          BODY="Baixe aqui os instaladores atualizados da última versão do BarERP:\n\n- **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa\n- **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas\n- **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
 
-          - **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa
-          - **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas
-          - **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
+          # Ensure GitHub CLI is available (ubuntu-latest includes it, but we double‑check)
+          if ! command -v gh > /dev/null; then
+            echo "Instalando GitHub CLI..."
+            sudo apt-get update && sudo apt-get install -y gh
+          fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release '$TAG' já existente. Atualizando informações e sobrescrevendo arquivos (--clobber)..."
             gh release edit "$TAG" --title "$TITLE" --notes "$BODY"
             for file in release-files/*; do
