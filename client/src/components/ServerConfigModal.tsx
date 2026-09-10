@@ -9,8 +9,11 @@ import {
   Search,
   X,
   HelpCircle,
-  Radio
+  Radio,
+  Camera,
+  QrCode
 } from 'lucide-react';
+import { QrScannerModal } from './QrScannerModal';
 
 interface ServerConfigModalProps {
   isOpen: boolean;
@@ -33,8 +36,17 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
   } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState<string>('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleScanSuccess = (scannedText: string) => {
+    setIsScannerOpen(false);
+    const finalUrl = normalizeUrl(scannedText);
+    setInputUrl(finalUrl);
+    setServerBaseUrl(finalUrl);
+    handleTestConnection(finalUrl);
+  };
 
   // Formata o endereço digitado para uma URL válida com porta 3001
   const normalizeUrl = (raw: string): string => {
@@ -218,6 +230,23 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
           </span>
         </div>
 
+        {/* Botão de Escanear QR Code com Câmera (Conexão Automática) */}
+        <button
+          onClick={() => setIsScannerOpen(true)}
+          className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/25 active:scale-98 transition cursor-pointer"
+        >
+          <Camera className="w-5 h-5" />
+          <span>Escanear QR Code no Computador do Caixa</span>
+        </button>
+
+        <div className="flex items-center gap-3 my-1">
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            ou digite o ip manualmente
+          </span>
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+        </div>
+
         {/* Campo de Digitação do Endereço / IP */}
         <div className="space-y-2">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
@@ -333,6 +362,15 @@ export const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Leitor de QR Code com Câmera */}
+      {isScannerOpen && (
+        <QrScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScanSuccess={handleScanSuccess}
+        />
+      )}
     </div>
   );
 };

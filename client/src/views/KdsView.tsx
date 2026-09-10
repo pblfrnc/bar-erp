@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { OrderItem, KdsStatus, KdsStation } from '../types';
 import { api } from '../services/api';
+import { ServerConfigModal } from '../components/ServerConfigModal';
 import {
   ChefHat,
   Beer,
@@ -10,17 +11,22 @@ import {
   Flame,
   CheckCheck,
   RefreshCw,
-  Volume2
+  Volume2,
+  Wifi,
+  WifiOff,
+  QrCode
 } from 'lucide-react';
 
 interface KdsViewProps {
   onRefreshKdsBadge: () => void;
+  isConnected?: boolean;
 }
 
-export const KdsView: React.FC<KdsViewProps> = ({ onRefreshKdsBadge }) => {
+export const KdsView: React.FC<KdsViewProps> = ({ onRefreshKdsBadge, isConnected = true }) => {
   const [station, setStation] = useState<string>('ALL'); // 'ALL' | 'BAR' | 'KITCHEN'
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isServerConfigOpen, setIsServerConfigOpen] = useState(false);
 
   const loadKds = async () => {
     try {
@@ -152,6 +158,30 @@ export const KdsView: React.FC<KdsViewProps> = ({ onRefreshKdsBadge }) => {
               Cozinha / Petiscos
             </button>
           </div>
+
+          {/* Status Wi-Fi / Configuração de Servidor & QR Code */}
+          <button
+            onClick={() => setIsServerConfigOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer shadow-xs ${
+              isConnected
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                : 'bg-red-50 dark:bg-red-950/80 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 animate-pulse hover:bg-red-100 dark:hover:bg-red-900/80'
+            }`}
+            title="Clique para escanear QR Code do Caixa ou configurar IP do servidor"
+          >
+            {isConnected ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="hidden md:inline text-[11px]">Wi-Fi OK</span>
+                <QrCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 opacity-70" />
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3.5 h-3.5 text-red-500" />
+                <span className="text-[11px] font-extrabold">Conectar (QR/IP)</span>
+              </>
+            )}
+          </button>
 
           <button
             onClick={loadKds}
@@ -302,6 +332,13 @@ export const KdsView: React.FC<KdsViewProps> = ({ onRefreshKdsBadge }) => {
           })}
         </div>
       )}
+
+      {/* Modal de Configuração de Servidor com QR Code Scanner */}
+      <ServerConfigModal
+        isOpen={isServerConfigOpen}
+        onClose={() => setIsServerConfigOpen(false)}
+        isConnected={isConnected}
+      />
     </div>
   );
 };

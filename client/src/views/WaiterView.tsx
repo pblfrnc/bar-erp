@@ -28,7 +28,8 @@ import {
   BellRing,
   CheckCircle2,
   X,
-  Utensils
+  Utensils,
+  QrCode
 } from 'lucide-react';
 
 interface WaiterViewProps {
@@ -349,7 +350,7 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
               </button>
             )}
 
-            {/* Status Wi-Fi / Configuração de Servidor */}
+            {/* Status Wi-Fi / Configuração de Servidor & QR Code */}
             <button
               onClick={() => setIsServerConfigOpen(true)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
@@ -357,17 +358,18 @@ export const WaiterView: React.FC<WaiterViewProps> = ({
                   ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
                   : 'bg-red-50 dark:bg-red-950/80 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 animate-pulse hover:bg-red-100 dark:hover:bg-red-900/80'
               }`}
-              title="Clique para ver ou configurar o IP do servidor do bar"
+              title="Clique para escanear QR Code do Caixa ou configurar o IP do servidor"
             >
               {isConnected ? (
                 <>
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className="hidden sm:inline text-[11px]">Wi-Fi OK</span>
+                  <QrCode className="w-3 h-3 text-emerald-600 dark:text-emerald-400 opacity-70" />
                 </>
               ) : (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-red-500" />
-                  <span className="text-[11px] font-extrabold">Configurar IP</span>
+                  <span className="text-[11px] font-extrabold">Conectar (QR/IP)</span>
                 </>
               )}
             </button>

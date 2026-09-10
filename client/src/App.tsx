@@ -383,7 +383,7 @@ export function App() {
         )}
 
         {currentView === 'kds' && (
-          <KdsView onRefreshKdsBadge={loadKdsCount} />
+          <KdsView onRefreshKdsBadge={loadKdsCount} isConnected={isConnected} />
         )}
 
         {currentView === 'cash' && (
