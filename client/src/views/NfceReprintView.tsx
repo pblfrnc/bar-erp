@@ -161,7 +161,7 @@ export const NfceReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                     rel="noopener noreferrer"
                     className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
                   >
-                    Ver PDF
+                    Ver Cupom (DANFE)
                   </a>
                 </div>
               </div>

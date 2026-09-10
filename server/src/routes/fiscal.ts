@@ -999,39 +999,54 @@ export function createFiscalRouter() {
           return res.status(focusRes.status).send(`Erro Focus NFe (${focusRes.status}): ${data.mensagem || data.erros || 'Nota não encontrada na SEFAZ.'}`);
         }
 
-        const pdfUrl = data.caminho_danfe || data.danfe_url || data.url_danfe;
+        const rawDanfePath = data.caminho_danfe || data.danfe_url || data.url_danfe;
 
-        if (!pdfUrl) {
-          return res.status(404).send(`O DANFE em PDF ainda não está disponível na SEFAZ. Status atual da nota: ${data.status || 'desconhecido'}.`);
+        if (!rawDanfePath) {
+          return res.status(404).send(`O DANFE/Cupom Fiscal ainda não está disponível na SEFAZ. Status atual da nota: ${data.status || 'desconhecido'}.`);
         }
+
+        // Converte caminho relativo (ex: /notas_fiscais_consumidor/nfce_xxx.html) em URL absoluta
+        const fullDanfeUrl = rawDanfePath.startsWith('http') 
+          ? rawDanfePath 
+          : `${baseURL}${rawDanfePath.startsWith('/') ? '' : '/'}${rawDanfePath}`;
 
         // Atualiza no banco local para manter cache
         try {
           await (prisma as any).notaEmitida.updateMany({
             where: { referencia },
-            data: { pdfUrl, status: data.status || 'autorizado' }
+            data: { pdfUrl: fullDanfeUrl, status: data.status || 'autorizado' }
           });
         } catch (dbErr) {
           // Não bloqueia
         }
 
-        console.log(`[DANFE Proxy] Baixando PDF de: ${pdfUrl}`);
-        const pdfRes = await fetch(pdfUrl, {
+        console.log(`[DANFE Proxy] Baixando documento fiscal de: ${fullDanfeUrl}`);
+        const docRes = await fetch(fullDanfeUrl, {
           headers: {
-            ...(pdfUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {})
+            ...(fullDanfeUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {})
           }
         });
 
-        if (!pdfRes.ok) {
-          // Se o download direto falhar, redireciona para a URL fornecida pela Focus NFe
-          return res.redirect(pdfUrl);
+        if (!docRes.ok) {
+          console.warn(`[DANFE Proxy] Fetch direto retornou status ${docRes.status}, redirecionando para: ${fullDanfeUrl}`);
+          return res.redirect(fullDanfeUrl);
         }
 
-        const buffer = Buffer.from(await pdfRes.arrayBuffer());
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="danfe-${referencia}.pdf"`);
-        res.setHeader('Content-Length', buffer.length.toString());
-        return res.send(buffer);
+        const rawContentType = docRes.headers.get('content-type') || '';
+        const isHtml = fullDanfeUrl.toLowerCase().includes('.html') || rawContentType.toLowerCase().includes('text/html');
+
+        const buffer = Buffer.from(await docRes.arrayBuffer());
+
+        if (isHtml) {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Content-Length', buffer.length.toString());
+          return res.send(buffer);
+        } else {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `inline; filename="danfe-${referencia}.pdf"`);
+          res.setHeader('Content-Length', buffer.length.toString());
+          return res.send(buffer);
+        }
       } catch (err: any) {
         console.error('[DANFE Proxy Error]', err);
         res.status(500).send('Erro interno ao carregar DANFE: ' + err.message);
