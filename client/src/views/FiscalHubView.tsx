@@ -137,35 +137,37 @@ export const FiscalHubView: React.FC = () => {
           <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão de NFC‑e para vendas rápidas ou automação de cupons fiscais via Focus NFe.</p>
         </button>
         
-        {/* Card: Reimprimir Nota */}
-        <button
-          onClick={() => setActiveTab('reprint')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-3xl group-hover:bg-sky-500/20 transition"></div>
-          <div className="w-12 h-12 text-sky-500 dark:text-sky-400 mb-6 flex items-center justify-center bg-sky-500/10 rounded-2xl group-hover:scale-110 transition-transform border border-sky-500/20">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Reimprimir NFC-e</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Busque o DANFE e o XML de uma nota já emitida na SEFAZ usando o número da nota fiscal.
-          </p>
-        </button>
-
-        {/* Card: Cancelar NFC-e */}
-        <button
-          onClick={() => setActiveTab('cancel')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-3xl group-hover:bg-rose-500/20 transition"></div>
-          <div className="w-10 h-10 text-rose-500 mb-6 flex items-center justify-center bg-rose-500/10 rounded-xl border border-rose-500/20">
-             <span className="font-bold text-xl">X</span>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Cancelar Nota</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Cancele cupons fiscais recém-emitidos na SEFAZ (dentro do prazo legal de 30 minutos) de forma rápida.
-          </p>
-        </button>
+        {/* Card: Reimprimir e Cancelar NFC-e */}
+        <div className="md:col-span-2 flex space-x-4">
+          {/* Reimprimir NFC-e */}
+          <button
+            onClick={() => setActiveTab('reprint')}
+            className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-3xl group-hover:bg-sky-500/20 transition" />
+            <div className="w-12 h-12 text-sky-500 dark:text-sky-400 mb-6 flex items-center justify-center bg-sky-500/10 rounded-2xl group-hover:scale-110 transition-transform border border-sky-500/20">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Reimprimir NFC-e</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+              Busque o DANFE e o XML de uma nota já emitida na SEFAZ usando o número da nota fiscal.
+            </p>
+          </button>
+          {/* Cancelar NFC-e */}
+          <button
+            onClick={() => setActiveTab('cancel')}
+            className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-3xl group-hover:bg-rose-500/20 transition" />
+            <div className="w-10 h-10 text-rose-500 mb-6 flex items-center justify-center bg-rose-500/10 rounded-xl border border-rose-500/20">
+              <span className="font-bold text-xl">X</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Cancelar Nota</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+              Cancele cupons fiscais recém-emitidos na SEFAZ (dentro do prazo legal de 30 minutos) de forma rápida.
+            </p>
+          </button>
+        </div>
 
         {/* Card: Inutilizar Numeração */}
         <button
