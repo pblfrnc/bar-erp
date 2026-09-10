@@ -14,6 +14,10 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   const [total, setTotal] = useState(0);
   const [isEmitting, setIsEmitting] = useState(false);
   const [saleSuccessData, setSaleSuccessData] = useState<any>(null);
+  // Printer selection UI state
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
+  const [selectedPrinter, setSelectedPrinter] = useState('');
+  const [printers, setPrinters] = useState<string[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -232,6 +236,48 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
               <p className="font-bold">NF‑e emitida! Referência: {saleSuccessData.referencia}</p>
               {saleSuccessData.danfeUrl && (
                 <a href={saleSuccessData.danfeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Abrir DANFE</a>
+              )}
+              <button onClick={() => setShowPrinterModal(true)} className="mt-2 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded">
+                Emitir Nota
+              </button>
+              {showPrinterModal && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                  <div className="bg-white dark:bg-slate-800 p-6 rounded shadow-lg w-full max-w-md">
+                    <h3 className="text-lg font-semibold mb-4">Selecionar Impressora</h3>
+                    <select value={selectedPrinter} onChange={(e) => setSelectedPrinter(e.target.value)} className="w-full mb-4 p-2 border rounded">
+                      <option value="">Impressora padrão</option>
+                      {printers.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    <div className="flex justify-end space-x-2">
+                      <button onClick={() => setShowPrinterModal(false)} className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded">Cancelar</button>
+                      <button
+                        onClick={() => {
+                          if (saleSuccessData?.danfeUrl) {
+                            if (selectedPrinter) {
+                              // Use electron API to print to selected printer if available
+                              const printFn = (window as any).electronAPI?.printPdf;
+                              if (printFn) {
+                                printFn(saleSuccessData.danfeUrl, selectedPrinter);
+                              } else {
+                                // Fallback: open URL
+                                window.open(saleSuccessData.danfeUrl, '_blank');
+                              }
+                            } else {
+                              // No printer selected, fallback to open PDF
+                              window.open(saleSuccessData.danfeUrl, '_blank');
+                            }
+                          }
+                          setShowPrinterModal(false);
+                        }}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded"
+                      >
+                        Imprimir
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
