@@ -94,61 +94,92 @@ export const FiscalHubView: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Card: Receber NF (1º Bip) */}
-        <button
-          onClick={() => setActiveTab('receive')}
-          className="md:col-span-2 bg-white dark:bg-slate-900 border border-amber-500/40 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition"></div>
-          <div className="flex items-center gap-4 mb-3">
-            <Scan className="w-10 h-10 text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">1º Bip</span>
+        {/* ─── SEÇÃO: Recebimento Fiscal ─── */}
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-2 mb-3">
+            <Scan className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Recebimento Fiscal</span>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">1º BIP — Receber NF do Fornecedor ⚡</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Bipe a nota recebida para registrar a <strong className="text-slate-900 dark:text-slate-300">Ciência da Operação na SEFAZ</strong> e fazer o download do XML. O estoque não é alterado nesta etapa.
-          </p>
-        </button>
+          <div className="flex flex-col gap-4">
+            {/* Card: 1º BIP — Ciência da Operação */}
+            <button
+              onClick={() => setActiveTab('receive')}
+              className="w-full bg-white dark:bg-slate-900 border border-amber-500/40 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition" />
+              <div className="flex items-center gap-4 mb-3">
+                <Scan className="w-10 h-10 text-amber-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">1º Bip</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">1º BIP — Receber NF do Fornecedor ⚡</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                Bipe a nota recebida para registrar a <strong className="text-slate-900 dark:text-slate-300">Ciência da Operação na SEFAZ</strong> e fazer o download do XML. O estoque não é alterado nesta etapa.
+              </p>
+            </button>
 
-        {/* Card: Importar XML / 2º Bip */}
-        <button
-          onClick={() => { setChaveParaImportar(null); setActiveTab('import'); }}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition"></div>
-          <FileText className="w-10 h-10 text-emerald-500 mb-6" />
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">2º BIP — Entrada no Estoque</h3>
-            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">2º Bip</span>
+            {/* Card: 2º BIP — Entrada no Estoque */}
+            <button
+              onClick={() => { setChaveParaImportar(null); setActiveTab('import'); }}
+              className="w-full bg-white dark:bg-slate-900 border border-emerald-500/40 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition" />
+              <div className="flex items-center gap-4 mb-3">
+                <FileText className="w-10 h-10 text-emerald-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">2º Bip</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">2º BIP — Entrada no Estoque</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                Bipe a DANFE impressa ou selecione o arquivo <strong className="text-slate-900 dark:text-slate-300">.xml</strong> para conferir os itens recebidos e dar entrada definitiva no estoque.
+              </p>
+            </button>
           </div>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Bipe a DANFE impressa ou selecione o arquivo .xml para conferir os itens recebidos e dar entrada definitiva no estoque.
-          </p>
-        </button>
+        </div>
 
-        {/* Card: Emitir NFC-e */}
-        <button
-          onClick={() => setActiveTab('emit')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition"></div>
-          <Receipt className="w-10 h-10 text-indigo-500 dark:text-indigo-400 mb-6" />
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Emitir NF-e (Saída)</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão avulsa de notas fiscais eletrônicas para vendas rápidas ou retroativas usando a integração Focus NFe.</p>
-        </button>
+        {/* ─── SEÇÃO: Emissão de Notas ─── */}
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-2 mb-3">
+            <Receipt className="w-4 h-4 text-indigo-500" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Emissão de Notas</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Card: Emitir NF-e */}
+            <button
+              onClick={() => setActiveTab('emit')}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition" />
+              <div className="w-10 h-10 text-indigo-500 dark:text-indigo-400 mb-4 flex items-center justify-center bg-indigo-500/10 rounded-xl group-hover:scale-110 transition-transform border border-indigo-500/20">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Emitir NF-e</h3>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30">Modelo 55</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                Emissão avulsa de notas fiscais eletrônicas de saída usando a integração Focus NFe.
+              </p>
+            </button>
 
-        
-        {/* Card: Emitir NFC-e */}
-        <button
-          onClick={() => setActiveTab('emitNfce')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition"></div>
-          <Receipt className="w-10 h-10 text-indigo-500 dark:text-indigo-400 mb-6" />
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Emitir NFC-e (Saída)</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão de NFC‑e para vendas rápidas ou automação de cupons fiscais via Focus NFe.</p>
-        </button>
-        
+            {/* Card: Emitir NFC-e */}
+            <button
+              onClick={() => setActiveTab('emitNfce')}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-violet-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl group-hover:bg-violet-500/20 transition" />
+              <div className="w-10 h-10 text-violet-500 dark:text-violet-400 mb-4 flex items-center justify-center bg-violet-500/10 rounded-xl group-hover:scale-110 transition-transform border border-violet-500/20">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Emitir NFC-e</h3>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-400 border border-violet-500/30">Modelo 65</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                Emissão de cupons fiscais NFC-e para vendas rápidas via Focus NFe.
+              </p>
+            </button>
+          </div>
+        </div>
+
         {/* Seção: Reimpressão */}
         <div className="md:col-span-2">
           <div className="flex items-center gap-2 mb-3">
