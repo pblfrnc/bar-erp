@@ -15,7 +15,7 @@ import { NfceInutilizacaoModal } from './NfceInutilizacaoModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
 
 export const FiscalHubView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'settings' | 'cancel' | 'reprint' | 'accountant'>('hub');
+  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'emitNfce' | 'settings' | 'cancel' | 'reprint' | 'accountant'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
   const [showInutilizacao, setShowInutilizacao] = useState(false);
   const [showNcmLookup, setShowNcmLookup] = useState(false);
@@ -46,6 +46,10 @@ export const FiscalHubView: React.FC = () => {
 
   if (activeTab === 'emit') {
     return <EmitNfeView onBack={() => setActiveTab('hub')} />;
+  }
+
+  if (activeTab === 'emitNfce') {
+    return <ManualNfceView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'accountant') {
@@ -121,6 +125,17 @@ export const FiscalHubView: React.FC = () => {
           <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão avulsa de notas fiscais eletrônicas para vendas rápidas ou retroativas usando a integração Focus NFe.</p>
         </button>
 
+        
+        {/* Card: Emitir NFC-e */}
+        <button
+          onClick={() => setActiveTab('emitNfce')}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition"></div>
+          <Receipt className="w-10 h-10 text-indigo-500 dark:text-indigo-400 mb-6" />
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Emitir NFC-e (Saída)</h3>
+          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão de NFC‑e para vendas rápidas ou automação de cupons fiscais via Focus NFe.</p>
+        </button>
         
         {/* Card: Reimprimir Nota */}
         <button
