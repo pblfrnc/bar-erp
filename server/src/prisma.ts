@@ -45,6 +45,26 @@ async function configureSqlite() {
       await prisma.$queryRawUnsafe('ALTER TABLE "OrderItem" ADD COLUMN "unitType" TEXT DEFAULT "UNIT";');
       console.log('✅ [Auto-Migrate] Coluna unitType adicionada à tabela OrderItem.');
     }
+
+    // FiscalSettings: serieNfe, proximoNumeroNfe, serieNfce, proximoNumeroNfce
+    const fiscalCols: any[] = await prisma.$queryRawUnsafe('PRAGMA table_info(FiscalSettings);');
+    const fiscalColNames = fiscalCols.map((c: any) => c.name);
+    if (!fiscalColNames.includes('serieNfe')) {
+      await prisma.$queryRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT "1";');
+      console.log('✅ [Auto-Migrate] Coluna serieNfe adicionada à tabela FiscalSettings.');
+    }
+    if (!fiscalColNames.includes('proximoNumeroNfe')) {
+      await prisma.$queryRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;');
+      console.log('✅ [Auto-Migrate] Coluna proximoNumeroNfe adicionada à tabela FiscalSettings.');
+    }
+    if (!fiscalColNames.includes('serieNfce')) {
+      await prisma.$queryRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT "1";');
+      console.log('✅ [Auto-Migrate] Coluna serieNfce adicionada à tabela FiscalSettings.');
+    }
+    if (!fiscalColNames.includes('proximoNumeroNfce')) {
+      await prisma.$queryRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;');
+      console.log('✅ [Auto-Migrate] Coluna proximoNumeroNfce adicionada à tabela FiscalSettings.');
+    }
   } catch (err) {
     console.error('Aviso ao inicializar SQLite / Auto-Migração:', err);
   }

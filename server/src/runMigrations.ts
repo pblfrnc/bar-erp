@@ -81,6 +81,8 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "nomeFantasia" TEXT;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT '1';`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (e) {}
 
     // Tabela de Notas Recebidas (Bip de Chave de Acesso)
     await prisma.$executeRawUnsafe(`

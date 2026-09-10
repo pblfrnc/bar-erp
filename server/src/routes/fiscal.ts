@@ -87,8 +87,28 @@ async function ensureFiscalTables() {
     await prisma.$executeRawUnsafe(`
       CREATE UNIQUE INDEX IF NOT EXISTS "NotaEmitida_referencia_key" ON "NotaEmitida"("referencia")
     `);
+
+    // Auto-migração resiliente para colunas novas de NF-e e NFC-e em FiscalSettings
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT '1';`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;`); } catch (e) {}
   } catch (err) {
     console.error('Erro ao verificar/criar tabelas fiscais:', err);
+  }
+}
+
+async function getFiscalSettingsSafe() {
+  try {
+    return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (msg.includes('serieNfe') || msg.includes('proximoNumeroNfe') || msg.includes('column')) {
+      try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (_) {}
+      try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (_) {}
+      return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+    }
+    throw err;
   }
 }
 
@@ -189,7 +209,7 @@ export function createFiscalRouter() {
   // ============================================================
   router.get('/validate-api', async (req, res) => {
     try {
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
 
       if (!settings?.apiToken) {
         return res.status(400).json({
@@ -295,7 +315,7 @@ export function createFiscalRouter() {
   // ============================================================
   router.get('/diagnose-focus', async (req, res) => {
     try {
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token não configurado.' });
       }
@@ -427,7 +447,7 @@ export function createFiscalRouter() {
   // Obter configurações fiscais
   router.get('/settings', async (req, res) => {
     try {
-      let settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      let settings = await getFiscalSettingsSafe();
       if (!settings) {
         settings = await (prisma as any).FiscalSettings.create({ data: { id: 'default' } });
       }
@@ -451,7 +471,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Senha do certificado é obrigatória.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token da API não configurado. Salve as configurações primeiro.' });
       }
@@ -686,7 +706,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'A justificativa deve ter no mínimo 15 caracteres (Regra da SEFAZ).' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token da API não configurado.' });
       }
@@ -889,7 +909,7 @@ export function createFiscalRouter() {
         const { referencia } = req.params;
         if (!referencia) return res.status(400).send('Referência da nota não informada.');
 
-        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        const settings = await getFiscalSettingsSafe();
         if (!settings?.apiToken) {
           return res.status(400).send('Token da Focus NFe não configurado nas Configurações Fiscais.');
         }
@@ -968,7 +988,7 @@ export function createFiscalRouter() {
         if (!justificativa || justificativa.length < 15) {
           return res.status(400).json({ error: 'A justificativa deve ter no mínimo 15 caracteres (Regra da SEFAZ).' });
         }
-        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        const settings = await getFiscalSettingsSafe();
         if (!settings?.apiToken) {
           return res.status(400).json({ error: 'Token da API não configurado.' });
         }
@@ -1049,7 +1069,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Nenhum item adicionado para a nota.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings || !settings.apiToken) {
         return res.status(400).json({ error: 'Token da API Fiscal não configurado. Vá nas Configurações Fiscais.' });
       }
@@ -1346,7 +1366,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Nenhum item adicionado para a nota.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings || !settings.apiToken) {
         return res.status(400).json({ error: 'Token da API Fiscal não configurado. Vá nas Configurações Fiscais.' });
       }
@@ -1480,7 +1500,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Referência da nota e e-mail são obrigatórios.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token fiscal não configurado.' });
       }
@@ -1533,7 +1553,7 @@ export function createFiscalRouter() {
 
       const chaveClean = chave.replace(/\D/g, '');
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken || !settings?.cnpj) {
         return res.status(400).json({ error: 'Configure o Token da API e o CNPJ nas Configurações Fiscais antes de usar o bip.' });
       }
@@ -1680,7 +1700,7 @@ export function createFiscalRouter() {
   router.get('/notas-recebidas/:chave/xml', async (req, res) => {
     try {
       const { chave } = req.params;
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token da API não configurado.' });
       }
@@ -1745,7 +1765,7 @@ export function createFiscalRouter() {
 
       // 2. Se não encontrou XML salvo no banco, busca na SEFAZ via Focus NFe
       if (!xmlText) {
-        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        const settings = await getFiscalSettingsSafe();
         if (!settings?.apiToken) {
           return res.status(400).json({ error: 'Token da API Fiscal não configurado. Verifique as configurações fiscais.' });
         }
@@ -1865,7 +1885,7 @@ export function createFiscalRouter() {
   // ============================================================
   router.get('/sync-nfe-recebidas', async (req, res) => {
     try {
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings || !settings.apiToken) {
         return res.status(400).json({ error: 'Configuração fiscal incompleta.' });
       }
@@ -1914,7 +1934,7 @@ export function createFiscalRouter() {
   router.get('/reprint/:ref', async (req, res) => {
     try {
       const { ref } = req.params;
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       if (!settings || !settings.apiToken) {
         return res.status(400).json({ error: 'Token da API Fiscal não configurado.' });
       }
@@ -2023,7 +2043,7 @@ export function createFiscalRouter() {
       const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
       const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
 
       const emitidas = await (prisma as any).notaEmitida.findMany({
         where: {
@@ -2192,7 +2212,7 @@ export function createFiscalRouter() {
   // ============================================================
   router.get('/focus-backups', async (req, res) => {
     try {
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       const token = String(settings?.apiToken || '').trim();
       const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
 
@@ -2236,7 +2256,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Código NCM deve ter pelo menos 4 dígitos.' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       const token = String(settings?.apiToken || '').trim();
       const isProducao = settings?.environment === 'producao';
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
@@ -2289,7 +2309,7 @@ export function createFiscalRouter() {
   // ============================================================
   router.get('/sefaz-status', async (req, res) => {
     try {
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       const uf = String(req.query.uf || settings?.uf || 'PA').trim().toUpperCase() || 'PA';
       const token = String(settings?.apiToken || '').trim();
       const isProducao = settings?.environment === 'producao';
@@ -2377,7 +2397,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'A justificativa de inutilização deve ter no mínimo 15 caracteres (Exigência SEFAZ).' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       const token = String(settings?.apiToken || '').trim();
       const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
 
@@ -2441,7 +2461,7 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'A justificativa de inutilização deve ter no mínimo 15 caracteres (Exigência SEFAZ).' });
       }
 
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+      const settings = await getFiscalSettingsSafe();
       const token = String(settings?.apiToken || '').trim();
       const cnpj = String(settings?.cnpj || '').replace(/\D/g, '');
 
