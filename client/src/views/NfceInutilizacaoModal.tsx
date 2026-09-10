@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldAlert, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -15,10 +15,24 @@ export const NfceInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  useEffect(() => {
+    fetch(`${api.getApiUrl()}/fiscal/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.serie) setSerie(String(data.serie));
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serie || !numeroInicial || !numeroFinal) {
       alert('Preencha a série e o intervalo de números.');
+      return;
+    }
+
+    if (parseInt(numeroFinal, 10) < parseInt(numeroInicial, 10)) {
+      alert('O número final não pode ser menor que o número inicial.');
       return;
     }
 

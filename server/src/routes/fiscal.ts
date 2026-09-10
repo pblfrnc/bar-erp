@@ -957,7 +957,7 @@ export function createFiscalRouter() {
     });
 
     // ============================================================
-    // Cancelar NF-e (Prazo de 30 minutos)
+    // Cancelar NF-e (Modelo 55 - Prazo de até 24 horas SEFAZ)
     // ============================================================
     router.post('/cancel-nfe', async (req, res) => {
       try {
@@ -1015,7 +1015,7 @@ export function createFiscalRouter() {
 
         const now = Date.now();
         const cancelable = notas
-          .filter((n: any) => !n.referencia?.startsWith('nfce_') && !n.referencia?.startsWith('cupom_'))
+          .filter((n: any) => isNfe(n))
           .map((n: any) => {
             const createdAtMs = new Date(n.createdAt).getTime();
             const diffMinutes = Math.floor((now - createdAtMs) / 60000);
@@ -1231,6 +1231,10 @@ export function createFiscalRouter() {
           const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
           secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
           
+          const host = req.get('host');
+          const protocol = req.protocol;
+          const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(data.ref)}`;
+
           if (NotaEmitida) {
             await NotaEmitida.create({
               data: {
@@ -1242,7 +1246,7 @@ export function createFiscalRouter() {
                 valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
                 status: data.status,
                 xmlUrl: baseURL + '/' + data.ref + '.xml',
-                pdfUrl: baseURL + '/' + data.ref + '/danfe.pdf'
+                pdfUrl: danfeUrl
               }
             });
           }
@@ -1250,7 +1254,9 @@ export function createFiscalRouter() {
           console.error("Erro ao salvar NotaEmitida", e);
         }
 
-        const danfeUrl = data.caminho_danfe || data.danfe_url || `${baseURL}/${data.ref}/danfe.pdf`;
+        const host = req.get('host');
+        const protocol = req.protocol;
+        const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(data.ref)}`;
 
         return res.json({
           success: true,
@@ -1270,7 +1276,9 @@ export function createFiscalRouter() {
         const checkData = await checkRes.json();
 
         if (checkData.status === 'autorizado') {
-          const authorizedDanfeUrl = checkData.caminho_danfe || checkData.danfe_url || `${baseURL}/${checkData.ref}/danfe.pdf`;
+          const host = req.get('host');
+          const protocol = req.protocol;
+          const authorizedDanfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(checkData.ref || data.ref)}`;
           try {
             const NotaEmitida = (prisma as any).notaEmitida;
             const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${cleanCnpj}</CNPJ></emit></infNFe></NFe>`;
@@ -1382,7 +1390,9 @@ export function createFiscalRouter() {
       const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
 
       if (data.status === 'autorizado') {
-        const danfeUrl = data.caminho_danfe || data.danfe_url || `${baseURL}/v2/nfe/${ref}/danfe.pdf`;
+        const host = req.get('host');
+        const protocol = req.protocol;
+        const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
         const xmlUrl = data.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
         await persistNfeRecord({
           referencia: ref,
@@ -1413,7 +1423,9 @@ export function createFiscalRouter() {
         const checkData: any = await checkRes.json().catch(() => ({}));
 
         if (checkData.status === 'autorizado') {
-          const danfeUrl = checkData.caminho_danfe || checkData.danfe_url || `${baseURL}/v2/nfe/${ref}/danfe.pdf`;
+          const host = req.get('host');
+          const protocol = req.protocol;
+          const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
           const xmlUrl = checkData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
           await persistNfeRecord({
             referencia: ref,
@@ -1974,10 +1986,19 @@ export function createFiscalRouter() {
       const emitidasTotal = emitidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
       const recebidasTotal = recebidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
 
+      const nfceList = emitidas.filter((n: any) => isNfce(n));
+      const nfeList = emitidas.filter((n: any) => isNfe(n));
+      const nfceTotal = nfceList.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
+      const nfeTotal = nfeList.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
+
       res.json({
         month,
         emitidasCount: emitidas.length,
         emitidasTotal,
+        nfceCount: nfceList.length,
+        nfceTotal,
+        nfeCount: nfeList.length,
+        nfeTotal,
         recebidasCount: recebidas.length,
         recebidasTotal,
         hasNotes: emitidas.length > 0 || recebidas.length > 0
@@ -2020,9 +2041,12 @@ export function createFiscalRouter() {
 
       const zip = new AdmZip();
 
-      // 1. Adicionar XMLs de Saída (NFC-e)
+      // 1. Adicionar XMLs de Saída (Separados por NFC-e Mod 65 e NF-e Mod 55)
       const vaultSaidaPath = path.join(process.cwd(), 'xml_vault', yearStr, monthStr.padStart(2, '0'), 'SAIDA');
-      for (const nota of emitidas) {
+      const nfceEmitidas = emitidas.filter((n: any) => isNfce(n));
+      const nfeEmitidas = emitidas.filter((n: any) => isNfe(n));
+
+      const addEmittedXmlToZip = async (nota: any, folderName: string, prefix: string) => {
         const chaveOuRef = nota.chave || nota.referencia;
         let xmlBuffer: Buffer | null = null;
 
@@ -2042,7 +2066,6 @@ export function createFiscalRouter() {
           } catch (e) {}
         }
 
-        // Se ainda não tiver o arquivo XML completo, gerar o XML de contingência/registro
         if (!xmlBuffer) {
           const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>
 <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -2066,8 +2089,16 @@ export function createFiscalRouter() {
           xmlBuffer = Buffer.from(fallbackXml, 'utf-8');
         }
 
-        const fileName = `NFCe_${nota.numero || nota.referencia}_${nota.chave || 'sem_chave'}.xml`;
-        zip.addFile(`NFCe_Emitidas/${fileName}`, xmlBuffer);
+        const fileName = `${prefix}_${nota.numero || nota.referencia}_${nota.chave || 'sem_chave'}.xml`;
+        zip.addFile(`${folderName}/${fileName}`, xmlBuffer);
+      };
+
+      for (const nota of nfceEmitidas) {
+        await addEmittedXmlToZip(nota, 'NFCe_Emitidas', 'NFCe');
+      }
+
+      for (const nota of nfeEmitidas) {
+        await addEmittedXmlToZip(nota, 'NFe_Emitidas', 'NFe');
       }
 
       // 2. Adicionar XMLs de Entrada (NF-e de Compra)
@@ -2115,14 +2146,23 @@ export function createFiscalRouter() {
       csvContent += `Data de Emissão do Relatório:;${new Date().toLocaleString('pt-BR')}\n\n`;
 
       csvContent += `--- RESUMO GERAL ---\n`;
-      const totalSaidas = emitidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
+      const totalSaidasNfce = nfceEmitidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
+      const totalSaidasNfe = nfeEmitidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
       const totalEntradas = recebidas.reduce((a: number, b: any) => a + (b.valorTotal || 0), 0);
-      csvContent += `Total de NFC-e Emitidas (Saídas):;${emitidas.length};R$ ${totalSaidas.toFixed(2).replace('.', ',')}\n`;
+      csvContent += `Total de NFC-e Emitidas (Modelo 65):;${nfceEmitidas.length};R$ ${totalSaidasNfce.toFixed(2).replace('.', ',')}\n`;
+      csvContent += `Total de NF-e Emitidas (Modelo 55):;${nfeEmitidas.length};R$ ${totalSaidasNfe.toFixed(2).replace('.', ',')}\n`;
       csvContent += `Total de NF-e Recebidas (Entradas/Compras):;${recebidas.length};R$ ${totalEntradas.toFixed(2).replace('.', ',')}\n\n`;
 
-      csvContent += `--- NOTAS FISCAIS DE SAÍDA (NFC-E) ---\n`;
+      csvContent += `--- NOTAS FISCAIS DO CONSUMIDOR (NFC-E - MOD. 65) ---\n`;
       csvContent += `Número;Série;Data/Hora;Chave de Acesso;Status;Valor (R$)\n`;
-      for (const n of emitidas) {
+      for (const n of nfceEmitidas) {
+        csvContent += `"${n.numero || ''}";"${n.serie || ''}";"${n.dataEmissao || n.createdAt.toISOString()}";"${n.chave || n.referencia}";"${n.status}";"${(n.valorTotal || 0).toFixed(2).replace('.', ',')}"\n`;
+      }
+      csvContent += `\n`;
+
+      csvContent += `--- NOTAS FISCAIS ELETRÔNICAS (NF-E - MOD. 55) ---\n`;
+      csvContent += `Número;Série;Data/Hora;Chave de Acesso;Status;Valor (R$)\n`;
+      for (const n of nfeEmitidas) {
         csvContent += `"${n.numero || ''}";"${n.serie || ''}";"${n.dataEmissao || n.createdAt.toISOString()}";"${n.chave || n.referencia}";"${n.status}";"${(n.valorTotal || 0).toFixed(2).replace('.', ',')}"\n`;
       }
       csvContent += `\n`;

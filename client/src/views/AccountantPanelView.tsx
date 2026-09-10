@@ -6,6 +6,10 @@ interface MonthSummary {
   month: string;
   emitidasCount: number;
   emitidasTotal: number;
+  nfceCount?: number;
+  nfceTotal?: number;
+  nfeCount?: number;
+  nfeTotal?: number;
   recebidasCount: number;
   recebidasTotal: number;
   hasNotes: boolean;
@@ -117,21 +121,38 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
           </div>
 
           {/* Cards de Resumo Prévia do Mês */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {/* Saídas */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            {/* Saídas NFC-e (Modelo 65) */}
             <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-xs">
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
                 <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[11px] text-emerald-600 dark:text-emerald-400">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> Saídas (NFC-e)
+                  <ArrowUpRight className="w-3.5 h-3.5" /> NFC-e (Mod. 65)
                 </span>
                 {isLoadingSummary ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
                 ) : (
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{summary?.emitidasCount ?? 0} nota(s)</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{summary?.nfceCount ?? summary?.emitidasCount ?? 0} nota(s)</span>
                 )}
               </div>
-              <div className="text-lg font-black text-slate-900 dark:text-white font-mono">
-                {isLoadingSummary ? '...' : formatMoney(summary?.emitidasTotal ?? 0)}
+              <div className="text-base font-black text-slate-900 dark:text-white font-mono">
+                {isLoadingSummary ? '...' : formatMoney(summary?.nfceTotal ?? summary?.emitidasTotal ?? 0)}
+              </div>
+            </div>
+
+            {/* Saídas NF-e (Modelo 55) */}
+            <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
+                <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[11px] text-blue-600 dark:text-blue-400">
+                  <ArrowUpRight className="w-3.5 h-3.5" /> NF-e (Mod. 55)
+                </span>
+                {isLoadingSummary ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                ) : (
+                  <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{summary?.nfeCount ?? 0} nota(s)</span>
+                )}
+              </div>
+              <div className="text-base font-black text-slate-900 dark:text-white font-mono">
+                {isLoadingSummary ? '...' : formatMoney(summary?.nfeTotal ?? 0)}
               </div>
             </div>
 
@@ -147,7 +168,7 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
                   <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{summary?.recebidasCount ?? 0} nota(s)</span>
                 )}
               </div>
-              <div className="text-lg font-black text-slate-900 dark:text-white font-mono">
+              <div className="text-base font-black text-slate-900 dark:text-white font-mono">
                 {isLoadingSummary ? '...' : formatMoney(summary?.recebidasTotal ?? 0)}
               </div>
             </div>

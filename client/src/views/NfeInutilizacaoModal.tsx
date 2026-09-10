@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldAlert, AlertTriangle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -14,6 +14,15 @@ export const NfeInutilizacaoModal: React.FC<Props> = ({ onClose, onSuccess }) =>
   const [justificativa, setJustificativa] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${api.getApiUrl()}/fiscal/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.serieNfe) setSerie(String(data.serieNfe));
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
