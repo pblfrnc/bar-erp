@@ -100,15 +100,64 @@ async function ensureFiscalTables() {
 
 async function getFiscalSettingsSafe() {
   try {
-    return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
-  } catch (err: any) {
-    const msg = String(err?.message || '');
-    if (msg.includes('serieNfe') || msg.includes('proximoNumeroNfe') || msg.includes('column')) {
-      try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (_) {}
-      try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (_) {}
-      return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+    // 1. Garante que a tabela FiscalSettings existe com todas as colunas
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "FiscalSettings" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+        "apiToken" TEXT,
+        "cnpj" TEXT,
+        "ie" TEXT,
+        "crt" TEXT,
+        "cscId" TEXT,
+        "cscSecret" TEXT,
+        "addressInfo" TEXT,
+        "environment" TEXT DEFAULT 'homologacao',
+        "serieNfce" TEXT DEFAULT '1',
+        "proximoNumeroNfce" INTEGER DEFAULT 1,
+        "serieNfe" TEXT DEFAULT '1',
+        "proximoNumeroNfe" INTEGER DEFAULT 1,
+        "cep" TEXT,
+        "logradouro" TEXT,
+        "numero" TEXT,
+        "bairro" TEXT,
+        "municipio" TEXT,
+        "uf" TEXT,
+        "razaoSocial" TEXT,
+        "nomeFantasia" TEXT,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 2. Garante que as colunas existem mesmo se a tabela já existia
+    const cols: any[] = await prisma.$queryRawUnsafe('PRAGMA table_info(FiscalSettings);');
+    const colNames = (cols || []).map((c: any) => c.name);
+    if (!colNames.includes('serieNfe')) {
+      await prisma.$executeRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT \'1\';');
     }
-    throw err;
+    if (!colNames.includes('proximoNumeroNfe')) {
+      await prisma.$executeRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;');
+    }
+    if (!colNames.includes('serieNfce')) {
+      await prisma.$executeRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT \'1\';');
+    }
+    if (!colNames.includes('proximoNumeroNfce')) {
+      await prisma.$executeRawUnsafe('ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;');
+    }
+  } catch (_) {}
+
+  // 3. Consulta via SQL puro (nunca quebra por incompatibilidade de schema no Prisma ORM)
+  try {
+    const rows: any[] = await prisma.$queryRawUnsafe('SELECT * FROM "FiscalSettings" WHERE id = "default" LIMIT 1;');
+    if (rows && rows.length > 0) {
+      return rows[0];
+    }
+  } catch (_) {}
+
+  // 4. Fallback via Prisma
+  try {
+    return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+  } catch (_) {
+    return null;
   }
 }
 
@@ -678,12 +727,25 @@ export function createFiscalRouter() {
         }
       }
 
-      // Salva no banco local
-      const settings = await (prisma as any).FiscalSettings.upsert({
-        where: { id: 'default' },
-        update: data,
-        create: { id: 'default', ...data }
-      });
+      // Salva no banco local com garantia contra colunas faltantes
+      let settings: any = null;
+      try {
+        settings = await (prisma as any).FiscalSettings.upsert({
+          where: { id: 'default' },
+          update: data,
+          create: { id: 'default', ...data }
+        });
+      } catch (upsertErr: any) {
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (_) {}
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (_) {}
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT '1';`); } catch (_) {}
+        try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;`); } catch (_) {}
+        settings = await (prisma as any).FiscalSettings.upsert({
+          where: { id: 'default' },
+          update: data,
+          create: { id: 'default', ...data }
+        });
+      }
       res.json(settings);
     } catch (err: any) {
       console.error(err);
