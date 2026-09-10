@@ -762,13 +762,24 @@ export function createFiscalRouter() {
     router.get('/nfe/reprint/:numero', async (req, res) => {
       try {
         const { numero } = req.params;
-        if (!numero) return res.status(400).json({ error: 'Número da nota não informado.' });
-        const nota = await (prisma as any).notaEmitida.findFirst({ where: { numero } });
-        if (!nota) return res.status(404).json({ error: 'Nota não encontrada.' });
+        const cleanNum = String(numero || '').trim();
+        if (!cleanNum) return res.status(400).json({ error: 'Número da nota não informado.' });
+
+        const nota = await (prisma as any).notaEmitida.findFirst({
+          where: { numero: cleanNum },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (!nota) return res.status(404).json({ error: `NF-e Nº ${cleanNum} não encontrada.` });
+
+        const host = req.get('host');
+        const protocol = req.protocol;
+        const caminhoDanfe = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(nota.referencia)}`;
+
         return res.json({
           nota,
           status: nota.status,
-          caminhoDanfe: nota.pdfUrl,
+          caminhoDanfe,
           chaveAcesso: nota.chave,
           success: true
         });
@@ -795,19 +806,111 @@ export function createFiscalRouter() {
     });
 
     // ============================================================
-    // Reimprimir NFC-e por número (legacy) - kept for compatibility
+    // Reimprimir NFC-e por número (GET)
     // ============================================================
     router.get('/reprint-by-number/:numero', async (req, res) => {
-      const { numero } = req.params;
-      const nota = await (prisma as any).notaEmitida.findFirst({ where: { numero } });
-      if (!nota) return res.status(404).json({ error: 'NFC-e não encontrada.' });
-      return res.json({
-        nota,
-        status: nota.status,
-        caminhoDanfe: nota.pdfUrl,
-        chaveAcesso: nota.chave,
-        success: true
-      });
+      try {
+        const { numero } = req.params;
+        const cleanNum = String(numero || '').trim();
+        if (!cleanNum) return res.status(400).json({ error: 'Número da nota não informado.' });
+
+        const nota = await (prisma as any).notaEmitida.findFirst({
+          where: { numero: cleanNum },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (!nota) return res.status(404).json({ error: `NFC-e Nº ${cleanNum} não localizada no histórico local.` });
+
+        const host = req.get('host');
+        const protocol = req.protocol;
+        const caminhoDanfe = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(nota.referencia)}`;
+
+        return res.json({
+          nota,
+          status: nota.status,
+          caminhoDanfe,
+          chaveAcesso: nota.chave,
+          success: true
+        });
+      } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao buscar NFC-e para reimpressão.' });
+      }
+    });
+
+    // ============================================================
+    // Visualizar / Baixar DANFE em PDF Oficial (Proxy Focus NFe)
+    // ============================================================
+    router.get('/danfe/:referencia', async (req, res) => {
+      try {
+        const { referencia } = req.params;
+        if (!referencia) return res.status(400).send('Referência da nota não informada.');
+
+        const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+        if (!settings?.apiToken) {
+          return res.status(400).send('Token da Focus NFe não configurado nas Configurações Fiscais.');
+        }
+
+        const cleanToken = settings.apiToken.trim();
+        const isProducao = settings.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = 'Basic ' + Buffer.from(cleanToken + ':').toString('base64');
+
+        // Se a referência começa com 'nfe_' e não é cupom/nfce, consulta /v2/nfe, senão /v2/nfce
+        const isNfe = referencia.startsWith('nfe_');
+        const docTipo = isNfe ? 'nfe' : 'nfce';
+
+        const consultUrl = `${baseURL}/v2/${docTipo}/${encodeURIComponent(referencia)}?completa=1`;
+        console.log(`[DANFE Proxy] Consultando Focus NFe: ${consultUrl}`);
+
+        const focusRes = await fetch(consultUrl, {
+          headers: { 'Authorization': authHeader }
+        });
+
+        const data: any = await focusRes.json().catch(() => ({}));
+
+        if (!focusRes.ok) {
+          console.error('[DANFE Proxy] Focus NFe retornou erro:', focusRes.status, data);
+          return res.status(focusRes.status).send(`Erro Focus NFe (${focusRes.status}): ${data.mensagem || data.erros || 'Nota não encontrada na SEFAZ.'}`);
+        }
+
+        const pdfUrl = data.caminho_danfe || data.danfe_url || data.url_danfe;
+
+        if (!pdfUrl) {
+          return res.status(404).send(`O DANFE em PDF ainda não está disponível na SEFAZ. Status atual da nota: ${data.status || 'desconhecido'}.`);
+        }
+
+        // Atualiza no banco local para manter cache
+        try {
+          await (prisma as any).notaEmitida.updateMany({
+            where: { referencia },
+            data: { pdfUrl, status: data.status || 'autorizado' }
+          });
+        } catch (dbErr) {
+          // Não bloqueia
+        }
+
+        console.log(`[DANFE Proxy] Baixando PDF de: ${pdfUrl}`);
+        const pdfRes = await fetch(pdfUrl, {
+          headers: {
+            ...(pdfUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {})
+          }
+        });
+
+        if (!pdfRes.ok) {
+          // Se o download direto falhar, redireciona para a URL fornecida pela Focus NFe
+          return res.redirect(pdfUrl);
+        }
+
+        const buffer = Buffer.from(await pdfRes.arrayBuffer());
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="danfe-${referencia}.pdf"`);
+        res.setHeader('Content-Length', buffer.length.toString());
+        return res.send(buffer);
+      } catch (err: any) {
+        console.error('[DANFE Proxy Error]', err);
+        res.status(500).send('Erro interno ao carregar DANFE: ' + err.message);
+      }
     });
 
     // ============================================================
@@ -1779,11 +1882,15 @@ export function createFiscalRouter() {
       }
 
       if (data.status === 'autorizado') {
+         const host = req.get('host');
+         const protocol = req.protocol;
+         const caminhoDanfe = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
+
          return res.json({
            success: true,
            status: data.status,
            chaveAcesso: data.chave_nfe,
-           caminhoDanfe: baseURL + ref + '/danfe.pdf',
+           caminhoDanfe,
            xmlUrl: data.caminho_xml_nota_fiscal
          });
       } else {
@@ -1792,54 +1899,6 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error(err);
       res.status(500).json({ error: 'Erro ao consultar a Sefaz para reimpressão.' });
-    }
-  });
-
-  // Listar notas emitidas recentes
-  router.get('/recent-notes', async (req, res) => {
-    try {
-      const notas = await (prisma as any).notaEmitida.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 30
-      });
-      res.json(notas);
-    } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: 'Erro ao listar notas emitidas.' });
-    }
-  });
-
-  // Reimprimir NFC-e buscando pelo NÚMERO da nota
-  router.get('/reprint-by-number/:number', async (req, res) => {
-    try {
-      const { number } = req.params;
-      const cleanNum = String(number).trim();
-
-      const nota = await (prisma as any).notaEmitida.findFirst({
-        where: { numero: cleanNum },
-        orderBy: { createdAt: 'desc' }
-      });
-
-      if (!nota) {
-        return res.status(404).json({ error: `Nenhuma nota emitida encontrada com o número ${cleanNum}.` });
-      }
-
-      const settings = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
-      const baseURL = settings?.environment === 'producao' 
-        ? 'https://api.focusnfe.com.br/v2/nfce/'
-        : 'https://homologacao.focusnfe.com.br/v2/nfce/';
-
-      return res.json({
-        success: true,
-        nota,
-        status: nota.status,
-        chaveAcesso: nota.chave,
-        caminhoDanfe: nota.pdfUrl || (baseURL + nota.referencia + '/danfe.pdf'),
-        xmlUrl: nota.xmlUrl
-      });
-    } catch (err: any) {
-      console.error(err);
-      res.status(500).json({ error: 'Erro ao buscar nota por número.' });
     }
   });
 
