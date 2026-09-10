@@ -1,0 +1,120 @@
+import { prisma } from '../prisma.js';
+
+/**
+ * Build payload for NF‑e emission using Focus NFe API.
+ * Mirrors the NFC‑e payload but omits CSC related fields (not required for NF‑e).
+ * @param params Object containing required data.
+ */
+export async function buildNfePayload(params: {
+  items: any[];
+  customerDoc?: string; // CPF or CNPJ of the recipient
+  orderId?: string | number;
+  settings: any;
+}) {
+  const { items, customerDoc, orderId, settings } = params;
+
+  // Generate a unique reference identifier (required by Focus)
+  const ts = Date.now();
+  const rnd = Math.floor(Math.random() * 9000) + 1000;
+  const ref = orderId
+    ? `nfe_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
+    : `nfe_${ts}_${rnd}`;
+
+  // Date in ISO‑8601 with São Paulo timezone (‑03:00)
+  const dataEmissao = (() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    try {
+      const spDateStr = now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' });
+      const spDate = new Date(spDateStr);
+      const yyyy = spDate.getFullYear();
+      const mm = pad(spDate.getMonth() + 1);
+      const dd = pad(spDate.getDate());
+      const hh = pad(spDate.getHours());
+      const mi = pad(spDate.getMinutes());
+      const ss = pad(spDate.getSeconds());
+      return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+    } catch {
+      // Fallback using UTC adjusted to -03:00
+      const yyyy = now.getUTCFullYear();
+      const mm = pad(now.getUTCMonth() + 1);
+      const dd = pad(now.getUTCDate());
+      const hh = pad((now.getUTCHours() - 3 + 24) % 24);
+      const mi = pad(now.getUTCMinutes());
+      const ss = pad(now.getUTCSeconds());
+      return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+    }
+  })();
+
+  const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
+
+  const payload = {
+    cnpj_emitente: cleanCnpj,
+    data_emissao: dataEmissao,
+    natureza_operacao: 'VENDA AO CONSUMIDOR',
+    tipo_documento: '55', // NF‑e (55) – foco na nota fiscal eletrônica padrão
+    finalidade_emissao: '1', // Normal
+    consumidor_final: '1', // Consumidor final
+    presenca_comprador: '1', // Presencial
+    modalidade_frete: '9', // Sem transporte
+    local_destino: '1', // Operação interna
+    serie: String(settings.serieNfe || '1'),
+    referencia: ref,
+    itens: items.map((i, idx) => {
+      const rawNcm = i.ncm ? String(i.ncm).replace(/\D/g, '') : '';
+      const cleanNcm = rawNcm.length >= 8 ? rawNcm.slice(0, 8) : rawNcm.padEnd(8, '0');
+      const cleanCfop = i.cfop ? String(i.cfop).replace(/\D/g, '') : '5102';
+      const qty = Number(i.quantity) || 1;
+      const price = Number(i.price) || 0;
+      const eanClean = String(i.ean || '').replace(/\D/g, '');
+      const eanValido = eanClean.length >= 8 ? eanClean : '';
+      const codigoInterno = String(i.code || '').trim();
+      const codigoProduto = (eanValido || codigoInterno || String(idx + 1)).slice(0, 60);
+      return {
+        numero_item: String(idx + 1),
+        codigo_produto: codigoProduto,
+        ...(eanValido ? { codigo_barras: eanValido } : {}),
+        descricao: String(i.name || 'Produto').trim().slice(0, 120),
+        cfop: cleanCfop,
+        codigo_ncm: cleanNcm,
+        ncm: cleanNcm,
+        unidade_comercial: (i.unit || 'UN').toUpperCase().slice(0, 6),
+        quantidade_comercial: qty.toFixed(4),
+        valor_unitario_comercial: price.toFixed(2),
+        valor_bruto: (qty * price).toFixed(2),
+        unidade_tributavel: (i.unit || 'UN').toUpperCase().slice(0, 6),
+        quantidade_tributavel: qty.toFixed(4),
+        valor_unitario_tributavel: price.toFixed(2),
+        inclui_no_total: '1',
+        icms_origem: '0',
+        icms_situacao_tributaria: (settings.crt === '3')
+          ? (cleanCfop === '5405' ? '60' : '00')
+          : (cleanCfop === '5405' ? '500' : '102')
+      } as any;
+    })
+  };
+  return { payload, ref };
+}
+
+/**
+ * Persists an emitted NF‑e record.
+ */
+export async function persistNfeRecord(data: {
+  referencia: string;
+  chave?: string;
+  numero?: string;
+  serie?: string;
+  pdfUrl?: string;
+  xmlUrl?: string;
+  valorTotal?: number;
+}) {
+  const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal } = data;
+  const id = `nfe_${referencia}`;
+  await prisma.$executeRawUnsafe(`
+    INSERT OR REPLACE INTO "NotaEmitida" (
+      "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
+    ) VALUES (
+      ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'autorizado', ?, ?, CURRENT_TIMESTAMP
+    )
+  `, [id, referencia, chave ?? null, numero ?? null, serie ?? null, valorTotal ?? 0, xmlUrl ?? null, pdfUrl ?? null]);
+}

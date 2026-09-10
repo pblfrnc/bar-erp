@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
 import { getNextSequentialCode } from '../services/catalogService.js';
+import { buildNfePayload, persistNfeRecord } from '../services/nfeService.js';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {

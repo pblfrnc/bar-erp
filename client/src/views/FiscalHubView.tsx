@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Receipt, FileText, ArrowLeft, Settings, Scan, ShieldAlert, BookOpen } from 'lucide-react';
 import { FiscalImportView } from './FiscalImportView';
-import { ManualNfceView } from './ManualNfceView';
+import { EmitNfeView } from './EmitNfeView';
 import { FiscalSettingsView } from './FiscalSettingsView';
 import { NfReceivingView } from './NfReceivingView';
 import { api } from '../services/api';
 
+import { ManualNfceView } from './ManualNfceView';
 import { NfceCancelView } from './NfceCancelView';
 import { NfceReprintView } from './NfceReprintView';
 import { AccountantPanelView } from './AccountantPanelView';
@@ -44,7 +45,7 @@ export const FiscalHubView: React.FC = () => {
   }
 
   if (activeTab === 'emit') {
-    return <ManualNfceView onBack={() => setActiveTab('hub')} />;
+    return <EmitNfeView onBack={() => setActiveTab('hub')} />;
   }
 
   if (activeTab === 'accountant') {
@@ -116,10 +117,8 @@ export const FiscalHubView: React.FC = () => {
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition"></div>
           <Receipt className="w-10 h-10 text-indigo-500 dark:text-indigo-400 mb-6" />
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Emitir NFC-e (Saída)</h3>
-          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-            Emissão avulsa de cupons fiscais para vendas rápidas ou retroativas usando a integração Focus NFe.
-          </p>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Emitir NF-e (Saída)</h3>
+          <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Emissão avulsa de notas fiscais eletrônicas para vendas rápidas ou retroativas usando a integração Focus NFe.</p>
         </button>
 
         
