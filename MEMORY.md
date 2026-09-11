@@ -210,5 +210,10 @@
      - O operador bipe ou confere os itens e códigos de barras DANFE.
      - Aplica a vinculação com produtos existentes ou novos no estoque.
      - Atualiza custos, tributos e quantitativos no estoque.
+  3. **Temporizador em Segundo Plano (`setupNfeAutoSyncScheduler`):**
+     - Roda a cada 15 minutos de forma silenciosa e resiliente (`server/src/services/nfeRecebidasScheduler.ts`).
+     - Consulta notas destinadas na Focus NFe / SEFAZ, registra manifestos pendentes e baixa os arquivos XML automaticamente.
+     - Quando o caminhão chega com a DANFE física, o XML e os valores já estão pré-carregados no banco local, tornando o 1º Bip 100% instantâneo.
+
 
 

@@ -22,6 +22,7 @@ import { createSystemRouter } from './routes/system.js';
 import { createSuppliersRouter } from './routes/suppliers.js';
 import { createStaffRouter } from './routes/staff.js';
 import { createImportXmlRouter } from './routes/importXml.js';
+import { setupNfeAutoSyncScheduler } from './services/nfeRecebidasScheduler.js';
 
 
 
@@ -187,6 +188,9 @@ const start = async () => {
       });
     }
     console.log('======================================================\n');
+
+    // Inicializa o agendador automático de sincronização de NF-e da SEFAZ
+    setupNfeAutoSyncScheduler(15);
   });
 };
 
