@@ -17,6 +17,7 @@ import { FiscalSettingsView } from './views/FiscalSettingsView';
 import { ManualNfceView } from './views/ManualNfceView';
 import { CustomersView } from './views/CustomersView';
 import { PrinterSettingsView } from './views/PrinterSettingsView';
+import { SubscriptionView } from './views/SubscriptionView';
 import { UpdateNotificationModal, UpdateInfo } from './components/UpdateNotificationModal';
 
 
@@ -126,7 +127,7 @@ export function App() {
     return null;
   };
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers' | 'subscription'>('tables');
 
   // Redireciona automaticamente se a tela atual não for permitida para o usuário
   useEffect(() => {
@@ -134,7 +135,7 @@ export function App() {
       // Mapeamento de sub-views para módulo pai
       const requiredModule = 
         currentView === 'fiscalSettings' || currentView === 'manualNfce' ? 'fiscal' :
-        currentView === 'printers' ? 'settings' :
+        currentView === 'printers' || currentView === 'subscription' ? 'settings' :
         currentView === 'audit' ? 'dashboard' : currentView;
 
       if (!currentUser.permissions.includes(requiredModule)) {
@@ -168,6 +169,8 @@ export function App() {
   const [machineId, setMachineId] = useState<string>("");
   const [licenseStatus, setLicenseStatus] = useState<string>("UNLICENSED");
   const [daysRemaining, setDaysRemaining] = useState<number>(0);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string>("");
   const [isExpiringSoon, setIsExpiringSoon] = useState<boolean>(false);
   const [developerContact, setDeveloperContact] = useState<any>(null);
   const [showLicenseInfo, setShowLicenseInfo] = useState<boolean>(false);
@@ -246,6 +249,8 @@ export function App() {
       setIsLicensed(data.isLicensed);
       setLicenseStatus(data.licenseStatus || (data.isLicensed ? "ACTIVE" : "UNLICENSED"));
       setDaysRemaining(data.daysRemaining || 0);
+      setExpiresAt(data.expiresAt || null);
+      setClientName(data.clientName || "");
       setIsExpiringSoon(Boolean(data.isExpiringSoon));
       if (data.developerContact) {
         setDeveloperContact(data.developerContact);
@@ -512,9 +517,19 @@ export function App() {
                 const text = `Olá! Segue o comprovante de renovação da mensalidade do Bar ERP.\nID da minha máquina: ${machineId}`;
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
               }}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               Enviar Comprovante no WhatsApp
+            </button>
+
+            <button
+              onClick={() => {
+                setShowLicenseInfo(false);
+                setCurrentView('subscription');
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              Acessar Painel de Assinatura & Renovações
             </button>
           </div>
         </div>
@@ -558,6 +573,10 @@ export function App() {
             onOpenCustomers={() => setCurrentView('customers')}
             onOpenSuppliers={() => setCurrentView('suppliers')}
             onOpenDashboard={() => setCurrentView('dashboard')}
+            onOpenSubscription={() => setCurrentView('subscription')}
+            daysRemaining={daysRemaining}
+            machineId={machineId}
+            isLicensed={isLicensed}
             onOpenPrinters={() => setCurrentView('printers')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
@@ -568,6 +587,20 @@ export function App() {
             updateInfo={updateInfo}
             onOpenUpdateModal={() => setShowUpdateModal(true)}
             onCheckForUpdates={handleCheckForUpdates}
+          />
+        )}
+
+        {currentView === 'subscription' && (
+          <SubscriptionView
+            machineId={machineId}
+            daysRemaining={daysRemaining}
+            isLicensed={isLicensed}
+            licenseStatus={licenseStatus}
+            expiresAt={expiresAt}
+            clientName={clientName}
+            developerContact={developerContact}
+            onBack={() => setCurrentView('settings')}
+            onRefresh={loadSettings}
           />
         )}
 

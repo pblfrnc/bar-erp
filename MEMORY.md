@@ -162,3 +162,30 @@
   - Ao receber o comprovante no WhatsApp e o ID da máquina, o desenvolvedor ativa no painel e o Bar ERP destrava remotamente sem necessidade de AnyDesk ou TeamViewer.
   - Se o bar estiver sem internet no momento da ativação, o cliente pode colar a chave offline na tela de ativação.
   - Faltando 5 dias ou menos para o vencimento da mensalidade, a barra superior exibe um alerta sutil e pulsante com a contagem regressiva de dias e os dados de pagamento PIX.
+
+---
+
+## 11. 💳 GESTÃO DE ASSINATURA & RENOVAÇÃO ANTECIPADA NA RETAGUARDA
+- **Localização:** Retaguarda do Bar ERP > Card **Assinatura & Licença** (`client/src/views/SubscriptionView.tsx`).
+- **Acesso do Usuário (Não Bloqueado):**
+  - O cliente tem acesso a qualquer momento através do menu Retaguarda ou pelo modal de aviso de vencimento.
+  - Permite visualizar o status operacional, data de expiração exata e o contador de dias restantes.
+- **ID da Máquina com 1 Clique:**
+  - Exibição em destaque do ID único do terminal com botão de cópia rápida e feedback visual.
+- **Renovação Antecipada Sem Perda de Dias (Acúmulo Inteligente):**
+  - O cliente pode escolher pagar meses antecipados:
+    - `+1 Mês (30 dias)`
+    - `+3 Meses (90 dias)`
+    - `+6 Meses (180 dias)`
+    - `+12 Meses (365 dias - 1 Ano)`
+  - **Cálculo em Tempo Real:** A interface projeta e exibe a nova data de expiração somando os novos dias ao vencimento atual, garantindo que o cliente não perca nenhum dia já pago.
+  - **Botão de WhatsApp Formatado:** Abre conversa com o desenvolvedor enviando:
+    - ID da máquina
+    - Período escolhido
+    - Validade atual e data futura projetada
+    - Mensagem solicitando a liberação com comprovante PIX anexado.
+- **Sincronização Online Instantânea:**
+  - Botão **"Sincronizar com Servidor"** (`POST /api/settings/license/sync-remote`), que consulta o servidor de licenças e atualiza imediatamente a validade e os dias restantes sem precisar reiniciar o sistema.
+- **Ativação Offline Reserva:**
+  - Sanfona expansível para inserção de chave criptográfica offline fornecida pelo desenvolvedor caso o estabelecimento esteja sem conexão de internet.
+

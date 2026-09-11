@@ -17,8 +17,8 @@ import { LoggedUser } from '../types';
 
 
 interface NavbarProps {
-  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers';
-  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers') => void;
+  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers' | 'subscription';
+  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers' | 'subscription') => void;
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;
@@ -134,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="hidden md:flex items-center gap-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentView === item.id;
+              const isActive = currentView === item.id || (item.id === 'settings' && (currentView === 'printers' || currentView === 'subscription'));
               return (
                 <button
                   key={item.id}
@@ -249,7 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="md:hidden flex items-center justify-around bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-2 py-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentView === item.id;
+          const isActive = currentView === item.id || (item.id === 'settings' && (currentView === 'printers' || currentView === 'subscription'));
           return (
             <button
               key={item.id}

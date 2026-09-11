@@ -19,7 +19,8 @@ import {
   Type,
   Sparkles,
   ArrowUpCircle,
-  RefreshCw
+  RefreshCw,
+  Key
 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
@@ -31,6 +32,10 @@ interface SettingsViewProps {
   onOpenSuppliers?: () => void;
   onOpenStaffModal?: () => void;
   onOpenDashboard?: () => void;
+  onOpenSubscription?: () => void;
+  daysRemaining?: number;
+  machineId?: string;
+  isLicensed?: boolean | null;
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
   onOpenPrinters?: () => void;
@@ -50,6 +55,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenSuppliers,
   onOpenStaffModal,
   onOpenDashboard,
+  onOpenSubscription,
+  daysRemaining,
+  machineId,
+  isLicensed,
   onOpenPrinters,
   autoPrintKitchen,
   onToggleAutoPrintKitchen,
@@ -176,6 +185,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* ASSINATURA & LICENÇA DO SISTEMA */}
+      {onOpenSubscription && (
+        <button
+          onClick={onOpenSubscription}
+          className="w-full bg-gradient-to-r from-emerald-50 via-white to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 hover:from-emerald-100 hover:to-slate-50 dark:hover:from-emerald-900/40 dark:hover:to-slate-800 transition border-2 border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-400 rounded-3xl p-5 text-left flex items-center justify-between group shadow-sm dark:shadow-lg dark:shadow-emerald-950/20"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+              <Key className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition">
+                  Assinatura & Licença
+                </h3>
+                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                  (daysRemaining ?? 0) <= 5
+                    ? 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 border-amber-300 dark:border-amber-500/30'
+                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30'
+                }`}>
+                  {daysRemaining !== undefined ? `${daysRemaining} ${daysRemaining === 1 ? 'dia restante' : 'dias restantes'}` : 'Ativa'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Terminal: <code className="font-mono font-semibold text-slate-700 dark:text-slate-300">{machineId ? machineId.slice(0, 16) + '...' : 'Carregando...'}</code> • Renovações antecipadas, PIX e sincronização.
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
+        </button>
+      )}
 
       {/* MÉTRICAS & GESTÃO (Posicionado logo acima do Backup Automático) */}
       {onOpenDashboard && (
