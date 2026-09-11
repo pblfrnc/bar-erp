@@ -100,11 +100,14 @@
 
 ## 7. 🔄 SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA (AUTO-UPDATER)
 - **Objetivo:** O cliente no Windows não precisa mais baixar manualmente o executável do GitHub ou pedir suporte para atualizar. O próprio Bar ERP detecta, notifica, baixa e instala com 1 clique.
-- **Detecção de Versão:**
-  - Consulta `https://api.github.com/repos/pblfrnc/bar-erp/releases/latest`.
-  - Compara a data de modificação do asset (`updated_at` do instalador `.exe`) com o `buildTime` do build local (`build-info.json`).
-  - Agendamento automático: 15s após inicialização do app e recorrente a cada 4 horas.
-  - Verificação manual disponível em `Configurações` -> `Sobre o Bar ERP & Atualizador Automático` -> "Verificar Atualizações Agora".
+- **Detecção de Versão & Resiliência a Rate Limit (Zero 403 Errors):**
+  - **Estratégia 1 (`version.json`):** Baixa o arquivo de metadados diretamente dos assets da release (`/releases/download/latest/version.json`). Compara o hash do commit (`remote.commit !== local.commit`) com 100% de precisão cirúrgica sem depender de fuso horário.
+  - **Estratégia 2 (Feed Público Atom + Asset HEAD):** Lê o feed XML público (`/releases.atom`) e faz requisição `HEAD` no executável (`/BarERP-Instalador-Windows.exe`) para obter `last-modified` e tamanho do arquivo. Servido pelos CDNs públicos do GitHub com zero limites de requisições por hora (nunca sofre bloqueio 403).
+  - **Estratégia 3 (API REST GitHub):** Fallback adicional em `https://api.github.com/repos/pblfrnc/bar-erp/releases/latest`.
+  - **Fallback para Builds Anteriores:** Caso o aplicativo em execução não possua `build-info.json` (versões antigas), o sistema adota a data base `2026-01-01T00:00:00.000Z`, garantindo que qualquer versão no GitHub seja imediatamente detectada como uma atualização disponível.
+  - **Agendamento automático:** 15s após inicialização do app e recorrente a cada 4 horas, além do botão sob demanda em Configurações.
+- **Ciclo do CI/CD no GitHub Actions:**
+  - O fluxo compila o executável do Windows (.exe) e os dois APKs Android. Esse processo leva entre **15 a 25 minutos** no GitHub. A nova versão só estará disponível para o aplicativo detectar depois que o job `publish-release` for concluído com sucesso.
 - **Interface e Experiência do Usuário (UI/UX):**
   - **Banner Flutuante:** Aparece no canto inferior direito quando há nova versão disponível, permitindo "Ver Detalhes" ou "Lembrar mais tarde".
   - **Badge no Navbar:** Botão pulsante colorido no topo do sistema exibindo "Nova Versão".
@@ -114,7 +117,7 @@
     - Barra de progresso com porcentagem, total baixado (MB/GB) e velocidade de download estimada.
     - Botão de instalação imediata: "Reiniciar e Atualizar Agora".
 - **Download e Instalação (`electron/updater.cjs`):**
-  - Suporte a redirecionamento HTTP 302 (GitHub -> Amazon AWS S3) via `fetchWithRedirects`.
+  - Suporte a redirecionamento HTTP 302 (GitHub -> Amazon AWS S3 / Azure Blob) via `fetchWithRedirects`.
   - Download salvo na pasta temporária do usuário (`app.getPath('temp')/BarERP-Update.exe`).
   - Execução desanexada (`spawn` com `detached: true`, `stdio: 'ignore'`) e encerramento limpo do Electron (`app.quit()`).
 - **Segurança do Banco de Dados SQLite:**
