@@ -13,6 +13,10 @@ let downloadInProgress = false;
 let downloadedInstallerPath = null;
 let downloadAbortController = null;
 
+const GITHUB_DOWNLOAD_INSTALLER = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/latest/BarERP-Instalador-Windows.exe`;
+const GITHUB_DOWNLOAD_VERSION = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/latest/version.json`;
+const GITHUB_RELEASES_ATOM = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases.atom`;
+
 // Obter informações do build atual instalado
 function getLocalBuildInfo() {
   const possiblePaths = [
@@ -25,7 +29,10 @@ function getLocalBuildInfo() {
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
       try {
-        return JSON.parse(fs.readFileSync(p, 'utf-8'));
+        const info = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        if (info && info.buildTime) {
+          return info;
+        }
       } catch (e) {}
     }
   }
@@ -40,95 +47,183 @@ function getLocalBuildInfo() {
     } catch (e) {}
   }
 
+  // Se não tem build-info.json, usamos uma data base antiga para que qualquer instalador novo no GitHub seja detectado!
   return {
     version,
-    buildTime: new Date(fs.statSync(pkgPath).mtime || Date.now()).toISOString(),
+    buildTime: '2026-01-01T00:00:00.000Z',
     commit: 'local'
   };
 }
 
-// Faz requisição HTTP/HTTPS seguindo redirecionamentos (necessário para GitHub -> S3)
-function fetchWithRedirects(url, headers = {}, maxRedirects = 5) {
+// Faz requisição HTTP/HTTPS seguindo redirecionamentos (suporta GET, HEAD e redirecionamentos para Azure/S3)
+function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
     if (maxRedirects <= 0) {
       return reject(new Error('Muitos redirecionamentos'));
     }
 
-    const client = url.startsWith('https') ? https : http;
-    const req = client.get(url, { headers }, (res) => {
+    const reqOptions = options.headers ? { ...options } : { headers: options };
+    reqOptions.headers = reqOptions.headers || {};
+    if (!reqOptions.headers['User-Agent']) {
+      reqOptions.headers['User-Agent'] = 'BarERP-AutoUpdater';
+    }
+
+    const parsed = new URL(url);
+    const client = parsed.protocol === 'https:' ? https : http;
+    const req = client.request(url, reqOptions, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return resolve(fetchWithRedirects(res.headers.location, headers, maxRedirects - 1));
+        return resolve(fetchWithRedirects(res.headers.location, options, maxRedirects - 1));
       }
       resolve(res);
     });
 
     req.on('error', reject);
+    req.end();
   });
 }
 
-// 1. Checar se há uma nova versão disponível no GitHub
+// 1. Checar se há uma nova versão disponível no GitHub com múltiplas estratégias sem bloqueio de Rate Limit
 async function checkForUpdates() {
   const local = getLocalBuildInfo();
+  console.log('[AutoUpdater] Verificando atualizações. Build local:', local);
+
+  // ESTRATÉGIA 1: Tentar version.json diretamente do release asset (Rápido, 0 limite de API)
   try {
-    const res = await fetchWithRedirects(GITHUB_API_LATEST, {
-      'User-Agent': 'BarERP-AutoUpdater'
-    });
+    const vRes = await fetchWithRedirects(GITHUB_DOWNLOAD_VERSION, { method: 'GET' });
+    if (vRes.statusCode === 200) {
+      let vData = '';
+      for await (const chunk of vRes) vData += chunk;
+      const remote = JSON.parse(vData);
 
-    if (res.statusCode !== 200) {
-      throw new Error(`GitHub API retornou status ${res.statusCode}`);
-    }
+      // Se temos commit SHA em ambos e forem idênticos, está na versão mais recente
+      if (local.commit && local.commit !== 'local' && remote.commit && local.commit === remote.commit) {
+        return {
+          hasUpdate: false,
+          currentVersion: local.version,
+          latestVersion: remote.version || local.version,
+          localBuildTime: local.buildTime,
+          message: 'Você já está utilizando a compilação mais recente.'
+        };
+      }
 
-    let rawData = '';
-    for await (const chunk of res) {
-      rawData += chunk;
-    }
+      // Se os commits são diferentes ou local é 'local'
+      const headRes = await fetchWithRedirects(GITHUB_DOWNLOAD_INSTALLER, { method: 'HEAD' });
+      const assetDate = headRes.headers['last-modified'] ? new Date(headRes.headers['last-modified']).toISOString() : (remote.buildTime || new Date().toISOString());
+      const fileSize = parseInt(headRes.headers['content-length'] || '0', 10);
 
-    const release = JSON.parse(rawData);
-    const releaseDate = new Date(release.published_at || release.created_at);
-
-    // Procura o instalador do Windows nos assets
-    const installerAsset = (release.assets || []).find(a => 
-      a.name && (a.name.endsWith('-Instalador-Windows.exe') || a.name.endsWith('.exe'))
-    );
-
-    if (!installerAsset) {
       return {
-        hasUpdate: false,
-        message: 'Nenhum instalador executável encontrado na release.',
+        hasUpdate: true,
+        latestVersion: remote.version ? `v${remote.version}` : 'Nova Versão',
         currentVersion: local.version,
+        releaseName: `BarERP Pro (${remote.commit ? remote.commit.substring(0, 7) : 'Atualização'})`,
+        releaseNotes: 'Nova compilação do BarERP com melhorias de sistema e atualizações.',
+        releaseDate: remote.buildTime || assetDate,
+        assetDate,
+        downloadUrl: GITHUB_DOWNLOAD_INSTALLER,
+        fileName: 'BarERP-Instalador-Windows.exe',
+        fileSize,
         localBuildTime: local.buildTime
       };
     }
-
-    const assetUpdatedAt = new Date(installerAsset.updated_at || release.published_at);
-    const localTime = new Date(local.buildTime);
-
-    // Considera atualização se o arquivo da release no GitHub for mais recente que o build local
-    // (com tolerância de 2 minutos para evitar falsos positivos de horário)
-    const isNewer = (assetUpdatedAt.getTime() - localTime.getTime()) > (2 * 60 * 1000);
-
-    return {
-      hasUpdate: isNewer,
-      latestVersion: release.tag_name || release.name || 'Nova Versão',
-      currentVersion: local.version,
-      releaseName: release.name || 'Atualização do BarERP',
-      releaseNotes: release.body || 'Melhorias gerais e correções de desempenho.',
-      releaseDate: releaseDate.toISOString(),
-      assetDate: assetUpdatedAt.toISOString(),
-      downloadUrl: installerAsset.browser_download_url,
-      fileName: installerAsset.name,
-      fileSize: installerAsset.size || 0,
-      localBuildTime: local.buildTime
-    };
   } catch (err) {
-    console.error('[AutoUpdater] Erro ao verificar atualizações:', err.message);
-    return {
-      hasUpdate: false,
-      error: err.message,
-      currentVersion: local.version,
-      localBuildTime: local.buildTime
-    };
+    console.log('[AutoUpdater] version.json ainda não disponível na release, alternando para feed público:', err.message);
   }
+
+  // ESTRATÉGIA 2: Feed público de releases (releases.atom) + HEAD request no instalador (0 limite de API)
+  try {
+    const headRes = await fetchWithRedirects(GITHUB_DOWNLOAD_INSTALLER, { method: 'HEAD' });
+    if (headRes.statusCode === 200 && headRes.headers['last-modified']) {
+      const assetDate = new Date(headRes.headers['last-modified']);
+      const fileSize = parseInt(headRes.headers['content-length'] || '0', 10);
+
+      // Busca dados visuais do feed atom
+      let releaseTitle = 'BarERP - Nova Versão';
+      let releaseNotes = 'Melhorias de desempenho, correções e novos recursos.';
+      let releaseDateIso = assetDate.toISOString();
+
+      try {
+        const atomRes = await fetchWithRedirects(GITHUB_RELEASES_ATOM);
+        if (atomRes.statusCode === 200) {
+          let xml = '';
+          for await (const chunk of atomRes) xml += chunk;
+          const titleMatch = xml.match(/<entry>[\s\S]*?<title>(.*?)<\/title>/);
+          const updatedMatch = xml.match(/<entry>[\s\S]*?<updated>(.*?)<\/updated>/);
+          const contentMatch = xml.match(/<entry>[\s\S]*?<content type="html">([\s\S]*?)<\/content>/);
+          if (titleMatch) releaseTitle = titleMatch[1];
+          if (updatedMatch) releaseDateIso = updatedMatch[1];
+          if (contentMatch) {
+            releaseNotes = contentMatch[1]
+              .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+              .replace(/<[^>]+>/g, '').trim();
+          }
+        }
+      } catch (atomErr) {
+        console.log('[AutoUpdater] Não foi possível carregar notas do feed atom:', atomErr.message);
+      }
+
+      const localTime = new Date(local.buildTime || '2026-01-01T00:00:00.000Z');
+      // Considera mais recente se a data do arquivo for maior que o build local (com tolerância de 1 min)
+      const isNewer = (assetDate.getTime() - localTime.getTime()) > (60 * 1000);
+
+      return {
+        hasUpdate: isNewer,
+        latestVersion: releaseTitle || 'Nova Versão',
+        currentVersion: local.version,
+        releaseName: releaseTitle,
+        releaseNotes,
+        releaseDate: releaseDateIso,
+        assetDate: assetDate.toISOString(),
+        downloadUrl: GITHUB_DOWNLOAD_INSTALLER,
+        fileName: 'BarERP-Instalador-Windows.exe',
+        fileSize,
+        localBuildTime: local.buildTime
+      };
+    }
+  } catch (err) {
+    console.log('[AutoUpdater] Falha na verificação direta do asset, tentando API REST:', err.message);
+  }
+
+  // ESTRATÉGIA 3: Fallback final para API do GitHub (caso os anteriores falhem)
+  try {
+    const res = await fetchWithRedirects(GITHUB_API_LATEST);
+    if (res.statusCode === 200) {
+      let rawData = '';
+      for await (const chunk of res) rawData += chunk;
+      const release = JSON.parse(rawData);
+      const installerAsset = (release.assets || []).find(a => 
+        a.name && (a.name.endsWith('-Instalador-Windows.exe') || a.name.endsWith('.exe'))
+      );
+
+      if (installerAsset) {
+        const assetUpdatedAt = new Date(installerAsset.updated_at || release.published_at);
+        const localTime = new Date(local.buildTime || '2026-01-01T00:00:00.000Z');
+        const isNewer = (assetUpdatedAt.getTime() - localTime.getTime()) > (60 * 1000);
+
+        return {
+          hasUpdate: isNewer,
+          latestVersion: release.tag_name || release.name || 'Nova Versão',
+          currentVersion: local.version,
+          releaseName: release.name || 'Atualização do BarERP',
+          releaseNotes: release.body || 'Melhorias gerais e correções de desempenho.',
+          releaseDate: new Date(release.published_at || release.created_at).toISOString(),
+          assetDate: assetUpdatedAt.toISOString(),
+          downloadUrl: installerAsset.browser_download_url || GITHUB_DOWNLOAD_INSTALLER,
+          fileName: installerAsset.name,
+          fileSize: installerAsset.size || 0,
+          localBuildTime: local.buildTime
+        };
+      }
+    }
+  } catch (apiErr) {
+    console.error('[AutoUpdater] Erro final na API do GitHub:', apiErr.message);
+  }
+
+  return {
+    hasUpdate: false,
+    message: 'Não foi possível verificar atualizações no momento.',
+    currentVersion: local.version,
+    localBuildTime: local.buildTime
+  };
 }
 
 // 2. Baixar a atualização com barra de progresso em tempo real

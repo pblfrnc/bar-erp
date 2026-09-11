@@ -188,12 +188,13 @@ jobs:
           name: BarERP-Cozinha-APK
           path: release-files/
 
-      - name: Sanitizar nomes de arquivos (remover espaços se houver)
+      - name: Sanitizar nomes de arquivos e gerar version.json
         run: |
           cd release-files
           for f in *\ *; do
             [ -f "$f" ] && mv "$f" "${f// /-}"
           done
+          echo "{\"version\": \"1.0.0\", \"commit\": \"${{ github.sha }}\", \"buildTime\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > version.json
           echo "Arquivos para publicação na release:"
           ls -la
 

@@ -75,17 +75,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         if (res && res.hasUpdate) {
           setCheckMessage(`Nova versão ${res.latestVersion} disponível!`);
           if (onOpenUpdateModal) onOpenUpdateModal();
+        } else if (res && res.error) {
+          setCheckMessage(`Aviso: ${res.error}`);
+        } else if (res && res.message) {
+          setCheckMessage(res.message);
         } else {
           setCheckMessage('Você já está usando a versão mais recente do Bar ERP.');
         }
       } else {
-        setCheckMessage('Você já está usando a versão mais recente.');
+        setCheckMessage('Atualizador disponível apenas no aplicativo Desktop Windows.');
       }
     } catch (e: any) {
       setCheckMessage('Erro ao verificar atualizações: ' + (e.message || e));
     } finally {
       setCheckingUpdate(false);
-      setTimeout(() => setCheckMessage(null), 5000);
+      setTimeout(() => setCheckMessage(null), 6000);
     }
   };
 
