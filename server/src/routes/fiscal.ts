@@ -1760,14 +1760,19 @@ export function createFiscalRouter() {
 
   // Busca o XML completo ou metadados de uma NF-e recebida na Focus NFe
   async function fetchNfeRecebidaXml(baseURL: string, authHeader: string, chaveClean: string): Promise<{ xmlText: string; xmlData?: any } | null> {
+    console.log(`[fetchNfeRecebidaXml] Iniciando busca para chave ${chaveClean} em ${baseURL}...`);
+
     // 1. Tenta endpoint oficial direto .xml
     try {
       const resXml = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}.xml`, {
-        headers: { 'Authorization': authHeader, 'Accept': 'application/xml, text/xml, */*' }
+        headers: { 'Authorization': authHeader, 'Accept': 'application/xml, text/xml, */*' },
+        redirect: 'follow'
       });
+      console.log(`[fetchNfeRecebidaXml] .xml status: ${resXml.status}`);
       if (resXml.ok) {
         const text = await resXml.text();
         if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+          console.log(`[fetchNfeRecebidaXml] ✓ XML obtido com sucesso via .xml direto (${text.length} bytes)`);
           return { xmlText: text };
         }
       }
@@ -1775,25 +1780,38 @@ export function createFiscalRouter() {
       console.warn('[fetchNfeRecebidaXml] Tentativa .xml falhou:', err);
     }
 
-    // 2. Tenta endpoint .json para obter dados e caminho do arquivo
+    // 2. Tenta endpoint .json para obter dados e caminho_xml_nota_fiscal
     try {
       const resJson = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}.json`, {
         headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
       });
+      console.log(`[fetchNfeRecebidaXml] .json status: ${resJson.status}`);
       if (resJson.ok) {
         const json = await resJson.json();
+        console.log(`[fetchNfeRecebidaXml] .json retornado:`, {
+          status: json.status,
+          manifesto: json.manifesto,
+          caminho_xml: json.caminho_xml_nota_fiscal,
+          caminho_danfe: json.caminho_danfe
+        });
+
         if (json.caminho_xml_nota_fiscal) {
           const downloadUrl = json.caminho_xml_nota_fiscal.startsWith('http')
             ? json.caminho_xml_nota_fiscal
             : `${baseURL}${json.caminho_xml_nota_fiscal}`;
+          console.log(`[fetchNfeRecebidaXml] Baixando XML de caminho_xml_nota_fiscal: ${downloadUrl}`);
           const fileRes = await fetch(downloadUrl, {
-            headers: downloadUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {}
+            headers: downloadUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {},
+            redirect: 'follow'
           });
           if (fileRes.ok) {
             const text = await fileRes.text();
             if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+              console.log(`[fetchNfeRecebidaXml] ✓ XML baixado com sucesso via URL do json (${text.length} bytes)`);
               return { xmlText: text, xmlData: json };
             }
+          } else {
+            console.warn(`[fetchNfeRecebidaXml] Falha ao baixar da URL do json, status: ${fileRes.status}`);
           }
         }
         return { xmlText: '', xmlData: json };
@@ -1802,19 +1820,39 @@ export function createFiscalRouter() {
       console.warn('[fetchNfeRecebidaXml] Tentativa .json falhou:', err);
     }
 
-    // 3. Fallback legado: endpoint /xml (com barra)
+    // 3. Fallback: endpoint legado /xml (com barra)
     try {
       const resLegacy = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
-        headers: { 'Authorization': authHeader }
+        headers: { 'Authorization': authHeader },
+        redirect: 'follow'
       });
+      console.log(`[fetchNfeRecebidaXml] /xml legado status: ${resLegacy.status}`);
       if (resLegacy.ok) {
         const text = await resLegacy.text();
         if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+          console.log(`[fetchNfeRecebidaXml] ✓ XML obtido via endpoint legado /xml (${text.length} bytes)`);
           return { xmlText: text };
         }
       }
     } catch (err) {
       console.warn('[fetchNfeRecebidaXml] Tentativa legada /xml falhou:', err);
+    }
+
+    // 4. Fallback sem extensão: /v2/nfes_recebidas/:chave
+    try {
+      const resRaw = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}`, {
+        headers: { 'Authorization': authHeader, 'Accept': 'application/xml, text/xml, application/json, */*' },
+        redirect: 'follow'
+      });
+      console.log(`[fetchNfeRecebidaXml] rota pura status: ${resRaw.status}`);
+      if (resRaw.ok) {
+        const text = await resRaw.text();
+        if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+          return { xmlText: text };
+        }
+      }
+    } catch (err) {
+      console.warn('[fetchNfeRecebidaXml] Tentativa rota pura falhou:', err);
     }
 
     return null;
@@ -2013,6 +2051,91 @@ export function createFiscalRouter() {
       res.json(notas);
     } catch (err: any) {
       res.status(500).json({ error: 'Erro ao listar notas recebidas.' });
+    }
+  });
+
+  // Forçar sincronização/busca do XML de uma nota específica na SEFAZ
+  router.post('/notas-recebidas/:chave/sync', async (req, res) => {
+    try {
+      const { chave } = req.params;
+      const chaveClean = chave.replace(/\D/g, '');
+      const settings = await getFiscalSettingsSafe();
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Token da Focus NFe não configurado.' });
+      }
+
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+      // 1. Tenta re-enviar ciência caso não tenha sido processada
+      try {
+        await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': authHeader },
+          body: JSON.stringify({ tipo: 'ciencia' })
+        });
+      } catch (_) {}
+
+      // 2. Tenta buscar XML e status
+      const nfeResult = await fetchNfeRecebidaXml(baseURL, authHeader, chaveClean);
+      const xmlText = nfeResult?.xmlText;
+      const xmlData = nfeResult?.xmlData;
+
+      if (xmlText) {
+        let emitenteNome = xmlData?.nome_emitente || '';
+        let cnpjEmitente = (xmlData?.documento_emitente || xmlData?.cnpj_emitente || '').replace(/\D/g, '');
+        let numeroNf = xmlData?.numero || '';
+        let serieNf = xmlData?.serie || '';
+        let dataEmissao = xmlData?.data_emissao || new Date().toISOString();
+        let valorTotal = parseFloat(xmlData?.valor_total || '0');
+
+        try {
+          const jsonObj = parser.parse(xmlText);
+          const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
+          if (nfe) {
+            emitenteNome = nfe.emit?.xNome || emitenteNome;
+            cnpjEmitente = (nfe.emit?.CNPJ || nfe.emit?.CPF || cnpjEmitente).replace(/\D/g, '');
+            numeroNf = nfe.ide?.nNF || numeroNf;
+            serieNf = nfe.ide?.serie || serieNf;
+            dataEmissao = nfe.ide?.dhEmi || dataEmissao;
+            valorTotal = parseFloat(nfe.total?.ICMSTot?.vNF || valorTotal.toString());
+          }
+        } catch (_) {}
+
+        await prisma.$executeRawUnsafe(`
+          UPDATE "NotaRecebida"
+          SET "xmlContent" = ?,
+              "status" = 'recebida',
+              "emitente" = COALESCE(NULLIF(?, ''), "emitente"),
+              "cnpjEmitente" = COALESCE(NULLIF(?, ''), "cnpjEmitente"),
+              "numero" = COALESCE(NULLIF(?, ''), "numero"),
+              "serie" = COALESCE(NULLIF(?, ''), "serie"),
+              "valorTotal" = CASE WHEN ? > 0 THEN ? ELSE "valorTotal" END
+          WHERE "chave" = ?
+        `, xmlText, emitenteNome, cnpjEmitente, numeroNf, serieNf, valorTotal, valorTotal, chaveClean);
+
+        try { secureArchiveXML('ENTRADA', chaveClean, xmlText); } catch (_) {}
+
+        return res.json({
+          success: true,
+          xmlDisponivel: true,
+          message: '✓ XML sincronizado com sucesso da SEFAZ! A nota está pronta para o 2º Bip / Conferência.'
+        });
+      }
+
+      // Se ainda não liberou o XML
+      return res.json({
+        success: false,
+        xmlDisponivel: false,
+        statusSefaz: xmlData?.status || xmlData?.manifesto || 'pendente',
+        message: 'A SEFAZ ainda não liberou o download do XML para esta nota. Você pode aguardar mais um momento ou enviar o arquivo .xml manualmente.'
+      });
+    } catch (err: any) {
+      console.error('[Sync Nota] Erro:', err);
+      res.status(500).json({ error: 'Erro ao sincronizar nota: ' + (err.message || err) });
     }
   });
 
