@@ -30,6 +30,7 @@ interface SettingsViewProps {
   onOpenDashboard?: () => void;
   autoPrintKitchen: boolean;
   onToggleAutoPrintKitchen: () => void;
+  onOpenPrinters?: () => void;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
   fontScale?: 'normal' | 'large' | 'xlarge';
@@ -43,6 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenSuppliers,
   onOpenStaffModal,
   onOpenDashboard,
+  onOpenPrinters,
   autoPrintKitchen,
   onToggleAutoPrintKitchen,
   theme = 'dark',
@@ -273,6 +275,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <ChevronRight className="w-5 h-5 text-slate-400 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition" />
         </button>
+
+        {/* Configurações de Impressora Térmica */}
+        {onOpenPrinters && (
+          <button
+            onClick={onOpenPrinters}
+            className="bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-800 rounded-3xl p-5 text-left flex items-center justify-between group shadow-sm"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <Printer className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">
+                  Configurar Impressoras & Bobina
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Bobina 80mm / 58mm, margens, escala e teste de calibração
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 dark:text-slate-600 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition" />
+          </button>
+        )}
 
         {/* Impressão Automática */}
         <button

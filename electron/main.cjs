@@ -155,28 +155,109 @@ function createWindow() {
     }
   });
 
-  // Impressão silenciosa do DOM atual (80mm)
-  ipcMain.on('print-silent', (event) => {
+  // ============================================================
+  // Gerenciamento e Configurações de Impressoras Térmicas
+  // ============================================================
+  const printerConfigFile = path.join(app.getPath('userData'), 'printer-settings.json');
+
+  function getLocalPrinterSettings() {
+    try {
+      if (fs.existsSync(printerConfigFile)) {
+        return JSON.parse(fs.readFileSync(printerConfigFile, 'utf-8'));
+      }
+    } catch (e) {}
+    return {
+      cashierPrinter: '',
+      kitchenPrinter: '',
+      paperWidth: 80,
+      marginTop: 2,
+      marginBottom: 12,
+      marginLeft: 1,
+      marginRight: 1,
+      fontScale: 100,
+      qrSize: 170,
+      autoCut: true,
+      silentPrint: true,
+      copies: 1,
+      extraFeedLines: 3,
+      printLogo: true
+    };
+  }
+
+  // 1. Listar todas as impressoras instaladas no Windows / Mac
+  ipcMain.handle('get-printers', async () => {
+    try {
+      if (mainWindow && mainWindow.webContents) {
+        return await mainWindow.webContents.getPrintersAsync();
+      }
+      return [];
+    } catch (err) {
+      console.error('Erro ao listar impressoras no Electron:', err);
+      return [];
+    }
+  });
+
+  // 2. Obter configurações salvas de impressoras
+  ipcMain.handle('get-saved-printer-settings', () => {
+    return getLocalPrinterSettings();
+  });
+
+  // 3. Salvar configurações de impressoras no AppData
+  ipcMain.handle('save-printer-settings', (event, settings) => {
+    try {
+      fs.writeFileSync(printerConfigFile, JSON.stringify(settings, null, 2), 'utf-8');
+      return { success: true };
+    } catch (e) {
+      console.error('Erro ao salvar printer-settings.json:', e);
+      return { success: false, error: e.message };
+    }
+  });
+
+  // 4. Impressão silenciosa do DOM atual (Comandas e Tickets)
+  ipcMain.on('print-silent', (event, options) => {
     if (mainWindow) {
-      mainWindow.webContents.print({ 
-        silent: true, 
+      const saved = getLocalPrinterSettings();
+      const cfg = { ...saved, ...(options || {}) };
+      const printOptions = { 
+        silent: cfg.silentPrint !== false, 
         printBackground: true,
-        margins: { marginType: 'none' }
-      }, (success, failureReason) => {
+        margins: { marginType: 'none' },
+        copies: cfg.copies || 1
+      };
+      if (cfg.cashierPrinter) {
+        printOptions.deviceName = cfg.cashierPrinter;
+      }
+      mainWindow.webContents.print(printOptions, (success, failureReason) => {
         if (!success) console.error('Print failed:', failureReason);
       });
     }
   });
 
-  // Impressão silenciosa de DANFE / PDF externo da SEFAZ direto na impressora térmica sem abrir diálogo
-  ipcMain.on('print-pdf-silent', (event, pdfUrl) => {
+  // 5. Impressão silenciosa de DANFE / Cupom NFC-e / PDF externo
+  ipcMain.on('print-pdf-silent', (event, urlOrPayload) => {
+    const pdfUrl = typeof urlOrPayload === 'string' ? urlOrPayload : urlOrPayload?.url;
     if (!pdfUrl) return;
+
+    const saved = getLocalPrinterSettings();
+    const payloadCfg = typeof urlOrPayload === 'object' ? urlOrPayload : {};
+    const settings = { ...saved, ...payloadCfg };
+
+    const paperWidth = Number(settings.paperWidth) || 80;
+    const winWidth = Math.round(paperWidth * 4.75); // 80mm ~ 380px, 58mm ~ 275px
+    const marginTop = Number(settings.marginTop ?? 2);
+    const marginBottom = Number(settings.marginBottom ?? 12);
+    const marginLeft = Number(settings.marginLeft ?? 1);
+    const marginRight = Number(settings.marginRight ?? 1);
+    const qrSize = Number(settings.qrSize || 170);
+    const fontScale = (Number(settings.fontScale || 100)) / 100;
+    const targetPrinter = settings.deviceName || settings.cashierPrinter || undefined;
+
     try {
       const printWin = new BrowserWindow({
-        width: 380,
+        width: winWidth,
         height: 3500,
         show: false,
-        focusable: false, // Não rouba foco
+        focusable: false,
         skipTaskbar: true,
         webPreferences: {
           plugins: true
@@ -190,11 +271,11 @@ function createWindow() {
             Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, 2500)
           `);
           if (docHeight && docHeight > 800) {
-            printWin.setSize(380, Math.ceil(docHeight + 200));
+            printWin.setSize(winWidth, Math.ceil(docHeight + 200));
           }
         } catch (e) {}
 
-        // Injeta estilização estrita de bobina térmica 80mm/58mm para evitar margens em branco e cortes laterais/verticais
+        // Injeta estilização calibrada conforme as preferências do usuário
         try {
           await printWin.webContents.insertCSS(`
             @page {
@@ -208,12 +289,13 @@ function createWindow() {
                 margin: 0 !important;
                 padding: 0 !important;
                 background: #fff !important;
+                zoom: ${fontScale} !important;
               }
               .content {
-                max-width: 100% !important;
+                max-width: ${paperWidth}mm !important;
                 width: 100% !important;
                 margin: 0 !important;
-                padding: 2mm 1mm 12mm 1mm !important;
+                padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm !important;
                 border: none !important;
                 box-sizing: border-box !important;
               }
@@ -232,14 +314,14 @@ function createWindow() {
                 text-align: center !important;
                 display: flex !important;
                 justify-content: center !important;
-                width: 170px !important;
-                min-height: 170px !important;
+                width: ${qrSize}px !important;
+                min-height: ${qrSize}px !important;
               }
               #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
-                width: 170px !important;
-                height: 170px !important;
-                max-width: 170px !important;
-                max-height: 170px !important;
+                width: ${qrSize}px !important;
+                height: ${qrSize}px !important;
+                max-width: ${qrSize}px !important;
+                max-height: ${qrSize}px !important;
                 margin: 0 auto !important;
                 display: block !important;
               }
@@ -249,13 +331,18 @@ function createWindow() {
           console.warn('Aviso: falha ao injetar CSS de impressão térmica no printWin:', cssErr);
         }
 
-        // Aguarda 1000ms para renderizar o QR Code/fontes na memória e dispara print silencioso
+        // Dispara print silencioso
         setTimeout(() => {
-          printWin.webContents.print({ 
-            silent: true, 
+          const printOptions = { 
+            silent: settings.silentPrint !== false, 
             printBackground: true,
-            margins: { marginType: 'none' }
-          }, (success, failureReason) => {
+            margins: { marginType: 'none' },
+            copies: settings.copies || 1
+          };
+          if (targetPrinter) {
+            printOptions.deviceName = targetPrinter;
+          }
+          printWin.webContents.print(printOptions, (success, failureReason) => {
             if (!success) console.error('Silent PDF print failed:', failureReason);
             try { printWin.destroy(); } catch {}
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -263,8 +350,149 @@ function createWindow() {
               mainWindow.webContents?.focus();
             }
           });
+        }, 1000);
+      });
+
+      // Timeout de segurança se o documento falhar ao carregar
+      setTimeout(() => {
+        if (!printWin.isDestroyed()) {
+          try { printWin.destroy(); } catch {}
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus();
+            mainWindow.webContents?.focus();
+          }
+        }
+      }, 12000);
+    } catch (e) {
+      console.error('Erro ao disparar impressão de PDF silenciosa:', e);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.focus();
+        mainWindow.webContents?.focus();
+      }
+    }
+  });
+
+  // 6. Impressão de Página de Teste Térmica de Calibração
+  ipcMain.on('print-test-ticket', (event, customSettings) => {
+    const saved = getLocalPrinterSettings();
+    const settings = { ...saved, ...(customSettings || {}) };
+
+    const paperWidth = Number(settings.paperWidth) || 80;
+    const winWidth = Math.round(paperWidth * 4.75);
+    const marginTop = Number(settings.marginTop ?? 2);
+    const marginBottom = Number(settings.marginBottom ?? 12);
+    const marginLeft = Number(settings.marginLeft ?? 1);
+    const marginRight = Number(settings.marginRight ?? 1);
+    const qrSize = Number(settings.qrSize || 170);
+    const fontScale = (Number(settings.fontScale || 100)) / 100;
+    const targetPrinter = settings.cashierPrinter || undefined;
+    const extraFeedLines = Number(settings.extraFeedLines ?? 3);
+
+    const testHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Teste de Impressão Térmica</title>
+        <style>
+          @page { size: auto; margin: 0mm !important; }
+          body {
+            font-family: monospace, Arial, sans-serif;
+            margin: 0;
+            padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
+            width: ${paperWidth}mm;
+            max-width: ${paperWidth}mm;
+            box-sizing: border-box;
+            font-size: 11px;
+            color: #000;
+            background: #fff;
+            zoom: ${fontScale};
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-bottom: 1px dashed #000; margin: 6px 0; }
+          .double-line { border-bottom: 2px solid #000; margin: 8px 0; }
+          .table { width: 100%; border-collapse: collapse; font-size: 10px; }
+          .table td { padding: 2px 0; }
+          .right { text-align: right; }
+          .ruler {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #000;
+            padding: 2px 4px;
+            font-size: 9px;
+            margin: 4px 0;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="center bold" style="font-size: 14px;">=== BAR ERP PRO ===</div>
+        <div class="center bold">TESTE DE CALIBRAÇÃO TÉRMICA</div>
+        <div class="center" style="font-size: 9px;">${new Date().toLocaleString('pt-BR')}</div>
+        <div class="double-line"></div>
+
+        <div class="ruler">
+          <span>| ESQ</span>
+          <span>LARGURA: ${paperWidth}mm</span>
+          <span>DIR |</span>
+        </div>
+
+        <table class="table">
+          <tr><td>Impressora:</td><td class="right bold">${targetPrinter || 'Padrão do Sistema'}</td></tr>
+          <tr><td>Bobina:</td><td class="right bold">${paperWidth}mm</td></tr>
+          <tr><td>Margens:</td><td class="right">E:${marginLeft}mm D:${marginRight}mm T:${marginTop}mm B:${marginBottom}mm</td></tr>
+          <tr><td>Escala Texto:</td><td class="right">${settings.fontScale || 100}%</td></tr>
+          <tr><td>Tamanho QR:</td><td class="right">${qrSize}px</td></tr>
+          <tr><td>Guilhotina:</td><td class="right">${settings.autoCut ? 'Ativada' : 'Desativada'}</td></tr>
+        </table>
+
+        <div class="line"></div>
+        <div class="center bold" style="font-size: 10px;">TESTE DE QR CODE:</div>
+        <div class="center" style="margin: 8px auto;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=https://bar-erp.local/test-calibration&margin=1" width="${qrSize}" height="${qrSize}" style="margin: 0 auto; display: block;" />
+        </div>
+
+        <div class="line"></div>
+        <div class="center" style="font-size: 9px;">Se as réguas laterais encostaram nas bordas sem cortar, seu alinhamento está 100% calibrado!</div>
+        <div class="double-line"></div>
+        <div class="center" style="font-size: 9px;">=== FIM DO TESTE DE IMPRESSÃO ===</div>
+        ${'<br/>'.repeat(extraFeedLines)}
+      </body>
+      </html>
+    `;
+
+    try {
+      const testWin = new BrowserWindow({
+        width: winWidth,
+        height: 1800,
+        show: false,
+        focusable: false,
+        skipTaskbar: true,
+        webPreferences: { plugins: true }
+      });
+      testWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(testHtml));
+      testWin.webContents.on('did-finish-load', () => {
+        setTimeout(() => {
+          const printOptions = {
+            silent: settings.silentPrint !== false,
+            printBackground: true,
+            margins: { marginType: 'none' },
+            copies: 1
+          };
+          if (targetPrinter) {
+            printOptions.deviceName = targetPrinter;
+          }
+          testWin.webContents.print(printOptions, (success, failureReason) => {
+            if (!success) console.error('Test print failed:', failureReason);
+            try { testWin.destroy(); } catch {}
+          });
         }, 800);
       });
+    } catch (err) {
+      console.error('Erro ao imprimir página de teste térmica:', err);
+    }
+  });
 
       // Timeout de segurança se o PDF falhar ao carregar
       setTimeout(() => {

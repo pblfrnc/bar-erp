@@ -244,3 +244,23 @@ export interface LoggedUser {
   role: string;
   permissions: string[];
 }
+
+export interface PrinterSettings {
+  id?: string;
+  cashierPrinter: string;
+  kitchenPrinter: string;
+  paperWidth: number; // 80 ou 58
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  fontScale: number; // 80, 90, 100, 110
+  qrSize: number; // 140, 170, 200
+  autoCut: boolean;
+  silentPrint: boolean;
+  copies: number;
+  extraFeedLines: number;
+  printLogo: boolean;
+  updatedAt?: string;
+}
+

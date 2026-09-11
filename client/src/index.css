@@ -95,12 +95,14 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   #thermal-receipt,
   #kitchen-ticket-receipt {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm;
+    left: var(--printer-margin-left, 0mm);
+    top: var(--printer-margin-top, 0mm);
+    width: var(--printer-paper-width, 80mm);
+    max-width: var(--printer-paper-width, 80mm);
     margin: 0;
-    padding: 10px;
+    padding: 6px;
     background: white;
     color: black;
+    box-sizing: border-box;
   }
 }

@@ -3,9 +3,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   isElectron: true,
-  printSilent: () => ipcRenderer.send('print-silent'),
-  printPdfSilent: (url) => ipcRenderer.send('print-pdf-silent', url),
+  getPrinters: () => ipcRenderer.invoke('get-printers'),
+  getSavedPrinterSettings: () => ipcRenderer.invoke('get-saved-printer-settings'),
+  savePrinterSettings: (settings) => ipcRenderer.invoke('save-printer-settings', settings),
+  printSilent: (options) => ipcRenderer.send('print-silent', options),
+  printPdfSilent: (urlOrOptions) => ipcRenderer.send('print-pdf-silent', urlOrOptions),
+  printTestTicket: (settings) => ipcRenderer.send('print-test-ticket', settings),
   focusWindow: () => ipcRenderer.send('focus-window'),
   showConfirm: (message, title) => ipcRenderer.sendSync('show-confirm-dialog', { message, title })
 });
-

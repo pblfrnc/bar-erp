@@ -13,7 +13,8 @@ import {
   Supplier,
   StaffPublicUser,
   StaffMember,
-  LoggedUser
+  LoggedUser,
+  PrinterSettings
 } from '../types';
 
 
@@ -446,6 +447,17 @@ export const api = {
   deleteStaff: (id: string): Promise<{ success: boolean; message: string }> =>
     fetchWithRetry(`${getApiUrl()}/staff/${id}`, {
       method: 'DELETE'
-    }).then(handleResponse<{ success: boolean; message: string }>)
+    }).then(handleResponse<{ success: boolean; message: string }>),
+
+  // Configurações de Impressoras Térmicas
+  getPrinterSettings: (): Promise<PrinterSettings> =>
+    fetchWithRetry(`${getApiUrl()}/settings/printer`).then(handleResponse<PrinterSettings>),
+
+  savePrinterSettings: (settings: Partial<PrinterSettings>): Promise<{ success: boolean; settings: PrinterSettings }> =>
+    fetchWithRetry(`${getApiUrl()}/settings/printer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    }).then(handleResponse<{ success: boolean; settings: PrinterSettings }>)
 };
 

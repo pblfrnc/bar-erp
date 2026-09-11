@@ -16,6 +16,7 @@ import { FiscalHubView } from './views/FiscalHubView';
 import { FiscalSettingsView } from './views/FiscalSettingsView';
 import { ManualNfceView } from './views/ManualNfceView';
 import { CustomersView } from './views/CustomersView';
+import { PrinterSettingsView } from './views/PrinterSettingsView';
 
 
 
@@ -73,7 +74,7 @@ export function App() {
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
 
-  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce'>('tables');
+  const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers'>('tables');
 
   // Redireciona automaticamente se a tela atual não for permitida para o usuário
   useEffect(() => {
@@ -81,6 +82,7 @@ export function App() {
       // Mapeamento de sub-views para módulo pai
       const requiredModule = 
         currentView === 'fiscalSettings' || currentView === 'manualNfce' ? 'fiscal' :
+        currentView === 'printers' ? 'settings' :
         currentView === 'audit' ? 'dashboard' : currentView;
 
       if (!currentUser.permissions.includes(requiredModule)) {
@@ -91,6 +93,20 @@ export function App() {
       }
     }
   }, [currentUser, currentView]);
+
+  // Inicializa variáveis CSS de impressão térmica (bobina e margens)
+  useEffect(() => {
+    try {
+      const localStr = localStorage.getItem('bar_erp_printer_settings');
+      if (localStr) {
+        const s = JSON.parse(localStr);
+        document.documentElement.style.setProperty('--printer-paper-width', `${s.paperWidth || 80}mm`);
+        document.documentElement.style.setProperty('--printer-margin-left', `${s.marginLeft ?? 1}mm`);
+        document.documentElement.style.setProperty('--printer-margin-right', `${s.marginRight ?? 1}mm`);
+        document.documentElement.style.setProperty('--printer-margin-top', `${s.marginTop ?? 2}mm`);
+      }
+    } catch (e) {}
+  }, []);
 
   const [tables, setTables] = useState<Table[]>([]);
   const [loadingTables, setLoadingTables] = useState<boolean>(true);
@@ -410,6 +426,7 @@ export function App() {
             onOpenCustomers={() => setCurrentView('customers')}
             onOpenSuppliers={() => setCurrentView('suppliers')}
             onOpenDashboard={() => setCurrentView('dashboard')}
+            onOpenPrinters={() => setCurrentView('printers')}
             autoPrintKitchen={autoPrintKitchen}
             onToggleAutoPrintKitchen={() => setAutoPrintKitchen(!autoPrintKitchen)}
             theme={theme}
@@ -417,6 +434,10 @@ export function App() {
             fontScale={fontScale}
             onChangeFontScale={handleFontScaleChange}
           />
+        )}
+
+        {currentView === 'printers' && (
+          <PrinterSettingsView onBack={() => setCurrentView('settings')} />
         )}
 
         {currentView === 'customers' && (
