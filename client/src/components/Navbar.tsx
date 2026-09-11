@@ -40,7 +40,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onLogout,
   hasUpdate,
-  onOpenUpdateModal
+  onOpenUpdateModal,
+  isExpiringSoon,
+  daysRemaining,
+  onOpenLicenseInfo
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
