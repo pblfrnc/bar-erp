@@ -60,9 +60,9 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({
   const [loadingOffline, setLoadingOffline] = useState(false);
   const [offlineMessage, setOfflineMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const devPhone = developerContact?.phone || '5591988887777';
+  const devPhone = developerContact?.phone || '5547974002560';
   const devPix = developerContact?.pixKey || '68.817.608/0001-47';
-  const devName = developerContact?.developerName || 'Suporte do Bar ERP';
+  const devName = developerContact?.developerName || 'Pablo Franco - Software House';
 
   // Copiar ID da Máquina
   const handleCopyId = () => {
@@ -153,7 +153,8 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({
 
   // Enviar solicitação de renovação antecipada no WhatsApp
   const handleRequestRenewal = () => {
-    const cleanPhone = devPhone.replace(/\D/g, '');
+    const rawDigits = devPhone.replace(/\D/g, '');
+    const cleanPhone = rawDigits.startsWith('55') ? rawDigits : `55${rawDigits}`;
     const currentFormattedDate = expiresAt 
       ? new Date(expiresAt).toLocaleDateString('pt-BR') 
       : `${daysRemaining} dias`;
@@ -577,21 +578,22 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({
       <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
         <div>
           <span className="text-[10px] font-black uppercase text-slate-400 block">Software House & Desenvolvedor</span>
-          <span className="font-bold text-slate-900 dark:text-white text-sm">{devName}</span>
+          <span className="font-bold text-slate-900 dark:text-white text-sm block">{devName}</span>
           <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
-            Suporte técnico, dúvidas sobre pagamentos e customizações do sistema.
+            WhatsApp: <span className="font-semibold text-emerald-600 dark:text-emerald-400">(47) 97400-2560</span> • Suporte técnico, renovações e customizações.
           </p>
         </div>
         <button
           type="button"
           onClick={() => {
-            const cleanPhone = devPhone.replace(/\D/g, '');
+            const rawDigits = devPhone.replace(/\D/g, '');
+            const cleanPhone = rawDigits.startsWith('55') ? rawDigits : `55${rawDigits}`;
             window.open(`https://wa.me/${cleanPhone}?text=Olá! Preciso de suporte no Bar ERP.`, '_blank');
           }}
-          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition flex items-center justify-center gap-2 shrink-0 cursor-pointer self-start sm:self-auto"
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition flex items-center justify-center gap-2 shrink-0 cursor-pointer self-start sm:self-auto shadow-sm shadow-emerald-600/20"
         >
-          <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          Falar com Suporte
+          <MessageCircle className="w-4 h-4 text-white" />
+          Falar no WhatsApp (47 97400-2560)
         </button>
       </div>
     </div>

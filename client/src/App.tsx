@@ -513,13 +513,14 @@ export function App() {
 
             <button
               onClick={() => {
-                const phone = (developerContact?.phone || '5591988887777').replace(/\D/g, '');
+                const phone = (developerContact?.phone || '5547974002560').replace(/\D/g, '');
+                const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
                 const text = `Olá! Segue o comprovante de renovação da mensalidade do Bar ERP.\nID da minha máquina: ${machineId}`;
-                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(text)}`, '_blank');
               }}
               className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              Enviar Comprovante no WhatsApp
+              Enviar Comprovante no WhatsApp (47 97400-2560)
             </button>
 
             <button

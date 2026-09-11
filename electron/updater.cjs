@@ -77,22 +77,42 @@ function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
       return reject(new Error('Muitos redirecionamentos'));
     }
 
-    const reqOptions = options.headers ? { ...options } : { headers: options };
-    reqOptions.headers = reqOptions.headers || {};
-    if (!reqOptions.headers['User-Agent']) {
-      reqOptions.headers['User-Agent'] = 'BarERP-AutoUpdater';
+    const method = (options.method || 'GET').toUpperCase();
+    const rawHeaders = options.headers ? options.headers : (options.method ? {} : options);
+    const headers = { ...rawHeaders };
+    if (!headers['User-Agent']) {
+      headers['User-Agent'] = 'BarERP-AutoUpdater';
     }
+    // Previne cache intermediário em proxies e CDNs
+    if (!headers['Cache-Control']) {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    }
+    if (!headers['Pragma']) {
+      headers['Pragma'] = 'no-cache';
+    }
+
+    const reqOptions = {
+      method,
+      headers
+    };
 
     const parsed = new URL(url);
     const client = parsed.protocol === 'https:' ? https : http;
     const req = client.request(url, reqOptions, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return resolve(fetchWithRedirects(res.headers.location, options, maxRedirects - 1));
+        const redirectUrl = res.headers.location.startsWith('http')
+          ? res.headers.location
+          : new URL(res.headers.location, url).toString();
+        // Redirecionamento 302/301 deve seguir
+        return resolve(fetchWithRedirects(redirectUrl, { ...options, method: 'GET' }, maxRedirects - 1));
       }
       resolve(res);
     });
 
     req.on('error', reject);
+    req.setTimeout(25000, () => {
+      req.destroy(new Error('Timeout ao conectar ao servidor do GitHub'));
+    });
     req.end();
   });
 }
@@ -104,13 +124,15 @@ async function checkForUpdates() {
 
   // ESTRATÉGIA 1: Tentar version.json diretamente do release asset (Rápido, 0 limite de API)
   try {
-    const vRes = await fetchWithRedirects(GITHUB_DOWNLOAD_VERSION, { method: 'GET' });
+    const nocacheVersionUrl = `${GITHUB_DOWNLOAD_VERSION}?_t=${Date.now()}`;
+    const vRes = await fetchWithRedirects(nocacheVersionUrl, { method: 'GET' });
     if (vRes.statusCode === 200) {
       let vData = '';
       for await (const chunk of vRes) vData += chunk;
       const remote = JSON.parse(vData);
+      console.log('[AutoUpdater] version.json remoto:', remote, 'vs build local:', local);
 
-      // Se temos commit SHA em ambos e forem idênticos com mesma versão, está atualizado
+      // Comparação SemVer
       const semverDiff = compareVersions(remote.version, local.version);
       if (semverDiff < 0) {
         return {
@@ -128,14 +150,26 @@ async function checkForUpdates() {
           currentVersion: local.version,
           latestVersion: remote.version || local.version,
           localBuildTime: local.buildTime,
-          message: 'Você já está utilizando a compilação mais recente.'
+          message: `Você já está na versão mais recente (v${local.version}).`
         };
       }
 
-      // Se a versão é maior ou os commits são diferentes
-      const headRes = await fetchWithRedirects(GITHUB_DOWNLOAD_INSTALLER, { method: 'HEAD' });
-      const assetDate = headRes.headers['last-modified'] ? new Date(headRes.headers['last-modified']).toISOString() : (remote.buildTime || new Date().toISOString());
-      const fileSize = parseInt(headRes.headers['content-length'] || '0', 10);
+      // Tenta obter tamanho do instalador de forma segura e não bloqueante
+      let fileSize = 110569297;
+      let assetDate = remote.buildTime || new Date().toISOString();
+      try {
+        const headRes = await fetchWithRedirects(GITHUB_DOWNLOAD_INSTALLER, { method: 'HEAD' });
+        if (headRes.statusCode === 200) {
+          if (headRes.headers['content-length']) {
+            fileSize = parseInt(headRes.headers['content-length'], 10) || fileSize;
+          }
+          if (headRes.headers['last-modified']) {
+            assetDate = new Date(headRes.headers['last-modified']).toISOString();
+          }
+        }
+      } catch (headErr) {
+        console.log('[AutoUpdater] Consulta HEAD do instalador ignorada:', headErr.message);
+      }
 
       return {
         hasUpdate: true,
@@ -152,7 +186,7 @@ async function checkForUpdates() {
       };
     }
   } catch (err) {
-    console.log('[AutoUpdater] version.json ainda não disponível na release, alternando para feed público:', err.message);
+    console.log('[AutoUpdater] version.json falhou, alternando para feed público:', err.message);
   }
 
   // ESTRATÉGIA 2: Feed público de releases (releases.atom) + HEAD request no instalador (0 limite de API)

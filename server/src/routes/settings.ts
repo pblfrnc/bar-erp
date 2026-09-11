@@ -128,13 +128,18 @@ router.get('/', async (req, res) => {
 
     // Parse developer contact se houver
     let developerContact = {
-      phone: '5591988887777',
+      phone: '5547974002560',
       pixKey: '68.817.608/0001-47',
       developerName: 'Pablo Franco - Software House'
     };
     if (settings.developerContact) {
       try {
-        developerContact = { ...developerContact, ...JSON.parse(settings.developerContact) };
+        const parsed = JSON.parse(settings.developerContact);
+        // Atualiza se ainda tiver o número provisório antigo
+        if (parsed.phone && (parsed.phone.includes('91988887777') || parsed.phone.includes('988887777'))) {
+          parsed.phone = '5547974002560';
+        }
+        developerContact = { ...developerContact, ...parsed };
       } catch (e) {}
     }
 

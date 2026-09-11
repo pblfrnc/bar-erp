@@ -40,9 +40,9 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const devPhone = developerContact?.phone || '5591988887777';
+  const devPhone = developerContact?.phone || '5547974002560';
   const devPix = developerContact?.pixKey || '68.817.608/0001-47';
-  const devName = developerContact?.developerName || 'Suporte do Bar ERP';
+  const devName = developerContact?.developerName || 'Pablo Franco - Software House';
 
   const isExpired = status === 'EXPIRED';
   const isBlocked = status === 'BLOCKED';
@@ -56,6 +56,7 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
 
   // Copiar Chave PIX
   const handleCopyPix = () => {
+    if (!devPix) return;
     navigator.clipboard.writeText(devPix);
     setCopiedPix(true);
     setTimeout(() => setCopiedPix(false), 2000);
@@ -63,7 +64,8 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
 
   // Enviar ID e Comprovante no WhatsApp do Desenvolvedor
   const handleSendWhatsApp = () => {
-    const cleanPhone = devPhone.replace(/\D/g, '');
+    const rawDigits = devPhone.replace(/\D/g, '');
+    const cleanPhone = rawDigits.startsWith('55') ? rawDigits : `55${rawDigits}`;
     const text = `Olá! Segue o comprovante de pagamento da mensalidade do Bar ERP.\n\n💻 *ID DA MINHA MÁQUINA:*\n\`${machineId}\`\n\nPor favor, ative minha licença remotamente. Obrigado!`;
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -234,7 +236,7 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
               className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
             >
               <MessageCircle size={18} />
-              Enviar Comprovante e ID no WhatsApp
+              Enviar Comprovante e ID no WhatsApp (47 97400-2560)
             </button>
 
             {/* 2. Botão Verificar Ativação Online Remota */}

@@ -123,7 +123,7 @@ export function SettingsModal({ isOpen, onClose, onSuccess }: Props) {
               required
               value={developerPhone}
               onChange={(e) => setDeveloperPhone(e.target.value)}
-              placeholder="Ex: 5591988887777 (com DDD)"
+              placeholder="Ex: 5547974002560 (com DDD)"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
             />
             <span className="text-[11px] text-slate-500 mt-1 block">

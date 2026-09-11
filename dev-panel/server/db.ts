@@ -78,7 +78,9 @@ export function initDb() {
     insertSetting.run('developer_name', 'Pablo Franco - Software House');
   }
   if (!getSetting.get('developer_phone')) {
-    insertSetting.run('developer_phone', '5591988887777'); // WhatsApp para recebimento de comprovantes
+    insertSetting.run('developer_phone', '5547974002560'); // WhatsApp para recebimento de comprovantes
+  } else {
+    db.prepare("UPDATE dev_settings SET value = '5547974002560' WHERE key = 'developer_phone' AND (value LIKE '%91988887777%' OR value = '5591988887777')").run();
   }
   if (!getSetting.get('pix_key')) {
     insertSetting.run('pix_key', '68.817.608/0001-47');

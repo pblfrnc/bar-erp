@@ -128,7 +128,7 @@ export function AddClientModal({ isOpen, onClose, onSuccess }: Props) {
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ex: 91988887777"
+                placeholder="Ex: 47974002560"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>

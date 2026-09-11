@@ -15,6 +15,12 @@
 - **Regime Tributário:** Simples Nacional (CRT 1)
 - **Nome Fantasia (Comercial):** Suportado e configurável via tela **Configurações Fiscais**. É injetado em destaque no topo do Cupom NFC-e e enviado à Focus NFe para o cabeçalho da NF-e.
 
+### Contatos Oficiais da Software House & Suporte:
+- **Desenvolvedor / Suporte:** Pablo Franco
+- **WhatsApp Oficial:** `(47) 97400-2560` (`5547974002560`)
+- **Chave PIX para Mensalidades & Renovações:** `68.817.608/0001-47`
+- **Painel de Ativação Online (Render):** `https://bar-erp-licensas.onrender.com`
+
 ---
 
 ## 2. 🏗️ ARQUITETURA DO SISTEMA
