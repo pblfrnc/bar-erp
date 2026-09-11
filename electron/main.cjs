@@ -494,25 +494,6 @@ function createWindow() {
     }
   });
 
-      // Timeout de segurança se o PDF falhar ao carregar
-      setTimeout(() => {
-        if (!printWin.isDestroyed()) {
-          try { printWin.destroy(); } catch {}
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.focus();
-            mainWindow.webContents?.focus();
-          }
-        }
-      }, 10000);
-    } catch (e) {
-      console.error('Erro ao disparar impressão de PDF silenciosa:', e);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.focus();
-        mainWindow.webContents?.focus();
-      }
-    }
-  });
-
   // Diálogo de confirmação síncrono nativo e seguro (evita o bug de teclado do window.confirm)
   ipcMain.on('show-confirm-dialog', (event, { title, message }) => {
     try {
