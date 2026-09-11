@@ -16,8 +16,8 @@ import { LoggedUser } from '../types';
 
 
 interface NavbarProps {
-  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce';
-  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce') => void;
+  currentView: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers';
+  onSelectView: (view: 'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers') => void;
   kdsCount: number;
   isCashOpen: boolean;
   isConnected: boolean;
