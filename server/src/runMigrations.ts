@@ -68,6 +68,15 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "cest" TEXT;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "costPrice" REAL;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Category" ADD COLUMN "codeStart" INTEGER DEFAULT 1001;`); } catch (e) {}
+    try {
+      // Auto-reparo: Bar e bebidas recebem faixa 5001 se ainda estiverem com o default genérico 1001
+      await prisma.$executeRawUnsafe(`
+        UPDATE "Category"
+        SET "codeStart" = 5001
+        WHERE ("codeStart" = 1001 OR "codeStart" IS NULL)
+          AND (LOWER("name") LIKE '%bar%' OR LOWER("name") LIKE '%cerveja%' OR LOWER("name") LIKE '%chope%' OR LOWER("name") LIKE '%chopp%');
+      `);
+    } catch (e) {}
 
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "environment" TEXT DEFAULT 'homologacao';`); } catch (e) {}
 

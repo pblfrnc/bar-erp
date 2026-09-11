@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Category, KdsStation, Supplier } from '../types';
 import { api } from '../services/api';
 import {
@@ -135,9 +135,28 @@ export const ProductsView: React.FC = () => {
 
   // Modal Categoria
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newCatName, setNewCatName] = useState<string>('');
   const [newCatIcon, setNewCatIcon] = useState<string>('Beer');
   const [newCatCodeStart, setNewCatCodeStart] = useState<string>('');
+  const [renumberOnSave, setRenumberOnSave] = useState<boolean>(false);
+  const [isFixingDuplicates, setIsFixingDuplicates] = useState<boolean>(false);
+
+  // Detectar produtos com códigos duplicados em tempo real
+  const duplicateCodesCount = useMemo(() => {
+    const codeMap = new Map<string, number>();
+    for (const p of products) {
+      if (p.code && p.code.trim()) {
+        const c = p.code.trim();
+        codeMap.set(c, (codeMap.get(c) || 0) + 1);
+      }
+    }
+    let totalDups = 0;
+    for (const [, count] of codeMap) {
+      if (count > 1) totalDups += count;
+    }
+    return totalDups;
+  }, [products]);
 
   const loadData = async () => {
     try {
@@ -578,25 +597,84 @@ export const ProductsView: React.FC = () => {
     }
   };
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
+  const openCreateCategoryModal = () => {
+    setEditingCategory(null);
+    setNewCatName('');
+    setNewCatIcon('UtensilsCrossed');
+    // Encontrar próxima faixa sugerida livre (#1001, #2001, #3001, etc.)
+    const usedStarts = new Set(categories.map(c => c.codeStart).filter(Boolean));
+    let nextSuggested = 1001;
+    while (usedStarts.has(nextSuggested)) {
+      nextSuggested += 1000;
+    }
+    setNewCatCodeStart(String(nextSuggested));
+    setRenumberOnSave(false);
+    setShowCategoryModal(true);
+  };
+
+  const openEditCategory = (cat: Category) => {
+    setEditingCategory(cat);
+    setNewCatName(cat.name);
+    setNewCatIcon(cat.icon || 'Beer');
+    setNewCatCodeStart(cat.codeStart ? String(cat.codeStart) : '1001');
+    setRenumberOnSave(false);
+    setShowCategoryModal(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
     try {
-      await fetch('/api/products/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const codeStartNum = newCatCodeStart ? parseInt(newCatCodeStart, 10) : undefined;
+      if (editingCategory) {
+        await api.updateCategory(editingCategory.id, {
           name: newCatName.trim(),
           icon: newCatIcon || 'Beer',
-          codeStart: newCatCodeStart ? parseInt(newCatCodeStart, 10) : undefined
-        })
-      });
+          codeStart: codeStartNum
+        });
+
+        if (renumberOnSave) {
+          await api.resequenceCategory(editingCategory.id);
+        }
+      } else {
+        await api.createCategory({
+          name: newCatName.trim(),
+          icon: newCatIcon || 'Beer',
+          codeStart: codeStartNum
+        });
+      }
+
       setShowCategoryModal(false);
+      setEditingCategory(null);
       setNewCatName('');
       setNewCatCodeStart('');
-      loadData();
+      setRenumberOnSave(false);
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar categoria');
+      alert(err.message || 'Erro ao salvar categoria');
+    }
+  };
+
+  const handleFixDuplicateCodes = async (mode: 'duplicates_only' | 'resequence_all' = 'duplicates_only') => {
+    const msg = mode === 'resequence_all'
+      ? 'Deseja renumerar TODOS os produtos de todas as categorias sequencialmente (#1001, #2001, #5001)?'
+      : 'Deseja corrigir todos os produtos com numeração duplicada ou sem código, gerando novos números sequenciais exclusivos?';
+
+    if (!confirm(msg)) return;
+
+    try {
+      setIsFixingDuplicates(true);
+      const res = await api.fixDuplicateCodes(mode);
+      if (res.ok) {
+        await loadData();
+        alert(res.mensagem || 'Códigos corrigidos com sucesso!');
+      } else {
+        alert('Erro ao corrigir códigos.');
+      }
+    } catch (err: any) {
+      alert('Falha ao conectar com o servidor: ' + err.message);
+    } finally {
+      setIsFixingDuplicates(false);
     }
   };
 
@@ -1710,7 +1788,7 @@ export const ProductsView: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setShowCategoryModal(true)}
+            onClick={openCreateCategoryModal}
             className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <Tag className="w-4 h-4 text-purple-500 dark:text-purple-400" />
@@ -1727,6 +1805,31 @@ export const ProductsView: React.FC = () => {
               ? <><span className="animate-spin">⟳</span> <span>Gerando...</span></>
               : <><span className="text-sky-500 dark:text-sky-400 font-mono text-sm">#</span> <span>Gerar Códigos</span></>
             }
+          </button>
+
+          <button
+            onClick={() => handleFixDuplicateCodes('duplicates_only')}
+            disabled={isFixingDuplicates}
+            title="Detecta e corrige produtos com numeração interna duplicada ou em branco"
+            className={`py-2.5 px-3.5 border rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+              duplicateCodesCount > 0
+                ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 animate-pulse'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/50'
+            }`}
+          >
+            {isFixingDuplicates ? (
+              <><span className="animate-spin">⟳</span> <span>Corrigindo...</span></>
+            ) : (
+              <>
+                <AlertTriangle className={`w-4 h-4 ${duplicateCodesCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500'}`} />
+                <span>Corrigir Duplicados</span>
+                {duplicateCodesCount > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-rose-600 text-white font-mono font-bold text-[10px]">
+                    {duplicateCodesCount}
+                  </span>
+                )}
+              </>
+            )}
           </button>
 
           <button
@@ -1766,25 +1869,47 @@ export const ProductsView: React.FC = () => {
           {categories.map((cat) => (
             <div
               key={cat.id}
-              className={`inline-flex items-center gap-1 rounded-xl text-xs font-bold transition whitespace-nowrap pl-3 pr-1 py-1 cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap pl-3 pr-1.5 py-1 ${
                 selectedCategory === cat.id
-                  ? 'bg-amber-500 text-slate-950'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent'
               }`}
             >
               <button
                 onClick={() => setSelectedCategory(cat.id)}
-                className="flex-1 text-left py-0.5"
+                className="flex items-center gap-1.5 text-left py-0.5 cursor-pointer"
               >
-                {cat.name}
+                <span>{cat.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  selectedCategory === cat.id
+                    ? 'bg-slate-950/20 text-slate-950'
+                    : 'bg-slate-200 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300'
+                }`}>
+                  #{cat.codeStart || 1001}+
+                </span>
               </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditCategory(cat);
+                }}
+                className={`p-1 rounded-lg transition hover:bg-blue-600 hover:text-white cursor-pointer ${
+                  selectedCategory === cat.id ? 'text-slate-950/70 hover:text-white' : 'text-slate-400'
+                }`}
+                title={`Editar categoria "${cat.name}" e intervalo numérico (#${cat.codeStart || 1001})`}
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
+
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteCategory(cat.id, cat.name);
                 }}
-                className={`p-1 rounded-lg transition hover:bg-rose-600 hover:text-white ${
+                className={`p-1 rounded-lg transition hover:bg-rose-600 hover:text-white cursor-pointer ${
                   selectedCategory === cat.id ? 'text-slate-900/60 hover:text-white' : 'text-slate-400'
                 }`}
                 title={`Excluir categoria "${cat.name}"`}
@@ -1795,6 +1920,32 @@ export const ProductsView: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Alerta de Códigos Duplicados */}
+      {duplicateCodesCount > 0 && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-rose-900 dark:text-rose-200">
+                Atenção: Detectamos produtos com numeração interna duplicada ({duplicateCodesCount} produtos)
+              </p>
+              <p className="text-xs text-rose-700 dark:text-rose-300/80 mt-0.5">
+                Isso acontece quando categorias compartilhavam a mesma faixa inicial (#1001). Clique no botão ao lado para renumerar e dar códigos exclusivos a cada um.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleFixDuplicateCodes('duplicates_only')}
+            disabled={isFixingDuplicates}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl transition shrink-0 cursor-pointer shadow-sm active:scale-95 flex items-center gap-2"
+          >
+            {isFixingDuplicates ? 'Corrigindo...' : '⚡ Corrigir Numerações Agora'}
+          </button>
+        </div>
+      )}
 
       {/* Tabela / Lista de Produtos */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-xl">
@@ -2006,12 +2157,37 @@ export const ProductsView: React.FC = () => {
 
 
 
-      {/* Modal Criar Categoria */}
+      {/* Modal Criar / Editar Categoria */}
       {showCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-3">Nova Categoria</h3>
-            <form onSubmit={handleCreateCategory} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {editingCategory ? `Alterando dados de "${editingCategory.name}"` : 'Organize seus produtos e configure a faixa de códigos'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCategoryModal(false);
+                  setEditingCategory(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} className="space-y-4">
               <div>
                 <label htmlFor="formNameInput" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
                   Nome da Categoria *
@@ -2019,7 +2195,7 @@ export const ProductsView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Doces & Balas, Sobremesas"
+                  placeholder="Ex: Alimentos, Lanches, Cervejas, Porções..."
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none shadow-xs"
@@ -2029,36 +2205,94 @@ export const ProductsView: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="cat-code-start" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 cursor-pointer">
-                  Faixa Numérica do Código (Opcional)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="cat-code-start" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 cursor-pointer">
+                    Faixa Numérica Inicial (Código Interno) *
+                  </label>
+                  <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">
+                    #{newCatCodeStart || '1001'}+
+                  </span>
+                </div>
                 <input
                   id="cat-code-start"
                   type="text"
                   inputMode="numeric"
-                  placeholder="Ex: 5001 para bebidas, 6001 para chicletes/balas"
+                  placeholder="Ex: 1001, 2001, 5001..."
                   value={newCatCodeStart}
-                  onChange={(e) => setNewCatCodeStart(e.target.value)}
+                  onChange={(e) => setNewCatCodeStart(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Os produtos desta categoria receberão códigos sequenciais automáticos a partir deste número (ex: 6001, 6002...).
+
+                {/* Botões rápidos de sugestão de faixas padrão */}
+                <div className="mt-2.5">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1.5">Atalhos de faixas recomendadas:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { code: '1001', label: '1001 (Cozinha/Pratos)' },
+                      { code: '2001', label: '2001 (Alimentos/Porções)' },
+                      { code: '3001', label: '3001 (Pizzas/Massas)' },
+                      { code: '4001', label: '4001 (Sucos/Refrigerantes)' },
+                      { code: '5001', label: '5001 (Bar/Bebidas/Chopp)' },
+                      { code: '6001', label: '6001 (Doces/Chicletes/Balas)' },
+                      { code: '7001', label: '7001 (Combos/Especiais)' }
+                    ].map(preset => (
+                      <button
+                        key={preset.code}
+                        type="button"
+                        onClick={() => setNewCatCodeStart(preset.code)}
+                        className={`text-[11px] px-2 py-1 rounded-lg font-mono transition cursor-pointer border ${
+                          newCatCodeStart === preset.code
+                            ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Novos produtos cadastrados nesta categoria receberão numeração a partir de #{newCatCodeStart || 1001}.
                 </p>
               </div>
+
+              {/* Opção ao editar categoria: Renumerar produtos da categoria */}
+              {editingCategory && (
+                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 text-xs">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={renumberOnSave}
+                      onChange={(e) => setRenumberOnSave(e.target.checked)}
+                      className="mt-0.5 rounded text-amber-500 focus:ring-amber-500"
+                    />
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-white">Renumerar produtos existentes desta categoria</span>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        Atualiza os códigos internos de todos os produtos desta categoria para ficarem no intervalo sequencial iniciando em #{newCatCodeStart || 1001}.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
 
               <div className="pt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowCategoryModal(false)}
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setEditingCategory(null);
+                  }}
                   className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer shadow-md shadow-amber-500/10 active:scale-95"
                 >
-                  Criar Categoria
+                  {editingCategory ? 'Salvar Alterações' : 'Criar Categoria'}
                 </button>
               </div>
             </form>

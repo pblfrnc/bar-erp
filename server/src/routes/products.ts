@@ -212,7 +212,15 @@ export function createProductsRouter() {
       }
 
       let finalCode = code ? String(code).trim() : null;
-      if (!finalCode && categoryId) {
+      if (finalCode) {
+        const codeExists = await prisma.product.findFirst({
+          where: { code: finalCode },
+          select: { id: true }
+        });
+        if (codeExists && categoryId) {
+          finalCode = await getNextSequentialCode(categoryId);
+        }
+      } else if (categoryId) {
         finalCode = await getNextSequentialCode(categoryId);
       }
 
@@ -286,7 +294,19 @@ export function createProductsRouter() {
 
       const dataToUpdate: any = {};
       if (name !== undefined) dataToUpdate.name = name.trim();
-      if (code !== undefined) dataToUpdate.code = code ? String(code).trim() : null;
+      if (code !== undefined) {
+        const cleanCode = code ? String(code).trim() : null;
+        if (cleanCode) {
+          const codeExists = await prisma.product.findFirst({
+            where: { code: cleanCode, id: { not: id } },
+            select: { id: true, name: true }
+          });
+          if (codeExists) {
+            return res.status(400).json({ error: `O código #${cleanCode} já está em uso pelo produto "${codeExists.name}".` });
+          }
+        }
+        dataToUpdate.code = cleanCode;
+      }
       if (ean !== undefined) dataToUpdate.ean = ean ? String(ean).trim() : null;
       if (supplier !== undefined) dataToUpdate.supplier = supplier ? String(supplier).trim() : null;
       if (supplierId !== undefined) dataToUpdate.supplierId = supplierId ? String(supplierId).trim() : null;
@@ -383,17 +403,42 @@ export function createProductsRouter() {
       const { name, icon, sortOrder, codeStart } = req.body;
       if (!name) return res.status(400).json({ error: 'Nome da categoria é obrigatório' });
 
+      // Buscar faixas já utilizadas para não colidir
+      const existingCategories = await prisma.category.findMany({
+        select: { codeStart: true }
+      });
+      const usedStarts = new Set(existingCategories.map(c => c.codeStart).filter(Boolean));
+
       let finalCodeStart = codeStart ? Number(codeStart) : null;
       if (!finalCodeStart) {
         const lower = name.toLowerCase();
-        if (/bebida|cerveja|chope|chopp|drink|dose|destilado|alco/.test(lower)) {
-          finalCodeStart = 5001;
-        } else if (/trident|chiclete|bala|doce|sobremesa|tabaco|cigarro/.test(lower)) {
-          finalCodeStart = 6001;
-        } else if (/cozinha|petisco|porcao|porção|lanche|burger|prato/.test(lower)) {
-          finalCodeStart = 1001;
+        let preferred = 1001;
+        if (/bar|cerveja|chope|chopp|drink|dose|destilado|vinho|whisky|vodka|gin/.test(lower)) {
+          preferred = 5001;
+        } else if (/trident|chiclete|bala|doce|sobremesa|tabaco|cigarro|conveniencia|conveniência/.test(lower)) {
+          preferred = 6001;
+        } else if (/cozinha|prato|refeic|almoco|jantar/.test(lower)) {
+          preferred = 1001;
+        } else if (/porcao|porção|petisco|lanche|burger|hamburguer|pastel/.test(lower)) {
+          preferred = 2001;
+        } else if (/pizza|massa/.test(lower)) {
+          preferred = 3001;
+        } else if (/bebida|refrigerante|suco|agua|água|energetico|energético/.test(lower)) {
+          preferred = 4001;
+        } else if (/alimento|comida/.test(lower)) {
+          preferred = 2001;
         } else {
-          finalCodeStart = ((Number(sortOrder) || 1) > 0 ? Number(sortOrder) : 1) * 1000 + 1;
+          preferred = 1001;
+        }
+
+        if (usedStarts.has(preferred)) {
+          let candidate = 1001;
+          while (usedStarts.has(candidate)) {
+            candidate += 1000;
+          }
+          finalCodeStart = candidate;
+        } else {
+          finalCodeStart = preferred;
         }
       }
 
@@ -432,6 +477,181 @@ export function createProductsRouter() {
     } catch (error) {
       console.error('Erro ao atualizar categoria:', error);
       res.status(500).json({ error: 'Erro ao atualizar categoria' });
+    }
+  });
+
+  // Renumerar sequencialmente todos os produtos de uma categoria a partir de seu codeStart
+  router.post('/categories/:id/resequence', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const category = await prisma.category.findUnique({
+        where: { id },
+        include: { products: { orderBy: { name: 'asc' } } }
+      });
+
+      if (!category) {
+        return res.status(404).json({ error: 'Categoria não encontrada' });
+      }
+
+      const base = category.codeStart || 1001;
+
+      // Buscar códigos de produtos de outras categorias para não conflitar
+      const otherProducts = await prisma.product.findMany({
+        where: { categoryId: { not: id } },
+        select: { code: true }
+      });
+      const usedCodes = new Set<string>();
+      for (const p of otherProducts) {
+        if (p.code) usedCodes.add(p.code.trim());
+      }
+
+      let currentCode = base;
+      let atualizados = 0;
+
+      for (const prod of category.products) {
+        while (usedCodes.has(String(currentCode))) {
+          currentCode++;
+        }
+        const newCode = String(currentCode);
+        usedCodes.add(newCode);
+
+        await prisma.product.update({
+          where: { id: prod.id },
+          data: { code: newCode }
+        });
+        atualizados++;
+        currentCode++;
+      }
+
+      res.json({
+        ok: true,
+        atualizados,
+        mensagem: `✅ ${atualizados} produtos da categoria "${category.name}" renumerados sequencialmente a partir de #${base}.`
+      });
+    } catch (error: any) {
+      console.error('Erro ao renumerar categoria:', error);
+      res.status(500).json({ error: 'Erro ao renumerar produtos da categoria: ' + error.message });
+    }
+  });
+
+  // Corrigir códigos duplicados ou em branco no catálogo
+  router.post('/fix-duplicate-codes', async (req, res) => {
+    try {
+      const { mode } = req.body || {}; // 'duplicates_only' | 'resequence_all'
+
+      if (mode === 'resequence_all') {
+        const categories = await prisma.category.findMany({
+          orderBy: { sortOrder: 'asc' },
+          include: { products: { orderBy: { name: 'asc' } } }
+        });
+
+        const usedCodes = new Set<string>();
+        let totalAtualizados = 0;
+
+        for (const cat of categories) {
+          let codeNum = cat.codeStart || 1001;
+          for (const prod of cat.products) {
+            while (usedCodes.has(String(codeNum))) {
+              codeNum++;
+            }
+            const codeStr = String(codeNum);
+            usedCodes.add(codeStr);
+
+            await prisma.product.update({
+              where: { id: prod.id },
+              data: { code: codeStr }
+            });
+            totalAtualizados++;
+            codeNum++;
+          }
+        }
+
+        return res.json({
+          ok: true,
+          duplicadosEncontrados: 0,
+          atualizados: totalAtualizados,
+          mensagem: `✅ Todo o cardápio foi renumerado por categoria com códigos exclusivos (${totalAtualizados} produtos).`
+        });
+      }
+
+      // Modo padrão: 'duplicates_only'
+      const allProducts = await prisma.product.findMany({
+        select: { id: true, name: true, code: true, categoryId: true },
+        orderBy: [{ categoryId: 'asc' }, { name: 'asc' }]
+      });
+
+      const codeOccurrences = new Map<string, string[]>();
+      const missingCodeIds: string[] = [];
+
+      for (const p of allProducts) {
+        if (!p.code || !p.code.trim()) {
+          missingCodeIds.push(p.id);
+        } else {
+          const c = p.code.trim();
+          const list = codeOccurrences.get(c) || [];
+          list.push(p.id);
+          codeOccurrences.set(c, list);
+        }
+      }
+
+      const keptCodes = new Set<string>();
+      const needsNewCode: { id: string; categoryId: string }[] = [];
+
+      for (const [code, ids] of codeOccurrences) {
+        keptCodes.add(code);
+        // O primeiro produto fica com o código original; os seguintes recebem novo código
+        for (let i = 1; i < ids.length; i++) {
+          const prod = allProducts.find(p => p.id === ids[i]);
+          if (prod) needsNewCode.push({ id: prod.id, categoryId: prod.categoryId });
+        }
+      }
+
+      for (const id of missingCodeIds) {
+        const prod = allProducts.find(p => p.id === id);
+        if (prod) needsNewCode.push({ id: prod.id, categoryId: prod.categoryId });
+      }
+
+      if (needsNewCode.length === 0) {
+        return res.json({
+          ok: true,
+          duplicadosEncontrados: 0,
+          atualizados: 0,
+          mensagem: 'Nenhum código duplicado ou em branco foi encontrado. O cardápio já está 100% íntegro!'
+        });
+      }
+
+      const categories = await prisma.category.findMany();
+      const catMap = new Map<string, number>();
+      for (const c of categories) {
+        catMap.set(c.id, c.codeStart || 1001);
+      }
+
+      let atualizados = 0;
+      for (const item of needsNewCode) {
+        const base = catMap.get(item.categoryId) || 1001;
+        let candidate = base;
+        while (keptCodes.has(String(candidate))) {
+          candidate++;
+        }
+        const newCode = String(candidate);
+        keptCodes.add(newCode);
+
+        await prisma.product.update({
+          where: { id: item.id },
+          data: { code: newCode }
+        });
+        atualizados++;
+      }
+
+      res.json({
+        ok: true,
+        duplicadosEncontrados: needsNewCode.length,
+        atualizados,
+        mensagem: `✅ ${atualizados} produto(s) com numeração duplicada ou ausente foram corrigidos com códigos únicos!`
+      });
+    } catch (error: any) {
+      console.error('Erro ao corrigir códigos duplicados:', error);
+      res.status(500).json({ error: 'Erro ao corrigir duplicidades: ' + error.message });
     }
   });
 

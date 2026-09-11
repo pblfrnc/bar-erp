@@ -231,8 +231,7 @@ function inferTaxAndClassification(name: string, brand?: string | null, categori
 // Função para calcular o próximo código numérico sequencial da categoria (ex: 5001 para bebidas, 6001 para doces/chicletes)
 export async function getNextSequentialCode(categoryId: string): Promise<string> {
   const category = await prisma.category.findUnique({
-    where: { id: categoryId },
-    include: { products: { select: { code: true } } }
+    where: { id: categoryId }
   });
 
   if (!category) return '1001';
@@ -244,28 +243,31 @@ export async function getNextSequentialCode(categoryId: string): Promise<string>
       base = 5001;
     } else if (/trident|chiclete|bala|doce|sobremesa|tabaco|cigarro/.test(catLower)) {
       base = 6001;
-    } else if (/cozinha|petisco|porcao|porção|lanche|burger|prato/.test(catLower)) {
+    } else if (/cozinha|petisco|porcao|porção|lanche|burger|prato|alimento|comida|refeic|almoco/.test(catLower)) {
       base = 1001;
     } else {
       base = ((category.sortOrder || 1) > 0 ? category.sortOrder : 1) * 1000 + 1;
     }
   }
 
-  const rangeEnd = base + 999;
-  const existingCodes = category.products
-    .map((p) => {
-      if (!p.code) return NaN;
-      const match = p.code.match(/\d+/);
-      return match ? parseInt(match[0], 10) : NaN;
-    })
-    .filter((n) => !isNaN(n) && n >= base && n <= rangeEnd);
+  // Buscar todos os códigos de produtos existentes no sistema para NUNCA gerar duplicidade global
+  const allProducts = await prisma.product.findMany({
+    select: { code: true }
+  });
 
-  if (existingCodes.length === 0) {
-    return String(base);
+  const usedCodes = new Set<string>();
+  for (const p of allProducts) {
+    if (p.code) {
+      usedCodes.add(p.code.trim());
+    }
   }
 
-  const maxCode = Math.max(...existingCodes);
-  return String(maxCode + 1);
+  let candidate = base;
+  while (usedCodes.has(String(candidate))) {
+    candidate++;
+  }
+
+  return String(candidate);
 }
 
 export async function lookupEanCatalog(

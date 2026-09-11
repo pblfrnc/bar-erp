@@ -288,6 +288,50 @@ export const api = {
     }).then(handleResponse<{ success: boolean; message: string }>);
   },
 
+  createCategory: async (data: { name: string; icon?: string; sortOrder?: number; codeStart?: number }): Promise<Category> => {
+    cachedCategories = null;
+    return fetchWithRetry(`${getApiUrl()}/products/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Category>);
+  },
+
+  updateCategory: async (id: string, data: { name?: string; icon?: string; sortOrder?: number; codeStart?: number }): Promise<Category> => {
+    cachedCategories = null;
+    return fetchWithRetry(`${getApiUrl()}/products/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<Category>);
+  },
+
+  resequenceCategory: async (id: string): Promise<{ ok: boolean; atualizados: number; mensagem: string }> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/categories/${id}/resequence`, {
+      method: 'POST'
+    }).then(handleResponse<{ ok: boolean; atualizados: number; mensagem: string }>);
+  },
+
+  fixDuplicateCodes: async (mode: 'duplicates_only' | 'resequence_all' = 'duplicates_only'): Promise<{
+    ok: boolean;
+    duplicadosEncontrados: number;
+    atualizados: number;
+    mensagem: string;
+  }> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/fix-duplicate-codes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    }).then(handleResponse<{
+      ok: boolean;
+      duplicadosEncontrados: number;
+      atualizados: number;
+      mensagem: string;
+    }>);
+  },
+
   deleteCategory: async (id: string, force = false): Promise<{ success: boolean; message: string }> => {
     cachedCategories = null;
     cachedProducts = null;
