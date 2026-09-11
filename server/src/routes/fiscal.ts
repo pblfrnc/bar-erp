@@ -1050,6 +1050,26 @@ export function createFiscalRouter() {
           const qrSize = printerSettings.qrSize || 100;
           const fontScale = (printerSettings.fontScale || 100) / 100;
 
+          // 0. Destaca o Nome Fantasia no topo do cabeçalho do cupom fiscal NFC-e se configurado
+          if (settings?.nomeFantasia && settings.nomeFantasia.trim()) {
+            const fantasia = settings.nomeFantasia.trim().toUpperCase();
+            const razao = (settings.razaoSocial || '').trim();
+            if (!htmlString.toUpperCase().includes(fantasia)) {
+              htmlString = htmlString.replace(
+                /<div class=['"]dados-da-empresa['"][^>]*>\s*<table[^>]*>\s*<tr>\s*<td>([^<]+)<\/td>/i,
+                (match, razaoEncontrada) => {
+                  return `<div class="dados-da-empresa">
+      <table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10px;">
+        <tr>
+          <td style="font-size: 13px; font-weight: 900; text-align: center; text-transform: uppercase; padding-bottom: 2px;">${fantasia}</td>
+        </tr>
+        <tr>
+          <td style="font-size: 9px; text-align: center; color: #444;">${razaoEncontrada || razao}</td>`;
+                }
+              );
+            }
+          }
+
           // 1. Extrai a URL do QR Code da SEFAZ direto do script da Focus NFe e injeta <img> direto com tamanho configurado
           const qrMatch = htmlString.match(/text:\s*["']([^"']+)["']/);
           if (qrMatch && qrMatch[1]) {

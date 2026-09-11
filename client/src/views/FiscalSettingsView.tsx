@@ -383,15 +383,25 @@ export const FiscalSettingsView: React.FC<{ onBack: () => void }> = ({ onBack })
               />
             </div>
             <div>
-              <label htmlFor="fisc-fantasia" className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase mb-2 cursor-pointer">Nome Fantasia</label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="fisc-fantasia" className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase cursor-pointer">
+                  Nome Fantasia (Comercial)
+                </label>
+                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/40">
+                  ★ Destaque no Cupom NFC-e e NF-e
+                </span>
+              </div>
               <input
                 id="fisc-fantasia"
                 type="text"
                 value={settings.nomeFantasia || ''}
                 onChange={e => handleChange('nomeFantasia', e.target.value)}
-                placeholder="Opcional"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition cursor-text shadow-xs"
+                placeholder="Ex: Bar & Restaurante Seu Nome (Nome visível para o cliente)"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 outline-none transition cursor-text shadow-xs font-bold"
               />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Aparece em letras grandes no topo do Cupom Fiscal e no cabeçalho da NF-e, acompanhado da Razão Social.
+              </p>
             </div>
           </div>
 
