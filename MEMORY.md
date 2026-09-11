@@ -195,3 +195,20 @@
 - **Ativação Offline Reserva:**
   - Sanfona expansível para inserção de chave criptográfica offline fornecida pelo desenvolvedor caso o estabelecimento esteja sem conexão de internet.
 
+---
+
+## 12. 📦 1º BIP & RECEBIMENTO DE NF-E (MANIFESTO & SEFAZ RESILIENTE)
+- **Fluxo em 2 Etapas:**
+  1. **1º Bip (Entrada da Carga / Leitor de Chave de 44 dígitos):**
+     - Registra o manifesto de **Ciência da Operação** na SEFAZ via Focus NFe (`POST /v2/nfes_recebidas/:chave/manifesto` com `{ tipo: "ciencia" }`).
+     - Tenta baixar o XML oficial da NF-e distribuído pela SEFAZ.
+     - **Tolerância e Resiliência à SEFAZ:** A SEFAZ costuma demorar entre 30s e 90s para disponibilizar o XML consolidado com o protocolo de autorização após o registro da ciência.
+     - **Eliminação do erro 400 da Focus:** O sistema extrai todos os metadados (UF, Ano/Mês, CNPJ formatado do emitente, modelo 55, série e número) matematicamente a partir da própria chave de 44 dígitos via `parseChaveAcessoNfe(chave)`.
+     - Se o XML ainda não estiver disponível, o sistema **não falha com erro 400**. Salva o registro no SQLite com status `ciencia_registrada` e notifica o usuário com instruções claras.
+     - Permite upload direto do XML fornecido pelo fornecedor ou avanço para a conferência quando a SEFAZ liberar.
+  2. **2º Bip (Conferência Físico-Fiscal / Descarregamento dos Itens):**
+     - O operador bipe ou confere os itens e códigos de barras DANFE.
+     - Aplica a vinculação com produtos existentes ou novos no estoque.
+     - Atualiza custos, tributos e quantitativos no estoque.
+
+

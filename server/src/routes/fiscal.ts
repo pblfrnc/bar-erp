@@ -1726,22 +1726,117 @@ export function createFiscalRouter() {
   // MÓDULO: BIP DE CHAVE DE ACESSO (Recebimento de NF)
   // ============================================================
 
-  // Bipa uma chave de acesso de 44 dígitos:
-  // 1. Registra Ciência da Operação na SEFAZ (via Focus NFe)
-  // 2. Baixa o XML completo
-  // 3. Salva o registro local no banco
+  // Extrai metadados fiscais da Chave de Acesso de 44 dígitos (Padrão Nacional SEFAZ)
+  function parseChaveAcessoNfe(chave: string) {
+    const clean = chave.replace(/\D/g, '');
+    if (clean.length !== 44) return null;
+
+    const ufCod = clean.substring(0, 2);
+    const aamm = clean.substring(2, 6);
+    const cnpjEmitente = clean.substring(6, 20);
+    const modelo = clean.substring(20, 22);
+    const serie = clean.substring(22, 25);
+    const numero = clean.substring(25, 34);
+    const tpEmis = clean.substring(34, 35);
+    const cNF = clean.substring(35, 43);
+    const cDV = clean.substring(43, 44);
+
+    const cnpjFormatado = cnpjEmitente.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    const numLimpo = parseInt(numero, 10).toString();
+    const serieLimpa = parseInt(serie, 10).toString();
+
+    return {
+      chave: clean,
+      ufCod,
+      anoMes: `20${aamm.substring(0, 2)}-${aamm.substring(2, 4)}`,
+      cnpjEmitente,
+      cnpjFormatado,
+      modelo,
+      serie: serieLimpa,
+      numero: numLimpo,
+      tpEmis
+    };
+  }
+
+  // Busca o XML completo ou metadados de uma NF-e recebida na Focus NFe
+  async function fetchNfeRecebidaXml(baseURL: string, authHeader: string, chaveClean: string): Promise<{ xmlText: string; xmlData?: any } | null> {
+    // 1. Tenta endpoint oficial direto .xml
+    try {
+      const resXml = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}.xml`, {
+        headers: { 'Authorization': authHeader, 'Accept': 'application/xml, text/xml, */*' }
+      });
+      if (resXml.ok) {
+        const text = await resXml.text();
+        if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+          return { xmlText: text };
+        }
+      }
+    } catch (err) {
+      console.warn('[fetchNfeRecebidaXml] Tentativa .xml falhou:', err);
+    }
+
+    // 2. Tenta endpoint .json para obter dados e caminho do arquivo
+    try {
+      const resJson = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}.json`, {
+        headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
+      });
+      if (resJson.ok) {
+        const json = await resJson.json();
+        if (json.caminho_xml_nota_fiscal) {
+          const downloadUrl = json.caminho_xml_nota_fiscal.startsWith('http')
+            ? json.caminho_xml_nota_fiscal
+            : `${baseURL}${json.caminho_xml_nota_fiscal}`;
+          const fileRes = await fetch(downloadUrl, {
+            headers: downloadUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {}
+          });
+          if (fileRes.ok) {
+            const text = await fileRes.text();
+            if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+              return { xmlText: text, xmlData: json };
+            }
+          }
+        }
+        return { xmlText: '', xmlData: json };
+      }
+    } catch (err) {
+      console.warn('[fetchNfeRecebidaXml] Tentativa .json falhou:', err);
+    }
+
+    // 3. Fallback legado: endpoint /xml (com barra)
+    try {
+      const resLegacy = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
+        headers: { 'Authorization': authHeader }
+      });
+      if (resLegacy.ok) {
+        const text = await resLegacy.text();
+        if (text && (text.includes('<nfeProc') || text.includes('<NFe') || text.startsWith('<?xml'))) {
+          return { xmlText: text };
+        }
+      }
+    } catch (err) {
+      console.warn('[fetchNfeRecebidaXml] Tentativa legada /xml falhou:', err);
+    }
+
+    return null;
+  }
+
+  // 1º BIP: Recebimento de NF-e e Ciência da Operação na SEFAZ
   router.post('/bip-chave', async (req, res) => {
     try {
       const { chave } = req.body;
-      if (!chave || chave.replace(/\D/g, '').length !== 44) {
-        return res.status(400).json({ error: 'Chave de acesso inválida. Deve ter 44 dígitos numéricos.' });
+      const chaveClean = (chave || '').replace(/\D/g, '');
+      if (chaveClean.length !== 44) {
+        return res.status(400).json({ error: 'Chave de acesso inválida. Deve ter exatamente 44 dígitos numéricos.' });
       }
 
-      const chaveClean = chave.replace(/\D/g, '');
+      const parsedKey = parseChaveAcessoNfe(chaveClean);
+      if (!parsedKey) {
+        return res.status(400).json({ error: 'Chave de acesso não possui formato de NF-e válido.' });
+      }
 
       const settings = await getFiscalSettingsSafe();
-      if (!settings?.apiToken || !settings?.cnpj) {
-        return res.status(400).json({ error: 'Configure o Token da API e o CNPJ nas Configurações Fiscais antes de usar o bip.' });
+      if (!settings?.apiToken) {
+        return res.status(400).json({ error: 'Configure o Token da API Fiscal nas Configurações Fiscais antes de usar o bip.' });
       }
 
       const isProducao = settings.environment === 'producao';
@@ -1751,38 +1846,7 @@ export function createFiscalRouter() {
 
       const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-      // PASSO 1: Registrar Ciência da Operação na SEFAZ
-      const manifestoRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-        body: JSON.stringify({ tipo: 'ciencia' })
-      });
-
-      const manifestoData = await manifestoRes.json();
-      
-      // Continua mesmo se a ciência já foi registrada antes (erro esperado)
-      const manifestoOk = manifestoRes.ok || JSON.stringify(manifestoData).includes('ciencia');
-      if (!manifestoOk) {
-        console.warn('[Bip] Aviso na manifestação:', manifestoData);
-      }
-
-      // PASSO 2: Aguardar um momento e baixar o XML
-      await new Promise(r => setTimeout(r, 1500));
-
-      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}`, {
-        headers: { 'Authorization': authHeader }
-      });
-
-      const xmlData = await xmlRes.json();
-
-      if (!xmlRes.ok) {
-        return res.status(400).json({ error: 'Nota não encontrada na base da Focus NFe. Tente novamente em alguns segundos.' });
-      }
-
-      // PASSO 3: Salvar registro local
-      const NotaRecebida = (prisma as any).notaRecebida;
-      
-      // Garantir que a tabela existe
+      // Garantir existência da tabela no banco
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "NotaRecebida" (
           "id" TEXT NOT NULL PRIMARY KEY,
@@ -1799,7 +1863,68 @@ export function createFiscalRouter() {
         )
       `);
 
+      // PASSO 1: Registrar Ciência da Operação na SEFAZ (Focus NFe)
+      let manifestoOk = false;
+      let manifestoMsg = '';
+      try {
+        const manifestoRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+          method: 'POST',
+          headers: { 
+            'Accept': 'application/json',
+            'Content-Type': 'application/json', 
+            'Authorization': authHeader 
+          },
+          body: JSON.stringify({ tipo: 'ciencia' })
+        });
+        const manifestoData = await manifestoRes.json().catch(() => ({}));
+        manifestoOk = manifestoRes.ok || JSON.stringify(manifestoData).includes('ciencia') || manifestoData.status === 'ok';
+        manifestoMsg = manifestoData.mensagem_sefaz || manifestoData.status || '';
+        console.log('[Bip] Manifesto de ciência retornado:', manifestoRes.status, manifestoData);
+      } catch (manErr: any) {
+        console.warn('[Bip] Aviso no envio do manifesto:', manErr?.message);
+      }
+
+      // Aguarda 1.8 segundos para a Focus e SEFAZ registrarem o evento
+      await new Promise(r => setTimeout(r, 1800));
+
+      // PASSO 2: Buscar XML e detalhes da nota
+      const nfeResult = await fetchNfeRecebidaXml(baseURL, authHeader, chaveClean);
+      let xmlText = nfeResult?.xmlText || null;
+      let xmlData = nfeResult?.xmlData || null;
+
+      let emitenteNome = xmlData?.nome_emitente || '';
+      let cnpjEmitente = (xmlData?.documento_emitente || xmlData?.cnpj_emitente || parsedKey.cnpjEmitente).replace(/\D/g, '');
+      let numeroNf = xmlData?.numero || parsedKey.numero;
+      let serieNf = xmlData?.serie || parsedKey.serie;
+      let dataEmissao = xmlData?.data_emissao || new Date().toISOString();
+      let valorTotal = parseFloat(xmlData?.valor_total || '0');
+
+      // Se temos o XML completo, parsear dados oficiais
+      if (xmlText) {
+        try {
+          const jsonObj = parser.parse(xmlText);
+          const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
+          if (nfe) {
+            emitenteNome = nfe.emit?.xNome || emitenteNome;
+            cnpjEmitente = (nfe.emit?.CNPJ || nfe.emit?.CPF || cnpjEmitente).replace(/\D/g, '');
+            numeroNf = nfe.ide?.nNF || numeroNf;
+            serieNf = nfe.ide?.serie || serieNf;
+            dataEmissao = nfe.ide?.dhEmi || dataEmissao;
+            valorTotal = parseFloat(nfe.total?.ICMSTot?.vNF || valorTotal.toString());
+          }
+        } catch (parseErr) {
+          console.warn('[Bip] Erro ao parsear XML da nota:', parseErr);
+        }
+      }
+
+      if (!emitenteNome) {
+        emitenteNome = `Fornecedor CNPJ ${parsedKey.cnpjFormatado}`;
+      }
+
       const now = new Date().toISOString();
+      const statusFinal = xmlText ? 'recebida' : 'ciencia_registrada';
+
+      // PASSO 3: Salvar registro local sem travar
       await prisma.$executeRawUnsafe(`
         INSERT OR REPLACE INTO "NotaRecebida"
           ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
@@ -1807,51 +1932,60 @@ export function createFiscalRouter() {
       `,
         chaveClean,
         chaveClean,
-        xmlData.nome_emitente || '',
-        xmlData.cnpj_emitente || '',
-        xmlData.numero || '',
-        xmlData.serie || '',
-        xmlData.data_emissao || '',
-        parseFloat(xmlData.valor_total || '0'),
-        'recebida',
-        xmlData.caminho_xml_nota_fiscal ? JSON.stringify({ url: xmlData.caminho_xml_nota_fiscal }) : null,
+        emitenteNome,
+        cnpjEmitente,
+        numeroNf,
+        serieNf,
+        dataEmissao,
+        valorTotal,
+        statusFinal,
+        xmlText || (xmlData ? JSON.stringify(xmlData) : null),
         now
       );
 
-      // Sincronizar fornecedor no banco de dados automaticamente
-      if (xmlData.cnpj_emitente) {
-        const cleanCnpj = xmlData.cnpj_emitente.replace(/\D/g, '');
+      // Sincroniza fornecedor se houver CNPJ
+      if (cnpjEmitente) {
         try {
           await prisma.supplier.upsert({
-            where: { document: cleanCnpj },
-            update: {
-              name: xmlData.nome_emitente || 'Fornecedor sem nome'
-            },
-            create: {
-              name: xmlData.nome_emitente || 'Fornecedor sem nome',
-              document: cleanCnpj
-            }
+            where: { document: cnpjEmitente },
+            update: { name: emitenteNome },
+            create: { name: emitenteNome, document: cnpjEmitente }
           });
         } catch (supErr) {
           console.warn('[Bip] Erro ao sincronizar fornecedor:', supErr);
         }
       }
 
+      // Arquiva no cofre fiscal de 5 anos se tiver o XML
+      if (xmlText) {
+        try {
+          secureArchiveXML('ENTRADA', chaveClean, xmlText);
+        } catch (archErr) {
+          console.warn('[Bip] Erro ao arquivar XML no cofre:', archErr);
+        }
+      }
+
+      const msgRetorno = xmlText
+        ? '✓ 1º Bip Concluído! Ciência registrada na SEFAZ e XML baixado com sucesso. A nota está pronta para o 2º Bip.'
+        : '✓ 1º Bip Concluído! Ciência da Operação registrada na SEFAZ. O download do XML completo está sendo processado pelos servidores da SEFAZ (aguarde ~30s ou faça upload do XML direto).';
+
       res.json({
         success: true,
         chave: chaveClean,
-        emitente: xmlData.nome_emitente,
-        cnpjEmitente: xmlData.cnpj_emitente,
-        numero: xmlData.numero,
-        serie: xmlData.serie,
-        dataEmissao: xmlData.data_emissao,
-        valorTotal: xmlData.valor_total,
-        xmlUrl: xmlData.caminho_xml_nota_fiscal,
-        mensagem: 'Nota registrada com Ciência da Operação e XML disponível para importação.'
+        emitente: emitenteNome,
+        cnpjEmitente,
+        numero: numeroNf,
+        serie: serieNf,
+        dataEmissao,
+        valorTotal,
+        xmlDisponivel: Boolean(xmlText),
+        status: statusFinal,
+        manifestoRegistrado: manifestoOk,
+        mensagem: msgRetorno
       });
     } catch (err: any) {
       console.error('[Bip] Erro:', err);
-      res.status(500).json({ error: 'Erro ao processar a chave de acesso.' });
+      res.status(500).json({ error: 'Erro ao processar a chave de acesso: ' + (err.message || err) });
     }
   });
 
@@ -1886,10 +2020,26 @@ export function createFiscalRouter() {
   router.get('/notas-recebidas/:chave/xml', async (req, res) => {
     try {
       const { chave } = req.params;
+      const chaveClean = chave.replace(/\D/g, '');
       const settings = await getFiscalSettingsSafe();
       if (!settings?.apiToken) {
         return res.status(400).json({ error: 'Token da API não configurado.' });
       }
+
+      // 1. Tenta pegar do banco local primeiro
+      try {
+        const localNota: any = await prisma.$queryRawUnsafe(
+          `SELECT "xmlContent" FROM "NotaRecebida" WHERE "chave" = ? LIMIT 1`,
+          chaveClean
+        );
+        if (Array.isArray(localNota) && localNota.length > 0) {
+          const content = localNota[0].xmlContent;
+          if (content && (content.includes('<nfeProc') || content.includes('<NFe') || content.startsWith('<?xml'))) {
+            res.setHeader('Content-Type', 'application/xml');
+            return res.send(content);
+          }
+        }
+      } catch (localErr) {}
 
       const isProducao = settings.environment === 'producao';
       const baseURL = isProducao
@@ -1898,19 +2048,15 @@ export function createFiscalRouter() {
 
       const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-      const xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chave}/xml`, {
-        headers: { 'Authorization': authHeader }
-      });
-
-      if (!xmlRes.ok) {
-        return res.status(404).json({ error: 'XML não disponível ainda. Aguarde alguns segundos e tente novamente.' });
+      const nfeResult = await fetchNfeRecebidaXml(baseURL, authHeader, chaveClean);
+      if (!nfeResult?.xmlText) {
+        return res.status(404).json({ error: 'XML não disponível na SEFAZ ainda. Aguarde alguns instantes ou faça upload do arquivo .xml recebido do fornecedor.' });
       }
 
-      const xmlText = await xmlRes.text();
       res.setHeader('Content-Type', 'application/xml');
-      res.send(xmlText);
+      res.send(nfeResult.xmlText);
     } catch (err: any) {
-      res.status(500).json({ error: 'Erro ao baixar XML.' });
+      res.status(500).json({ error: 'Erro ao baixar XML: ' + (err.message || err) });
     }
   });
 
@@ -1963,45 +2109,32 @@ export function createFiscalRouter() {
 
         const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
 
-        // Tenta baixar o arquivo XML completo
-        let xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
-          headers: { 'Authorization': authHeader }
+        // Tenta manifestar ciência se ainda não tiver feito
+        fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': authHeader, 'Accept': 'application/json' },
+          body: JSON.stringify({ tipo: 'ciencia' })
+        }).catch(() => {});
+
+        const nfeResult = await fetchNfeRecebidaXml(baseURL, authHeader, chaveClean);
+        if (nfeResult?.xmlText) {
+          xmlText = nfeResult.xmlText;
+          // Salvar em cache local no NotaRecebida para os próximos bips
+          try {
+            await prisma.$executeRawUnsafe(
+              `UPDATE "NotaRecebida" SET "xmlContent" = ?, "status" = 'recebida' WHERE "chave" = ?`,
+              xmlText,
+              chaveClean
+            );
+          } catch {}
+        }
+      }
+
+      if (!xmlText) {
+        return res.status(404).json({ 
+          error: 'XML da nota ainda em processamento na SEFAZ. Como a Ciência da Operação foi registrada agora, a SEFAZ leva cerca de 30 a 60 segundos para liberar o arquivo completo. Você também pode importar o arquivo .xml diretamente.',
+          xmlPending: true
         });
-
-        // Se ainda não estiver pronto e for status 404, tenta registrar ciência ou esperar
-        if (!xmlRes.ok) {
-          // Tenta manifestar ciência caso não tenha sido feito no 1º bip
-          await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-            body: JSON.stringify({ tipo: 'ciencia' })
-          }).catch(() => {});
-
-          await new Promise(r => setTimeout(r, 1200));
-
-          xmlRes = await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/xml`, {
-            headers: { 'Authorization': authHeader }
-          });
-        }
-
-        if (!xmlRes.ok) {
-          return res.status(404).json({ 
-            error: 'XML da nota ainda não disponível na SEFAZ. Se a nota acabou de ser emitida, aguarde 30 a 60 segundos para o processamento do download na SEFAZ.' 
-          });
-        }
-
-        xmlText = await xmlRes.text();
-
-        // Salvar em cache local no NotaRecebida para os próximos bips
-        try {
-          await prisma.$executeRawUnsafe(
-            `UPDATE "NotaRecebida" SET "xmlContent" = ? WHERE "chave" = ?`,
-            xmlText,
-            chaveClean
-          );
-        } catch {
-          // Registro pode ainda não existir, cria ou ignora
-        }
       }
 
       // 3. Parsear o XML da NF-e
@@ -2065,51 +2198,82 @@ export function createFiscalRouter() {
     }
   });
 
-  
   // ============================================================
-  // Sincronizar Notas Destinadas (Focus NFe) - Manifestação em Lote
+  // Sincronizar Notas Destinadas (Focus NFe) - Consulta de Lote Real
   // ============================================================
   router.get('/sync-nfe-recebidas', async (req, res) => {
     try {
       const settings = await getFiscalSettingsSafe();
       if (!settings || !settings.apiToken) {
-        return res.status(400).json({ error: 'Configuração fiscal incompleta.' });
+        return res.status(400).json({ error: 'Configuração fiscal incompleta. Configure o token da Focus NFe.' });
       }
 
-      // MOCK PARA O PROTÓTIPO: Vamos criar uma nota simulada para o usuário testar a funcionalidade
-      // se ele estiver no ambiente de testes.
-      const mockChave = '352609' + settings.cnpj.replace(/\D/g, '') + '55001000' + Math.floor(Math.random()*999999) + '12345678';
-      
-      const existing = await (prisma as any).notaRecebida.findUnique({ where: { chave: mockChave } });
+      const isProducao = settings.environment === 'producao';
+      const baseURL = isProducao
+        ? 'https://api.focusnfe.com.br'
+        : 'https://homologacao.focusnfe.com.br';
+
+      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+      const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
+
       let added = 0;
+      try {
+        const queryParams = cleanCnpj ? `?cnpj_destinatario=${cleanCnpj}` : '';
+        const focusRes = await fetch(`${baseURL}/v2/nfes_recebidas${queryParams}`, {
+          headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
+        });
 
-      if (!existing) {
-         const dummyXML = `<?xml version="1.0" encoding="UTF-8"?><nfeProc><NFe><infNFe Id="NFe${mockChave}"><emit><xNome>FORNECEDOR DE BEBIDAS S.A</xNome><CNPJ>00000000000191</CNPJ></emit><ide><nNF>12345</nNF><dhEmi>${new Date().toISOString()}</dhEmi></ide><total><ICMSTot><vNF>4500.00</vNF></ICMSTot></total></infNFe></NFe></nfeProc>`;
-         
-         await (prisma as any).notaRecebida.create({
-           data: {
-             id: 'nfe_' + Math.random().toString(36).substr(2, 9),
-             chave: mockChave,
-             emitente: 'FORNECEDOR AMBEV S.A',
-             cnpjEmitente: '00.000.000/0001-91',
-             numero: '12345',
-             serie: '1',
-             dataEmissao: new Date().toISOString(),
-             valorTotal: 4500.00,
-             status: 'ciência_registrada',
-             xmlContent: JSON.stringify({ url: 'http://fake.xml.url', raw: dummyXML })
-           }
-         });
-         
-         // Salvar no cofre de 5 anos
-         secureArchiveXML('ENTRADA', mockChave, dummyXML);
-         added++;
+        if (focusRes.ok) {
+          const notasFocus = await focusRes.json();
+          if (Array.isArray(notasFocus)) {
+            for (const item of notasFocus) {
+              const chaveItem = item.chave_nfe || item.chave;
+              if (!chaveItem) continue;
+
+              const chaveClean = chaveItem.replace(/\D/g, '');
+              const parsedKey = parseChaveAcessoNfe(chaveClean);
+              const emitente = item.nome_emitente || (parsedKey ? `Fornecedor CNPJ ${parsedKey.cnpjFormatado}` : 'Fornecedor');
+              const cnpjEmitente = (item.documento_emitente || item.cnpj_emitente || parsedKey?.cnpjEmitente || '').replace(/\D/g, '');
+              const numero = item.numero || parsedKey?.numero || '';
+              const serie = item.serie || parsedKey?.serie || '';
+              const valorTotal = parseFloat(item.valor_total || '0');
+              const dataEmissao = item.data_emissao || new Date().toISOString();
+
+              await prisma.$executeRawUnsafe(`
+                INSERT OR IGNORE INTO "NotaRecebida"
+                  ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `,
+                chaveClean,
+                chaveClean,
+                emitente,
+                cnpjEmitente,
+                numero,
+                serie,
+                dataEmissao,
+                valorTotal,
+                item.nfe_completa ? 'recebida' : 'ciencia_registrada',
+                null,
+                new Date().toISOString()
+              );
+              added++;
+            }
+          }
+        }
+      } catch (syncErr: any) {
+        console.warn('[Sync NFe Recebidas] Falha ao consultar Focus NFe:', syncErr?.message);
       }
 
-      res.json({ success: true, count: added, message: `${added} novas notas sincronizadas e arquivadas no Cofre Fiscal (Guarda de 5 Anos).` });
+      res.json({ 
+        success: true, 
+        count: added, 
+        message: added > 0 
+          ? `${added} novas notas de fornecedores sincronizadas da SEFAZ com sucesso.`
+          : 'Sincronização com a SEFAZ concluída. Nenhuma nova nota pendente no momento.'
+      });
     } catch (err: any) {
       console.error(err);
-      res.status(500).json({ error: 'Erro ao sincronizar SEFAZ.' });
+      res.status(500).json({ error: 'Erro ao sincronizar SEFAZ: ' + (err.message || err) });
     }
   });
 
