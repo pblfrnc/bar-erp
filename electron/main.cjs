@@ -174,7 +174,7 @@ function createWindow() {
     try {
       const printWin = new BrowserWindow({
         width: 380,
-        height: 800,
+        height: 3500,
         show: false,
         focusable: false, // Não rouba foco
         skipTaskbar: true,
@@ -184,11 +184,21 @@ function createWindow() {
       });
       printWin.loadURL(pdfUrl);
       printWin.webContents.on('did-finish-load', async () => {
-        // Injeta estilização estrita de bobina térmica 80mm/58mm para evitar margens em branco e cortes laterais
+        // Ajusta dinamicamente a altura para cobrir todo o cupom sem truncamento vertical
+        try {
+          const docHeight = await printWin.webContents.executeJavaScript(`
+            Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, 2500)
+          `);
+          if (docHeight && docHeight > 800) {
+            printWin.setSize(380, Math.ceil(docHeight + 200));
+          }
+        } catch (e) {}
+
+        // Injeta estilização estrita de bobina térmica 80mm/58mm para evitar margens em branco e cortes laterais/verticais
         try {
           await printWin.webContents.insertCSS(`
             @page {
-              size: 80mm auto !important;
+              size: auto;
               margin: 0mm !important;
             }
             @media print, all {
@@ -203,7 +213,7 @@ function createWindow() {
                 max-width: 100% !important;
                 width: 100% !important;
                 margin: 0 !important;
-                padding: 2mm 1mm !important;
+                padding: 2mm 1mm 12mm 1mm !important;
                 border: none !important;
                 box-sizing: border-box !important;
               }
@@ -211,16 +221,27 @@ function createWindow() {
                 width: 100% !important;
                 max-width: 100% !important;
               }
+              .qrcode {
+                width: 100% !important;
+                margin: 8px 0 !important;
+                text-align: center !important;
+                display: block !important;
+              }
               #qr-code0, #qr-code1 {
-                margin: 6px auto !important;
+                margin: 8px auto !important;
                 text-align: center !important;
                 display: flex !important;
                 justify-content: center !important;
+                width: 170px !important;
+                min-height: 170px !important;
               }
               #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+                width: 170px !important;
+                height: 170px !important;
                 max-width: 170px !important;
-                height: auto !important;
+                max-height: 170px !important;
                 margin: 0 auto !important;
+                display: block !important;
               }
             }
           `);
@@ -228,7 +249,7 @@ function createWindow() {
           console.warn('Aviso: falha ao injetar CSS de impressão térmica no printWin:', cssErr);
         }
 
-        // Aguarda 800ms para renderizar o QR Code/fontes na memória e dispara print silencioso
+        // Aguarda 1000ms para renderizar o QR Code/fontes na memória e dispara print silencioso
         setTimeout(() => {
           printWin.webContents.print({ 
             silent: true, 

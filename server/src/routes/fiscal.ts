@@ -1039,10 +1039,19 @@ export function createFiscalRouter() {
 
         if (isHtml) {
           let htmlString = buffer.toString('utf-8');
+
+          // 1. Extrai a URL do QR Code da SEFAZ direto do script da Focus NFe e injeta <img> direto
+          const qrMatch = htmlString.match(/text:\s*["']([^"']+)["']/);
+          if (qrMatch && qrMatch[1]) {
+            const qrTargetUrl = qrMatch[1];
+            const directQrImg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrTargetUrl)}&margin=1" alt="QR Code NFC-e SEFAZ" width="170" height="170" style="display:block;margin:0 auto;width:170px;height:170px;" />`;
+            htmlString = htmlString.replace(/<div id=['"]qr-code0['"][^>]*>/i, `<div id="qr-code0" style="margin:8px auto;text-align:center;display:flex;justify-content:center;min-height:170px;">${directQrImg}`);
+          }
+
           const customThermalStyle = `
 <style type="text/css">
   @page {
-    size: 80mm auto !important;
+    size: auto;
     margin: 0mm !important;
   }
   @media print, all {
@@ -1058,7 +1067,7 @@ export function createFiscalRouter() {
       max-width: 100% !important;
       width: 100% !important;
       margin: 0 !important;
-      padding: 2mm 1mm !important;
+      padding: 2mm 1mm 12mm 1mm !important;
       border: none !important;
       box-sizing: border-box !important;
     }
@@ -1067,16 +1076,27 @@ export function createFiscalRouter() {
       max-width: 100% !important;
       box-sizing: border-box !important;
     }
+    .qrcode {
+      width: 100% !important;
+      margin: 8px 0 !important;
+      text-align: center !important;
+      display: block !important;
+    }
     #qr-code0, #qr-code1 {
-      margin: 6px auto !important;
+      margin: 8px auto !important;
       text-align: center !important;
       display: flex !important;
       justify-content: center !important;
+      width: 170px !important;
+      min-height: 170px !important;
     }
     #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+      width: 170px !important;
+      height: 170px !important;
       max-width: 170px !important;
-      height: auto !important;
+      max-height: 170px !important;
       margin: 0 auto !important;
+      display: block !important;
     }
   }
 </style>
