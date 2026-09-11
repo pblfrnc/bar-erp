@@ -305,7 +305,13 @@ export const NfReceivingView: React.FC<NfReceivingViewProps> = ({ onBack, onImpo
                 </div>
 
                 <div className="text-right shrink-0">
-                  <p className="text-base font-black text-amber-600 dark:text-amber-400">{formatMoney(nota.valorTotal)}</p>
+                  {nota.status === 'ciencia_registrada' && (!nota.valorTotal || nota.valorTotal === 0) ? (
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded-lg">
+                      Aguardando SEFAZ...
+                    </p>
+                  ) : (
+                    <p className="text-base font-black text-amber-600 dark:text-amber-400">{formatMoney(nota.valorTotal)}</p>
+                  )}
                   <p className="text-xs text-slate-500">{new Date(nota.createdAt).toLocaleDateString('pt-BR')}</p>
                 </div>
 
