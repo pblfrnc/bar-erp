@@ -215,5 +215,22 @@
      - Consulta notas destinadas na Focus NFe / SEFAZ, registra manifestos pendentes e baixa os arquivos XML automaticamente.
      - Quando o caminhão chega com a DANFE física, o XML e os valores já estão pré-carregados no banco local, tornando o 1º Bip 100% instantâneo.
 
+---
+
+## 13. 🔒 CAMADA C: CRIPTOGRAFIA DE DADOS EM REPOUSO (SECURITY VAULT)
+- **Módulo:** `server/src/services/securityVault.ts`
+- **Padrões Adotados:**
+  1. **AES-256-GCM com Scrypt (`encryptField` / `decryptField`):**
+     - Chaves Fiscais da SEFAZ (`apiToken` e `cscSecret` em `FiscalSettings`).
+     - Dados Pessoais de Clientes / Fiado (`phone`, `document` CPF/CNPJ, `notes` em `Customer`).
+     - Saída no banco no formato seguro: `$enc$v1$<iv_hex>$<authTag_hex>$<ciphertext_hex>`.
+     - Se alguém abrir o `.db` local no *DB Browser for SQLite*, só verá hashes ilegíveis e ruído binário.
+  2. **Hash PBKDF2 SHA-512 com Salt Individual (`hashPassword` / `verifyPassword`):**
+     - Senhas e PINs de funcionários e administradores (`password` em `Staff`).
+     - Saída no formato: `$pbkdf2$<salt_hex>$<hash_hex>`.
+     - Impossibilita ataques de dicionário e rainbow tables.
+     - Compatibilidade retroativa transparente preservada para acessos legados.
+
+
 
 

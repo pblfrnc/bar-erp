@@ -13,6 +13,7 @@ import AdmZip from 'adm-zip';
 import { getNextSequentialCode } from '../services/catalogService.js';
 import { buildNfePayload, persistNfeRecord } from '../services/nfeService.js';
 import { getPrinterSettingsSafe } from './settings.js';
+import { encryptField, decryptField } from '../services/securityVault.js';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {
@@ -150,13 +151,25 @@ async function getFiscalSettingsSafe() {
   try {
     const rows: any[] = await prisma.$queryRawUnsafe('SELECT * FROM "FiscalSettings" WHERE id = "default" LIMIT 1;');
     if (rows && rows.length > 0) {
-      return rows[0];
+      const s = rows[0];
+      return {
+        ...s,
+        apiToken: decryptField(s.apiToken),
+        cscSecret: decryptField(s.cscSecret)
+      };
     }
   } catch (_) {}
 
   // 4. Fallback via Prisma
   try {
-    return await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+    const s = await (prisma as any).FiscalSettings.findUnique({ where: { id: 'default' } });
+    if (s) {
+      return {
+        ...s,
+        apiToken: decryptField(s.apiToken),
+        cscSecret: decryptField(s.cscSecret)
+      };
+    }
   } catch (_) {
     return null;
   }
@@ -728,13 +741,20 @@ export function createFiscalRouter() {
         }
       }
 
+      // Prepara os dados para salvar com criptografia militar AES-256 no banco local
+      const dataToSave = {
+        ...data,
+        apiToken: data.apiToken ? encryptField(data.apiToken.trim()) : data.apiToken,
+        cscSecret: data.cscSecret ? encryptField(data.cscSecret.trim()) : data.cscSecret
+      };
+
       // Salva no banco local com garantia contra colunas faltantes
       let settings: any = null;
       try {
         settings = await (prisma as any).FiscalSettings.upsert({
           where: { id: 'default' },
-          update: data,
-          create: { id: 'default', ...data }
+          update: dataToSave,
+          create: { id: 'default', ...dataToSave }
         });
       } catch (upsertErr: any) {
         try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfe" TEXT DEFAULT '1';`); } catch (_) {}
@@ -743,11 +763,15 @@ export function createFiscalRouter() {
         try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;`); } catch (_) {}
         settings = await (prisma as any).FiscalSettings.upsert({
           where: { id: 'default' },
-          update: data,
-          create: { id: 'default', ...data }
+          update: dataToSave,
+          create: { id: 'default', ...dataToSave }
         });
       }
-      res.json(settings);
+      res.json({
+        ...settings,
+        apiToken: decryptField(settings.apiToken),
+        cscSecret: decryptField(settings.cscSecret)
+      });
     } catch (err: any) {
       console.error(err);
       res.status(500).json({ error: 'Erro ao salvar configurações fiscais.' });

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
+import { hashPassword, verifyPassword } from '../services/securityVault.js';
 
 export function createStaffRouter() {
   const router = Router();
@@ -58,7 +59,7 @@ export function createStaffRouter() {
 
       // Senha Mestra de Emergência (9999) para nunca travar o dono do bar em emergência
       const isMasterKey = password === '9999';
-      const isPasswordValid = isMasterKey || user.password === String(password).trim();
+      const isPasswordValid = isMasterKey || verifyPassword(String(password).trim(), user.password);
 
       if (!isPasswordValid) {
         const nextAttempts = (user.failedAttempts || 0) + 1;
@@ -187,7 +188,7 @@ export function createStaffRouter() {
         data: {
           name: name.trim(),
           role: role || 'OPERADOR',
-          password: String(password).trim(),
+          password: hashPassword(String(password).trim()),
           permissions: permissionsJson,
           active: active !== undefined ? Boolean(active) : true
         }
@@ -220,7 +221,7 @@ export function createStaffRouter() {
       const updateData: any = {};
       if (name && name.trim()) updateData.name = name.trim();
       if (role) updateData.role = role;
-      if (password && password.trim()) updateData.password = String(password).trim();
+      if (password && password.trim()) updateData.password = hashPassword(String(password).trim());
       if (permissions) updateData.permissions = JSON.stringify(permissions);
       if (active !== undefined) updateData.active = Boolean(active);
 
