@@ -166,6 +166,14 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       console.log('[Migrations] Usuário Administrador criado com senha padrão "1234".');
     }
 
+    // Migrações de Licenciamento Remoto e Mensalidade (Software House)
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "expiresAt" DATETIME;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "lastVerifiedAt" DATETIME;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "clientName" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "licenseStatus" TEXT DEFAULT 'UNLICENSED';`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "licenseServerUrl" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "developerContact" TEXT;`); } catch (e) {}
+
     // ─────────────────────────────────────────────────────────────────
     // Reclassificação Automática: Migrar produtos de "IMPORTADOS" para "Bar" (volume em ml) e "Cozinha"
     // ─────────────────────────────────────────────────────────────────

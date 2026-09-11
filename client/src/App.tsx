@@ -166,6 +166,11 @@ export function App() {
   const [isCashOpen, setIsCashOpen] = useState<boolean>(false);
   const [isLicensed, setIsLicensed] = useState<boolean | null>(null);
   const [machineId, setMachineId] = useState<string>("");
+  const [licenseStatus, setLicenseStatus] = useState<string>("UNLICENSED");
+  const [daysRemaining, setDaysRemaining] = useState<number>(0);
+  const [isExpiringSoon, setIsExpiringSoon] = useState<boolean>(false);
+  const [developerContact, setDeveloperContact] = useState<any>(null);
+  const [showLicenseInfo, setShowLicenseInfo] = useState<boolean>(false);
 
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
@@ -239,6 +244,12 @@ export function App() {
       const data = await res.json();
       setMachineId(data.machineId || "");
       setIsLicensed(data.isLicensed);
+      setLicenseStatus(data.licenseStatus || (data.isLicensed ? "ACTIVE" : "UNLICENSED"));
+      setDaysRemaining(data.daysRemaining || 0);
+      setIsExpiringSoon(Boolean(data.isExpiringSoon));
+      if (data.developerContact) {
+        setDeveloperContact(data.developerContact);
+      }
     } catch (err) {
       console.error("Erro ao verificar licença:", err);
       // Em modo offline restrito de rede local, vamos tolerar se falhar e tentar novamente
@@ -390,7 +401,14 @@ export function App() {
 
   
   if (isLicensed === false) {
-    return <LicenseModal machineId={machineId} onSuccess={loadSettings} />;
+    return (
+      <LicenseModal 
+        machineId={machineId} 
+        onSuccess={loadSettings} 
+        status={licenseStatus}
+        developerContact={developerContact}
+      />
+    );
   }
 
   // Tela de Login obrigatória no modo computador / gestão
@@ -439,8 +457,68 @@ export function App() {
         onLogout={handleLogout}
         hasUpdate={Boolean(updateInfo?.hasUpdate)}
         onOpenUpdateModal={() => setShowUpdateModal(true)}
+        isExpiringSoon={isExpiringSoon}
+        daysRemaining={daysRemaining}
+        onOpenLicenseInfo={() => setShowLicenseInfo(true)}
       />
 
+      {/* Modal de Aviso de Mensalidade Próxima do Vencimento */}
+      {showLicenseInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Aviso de Mensalidade</h3>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                    Vence em {daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowLicenseInfo(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Para evitar interrupções no funcionamento do Bar ERP, efetue o pagamento da sua mensalidade via PIX e envie o comprovante.
+            </p>
+
+            <div className="bg-indigo-50 dark:bg-indigo-950/40 p-3.5 rounded-2xl border border-indigo-200 dark:border-indigo-500/20">
+              <span className="text-[11px] uppercase font-bold text-indigo-950 dark:text-indigo-300 block mb-1">
+                Chave PIX do Desenvolvedor:
+              </span>
+              <code className="text-xs font-mono font-bold text-slate-900 dark:text-indigo-200 block select-all">
+                {developerContact?.pixKey || '36.275.163/0001-24'}
+              </code>
+            </div>
+
+            <div className="bg-slate-100 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <span className="text-[11px] uppercase font-bold text-slate-500 block mb-1">
+                ID deste Computador:
+              </span>
+              <code className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block select-all">
+                {machineId}
+              </code>
+            </div>
+
+            <button
+              onClick={() => {
+                const phone = (developerContact?.phone || '5591988887777').replace(/\D/g, '');
+                const text = `Olá! Segue o comprovante de renovação da mensalidade do Bar ERP.\nID da minha máquina: ${machineId}`;
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+              }}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+            >
+              Enviar Comprovante no WhatsApp
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Conteúdo da View Ativa no Painel do PC */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">

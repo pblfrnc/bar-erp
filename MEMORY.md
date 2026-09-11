@@ -142,3 +142,19 @@
 3. **Preservar a tolerância de esquemas no SQLite:** Sempre manter os métodos `*Safe` com fallback para SQL bruto ao lidar com configurações fiscais e de impressão.
 4. **Respeitar as diretrizes da SEFAZ:** O QR Code padrão deve permanecer entre 75px e 115px (padrão 100px) e o cabeçalho deve conter o Nome Fantasia + Razão Social + CNPJ.
 5. **Preservar o fluxo não destrutivo do instalador NSIS:** O instalador deve continuar instalando sobre a versão anterior mantendo o diretório `userData` intacto.
+
+---
+
+## 10. 🛡️ PAINEL DO DESENVOLVEDOR & ATIVAÇÃO REMOTA (SOFTWARE HOUSE)
+- **Painel Independente (`dev-panel/`):**
+  - Aplicação autônoma que roda na porta `4500` com banco SQLite próprio em `dev-panel/data/software_house.db`.
+  - Comandos: `npm run panel:start` (produção) ou `npm run panel:dev` (desenvolvimento).
+  - Dashboard completo com faturamento estimado, clientes cadastrados, licenças ativas, vencendo em até 7 dias e bloqueadas/expiradas.
+  - Ação rápida de 1 clique: **⚡ Renovar +30d** (recalcula a validade a partir do vencimento futuro ou de hoje se vencido, e grava no histórico de pagamentos).
+  - Botão de WhatsApp direto com mensagem pré-formatada de confirmação.
+  - Gerador de **Chave de Ativação Offline** compacta (`EXP-AAAAMMDD-XXXX-YYYY`) assinada com HMAC-SHA256.
+- **Mecanismo de Ativação no Bar ERP:**
+  - O Bar ERP consulta periodicamente ou sob demanda o endpoint público `GET /api/v1/licenses/check/:machineId`.
+  - Ao receber o comprovante no WhatsApp e o ID da máquina, o desenvolvedor ativa no painel e o Bar ERP destrava remotamente sem necessidade de AnyDesk ou TeamViewer.
+  - Se o bar estiver sem internet no momento da ativação, o cliente pode colar a chave offline na tela de ativação.
+  - Faltando 5 dias ou menos para o vencimento da mensalidade, a barra superior exibe um alerta sutil e pulsante com a contagem regressiva de dias e os dados de pagamento PIX.

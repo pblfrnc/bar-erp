@@ -169,13 +169,19 @@ model Waiter {
 }
 
 model SystemSettings {
-  id             String   @id @default("default")
-  restaurantName String   @default("Meu Bar")
-  licenseEmail   String?
-  licenseKey     String?
-  machineId      String?
-  isLicensed     Boolean  @default(false)
-  updatedAt      DateTime @updatedAt
+  id               String    @id @default("default")
+  restaurantName   String    @default("Meu Bar")
+  licenseEmail     String?
+  licenseKey       String?
+  machineId        String?
+  isLicensed       Boolean   @default(false)
+  expiresAt        DateTime?
+  lastVerifiedAt   DateTime?
+  clientName       String?
+  licenseStatus    String?   @default("UNLICENSED") // ACTIVE, EXPIRED, BLOCKED, UNLICENSED
+  licenseServerUrl String?
+  developerContact String?
+  updatedAt        DateTime  @updatedAt
 }
 
 model ProductComponent {

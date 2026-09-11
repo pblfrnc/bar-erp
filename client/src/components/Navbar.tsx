@@ -26,6 +26,9 @@ interface NavbarProps {
   onLogout?: () => void;
   hasUpdate?: boolean;
   onOpenUpdateModal?: () => void;
+  isExpiringSoon?: boolean;
+  daysRemaining?: number;
+  onOpenLicenseInfo?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -178,6 +181,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </div>
+
+            {/* Alerta de Mensalidade a Vencer (Últimos 5 dias) */}
+            {isExpiringSoon && (
+              <button
+                type="button"
+                onClick={onOpenLicenseInfo}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition shadow-sm animate-pulse cursor-pointer"
+                title="Sua mensalidade vence em breve. Clique para ver dados de pagamento."
+              >
+                <span>⚠️ Mensalidade: {daysRemaining}d</span>
+              </button>
+            )}
 
             {/* Botão de Nova Versão Disponível */}
             {hasUpdate && (

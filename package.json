@@ -11,6 +11,8 @@
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
     "build": "npm --prefix server run prisma:generate && npm --prefix server run build && npm --prefix client run build",
     "seed": "npm --prefix server run seed",
+    "panel:dev": "npm --prefix dev-panel run dev",
+    "panel:start": "npm --prefix dev-panel run start",
     "electron:dev": "electron .",
     "build:exe": "npm run build && electron-builder --win",
     "build:portable": "npm run build && electron-builder --win portable",
