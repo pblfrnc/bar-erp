@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 initDb();
 
 const app = express();
-const PORT = process.env.DEV_PANEL_PORT || 4500;
+const PORT = process.env.PORT || process.env.DEV_PANEL_PORT || 4500;
 
 app.use(cors());
 app.use(express.json());

@@ -12,7 +12,8 @@ import {
   ChevronUp, 
   QrCode,
   ShieldAlert,
-  Zap
+  Zap,
+  Globe
 } from 'lucide-react';
 import { getServerBaseUrl } from '../services/socket';
 
@@ -34,6 +35,8 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
   const [copiedId, setCopiedId] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
   const [showOfflineInput, setShowOfflineInput] = useState(false);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('bar_license_server_url') || '');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -72,11 +75,15 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
     setError('');
     setSuccessMessage('');
 
+    if (serverUrl.trim()) {
+      localStorage.setItem('bar_license_server_url', serverUrl.trim());
+    }
+
     try {
       const res = await fetch(`${getServerBaseUrl()}/api/settings/license/sync-remote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ serverUrl: serverUrl.trim() || undefined }),
       });
 
       const data = await res.json();
@@ -273,6 +280,36 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
                   {loadingOffline ? 'Validando...' : 'Ativar Chave Offline'}
                 </button>
               </form>
+            )}
+          </div>
+
+          {/* Configuração Opcional do Servidor Remoto */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setShowServerConfig(!showServerConfig)}
+              className="w-full flex items-center justify-between text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1 transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Globe size={13} />
+                Endereço do Servidor de Ativação
+              </span>
+              {showServerConfig ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showServerConfig && (
+              <div className="mt-2 space-y-2 animate-in fade-in duration-150">
+                <input
+                  type="url"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="https://seu-painel.onrender.com"
+                  className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:border-indigo-500"
+                />
+                <p className="text-[10px] text-slate-500">
+                  URL da nuvem (Render) da Software House.
+                </p>
+              </div>
             )}
           </div>
         </div>

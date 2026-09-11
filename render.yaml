@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bar-erp-licenses
+    env: node
+    plan: free
+    rootDir: dev-panel
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: LICENSE_SECRET_KEY
+        value: BAR_ERP_SUPER_SECRET_KEY_2026
