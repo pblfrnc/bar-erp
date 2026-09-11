@@ -7,9 +7,9 @@
     "dev:server": "node --experimental-strip-types server/server.ts",
     "dev:client": "vite --port 5174",
     "dev": "concurrently -n \"DEV-API,DEV-UI\" -c \"magenta,cyan\" \"npm run dev:server\" \"npm run dev:client\"",
-    "build:client": "vite build",
+    "build:client": "npx vite build",
     "start": "node --experimental-strip-types server/server.ts",
-    "build": "vite build"
+    "build": "npx vite build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
