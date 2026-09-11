@@ -251,6 +251,46 @@ export function createFiscalRouter() {
         };
       });
 
+      const chaveAcesso = (nfe['@_Id'] || '').replace('NFe', '').trim();
+      const ide = nfe.ide;
+      const numeroNf = ide?.nNF ? String(ide.nNF) : '';
+      const serieNf = ide?.serie ? String(ide.serie) : '';
+      const dataEmissao = ide?.dhEmi || ide?.dEmi || new Date().toISOString();
+      const valorTotal = parseFloat(nfe.total?.ICMSTot?.vNF || '0');
+      const now = new Date().toISOString();
+
+      // Persistir na tabela NotaRecebida para o fechamento fiscal mensal e SPED
+      if (chaveAcesso) {
+        try {
+          await prisma.$executeRawUnsafe(`
+            INSERT OR REPLACE INTO "NotaRecebida"
+              ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT "createdAt" FROM "NotaRecebida" WHERE "chave" = ?), ?))
+          `,
+            chaveAcesso,
+            chaveAcesso,
+            emitNome,
+            emitCnpj,
+            numeroNf,
+            serieNf,
+            dataEmissao,
+            valorTotal,
+            'recebida',
+            xmlData,
+            chaveAcesso,
+            now
+          );
+        } catch (dbErr) {
+          console.warn('[Fiscal] Erro ao salvar NotaRecebida na importação XML:', dbErr);
+        }
+
+        try {
+          secureArchiveXML('ENTRADA', chaveAcesso, xmlData);
+        } catch (archErr) {
+          console.warn('[Fiscal] Erro ao arquivar XML de entrada no cofre:', archErr);
+        }
+      }
+
       res.json({
         vendor: {
           id: supplierRecord?.id,
@@ -259,7 +299,11 @@ export function createFiscalRouter() {
           cnpj: emitCnpj
         },
         items,
-        accessKey: nfe['@_Id']?.replace('NFe', '')
+        accessKey: chaveAcesso,
+        numero: numeroNf,
+        serie: serieNf,
+        dataEmissao,
+        valorTotal
       });
     } catch (err: any) {
       console.error('Erro ao importar XML:', err);
@@ -480,13 +524,46 @@ export function createFiscalRouter() {
         }
       }
 
-      // Se foi importada a partir de uma chave de acesso (2º bip), marca a nota como 'importada'
+      // Se foi importada a partir de uma chave de acesso (2º bip ou upload direto), atualiza/cria na tabela NotaRecebida
       if (chaveAcesso) {
+        const rawValor = req.body?.valorTotal;
+        const valorNum = typeof rawValor === 'number' ? rawValor : parseFloat(rawValor || '0');
+        const numeroNf = req.body?.numero ? String(req.body.numero) : null;
+        const serieNf = req.body?.serie ? String(req.body.serie) : null;
+        const dataEmissao = req.body?.dataEmissao ? String(req.body.dataEmissao) : null;
+        const now = new Date().toISOString();
+
         try {
-          await prisma.$executeRawUnsafe(
-            `UPDATE "NotaRecebida" SET "status" = 'importada' WHERE "chave" = ?`,
-            chaveAcesso
+          // Atualiza registro existente
+          const updateCount = await prisma.$executeRawUnsafe(
+            `UPDATE "NotaRecebida"
+             SET "status" = 'importada',
+                 "valorTotal" = CASE WHEN ? > 0 THEN ? ELSE "valorTotal" END,
+                 "emitente" = COALESCE(?, "emitente"),
+                 "numero" = COALESCE(?, "numero"),
+                 "serie" = COALESCE(?, "serie"),
+                 "dataEmissao" = COALESCE(?, "dataEmissao")
+             WHERE "chave" = ?`,
+            valorNum, valorNum, vendorName || null, numeroNf, serieNf, dataEmissao, chaveAcesso
           );
+
+          // Se a nota não existia ainda em NotaRecebida, insere para não perder no SPED/fechamento contábil
+          if (updateCount === 0) {
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO "NotaRecebida"
+                ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'importada', NULL, ?)`,
+              chaveAcesso,
+              chaveAcesso,
+              vendorName || 'Fornecedor',
+              null,
+              numeroNf || '',
+              serieNf || '',
+              dataEmissao || now,
+              valorNum || 0,
+              now
+            );
+          }
         } catch (e) {
           try {
             await (prisma as any).notaRecebida.updateMany({
@@ -2485,19 +2562,40 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Mês de referência inválido. Use o formato AAAA-MM.' });
       }
 
-      const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
-      const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
+      const monthPrefix = `${yearStr}-${monthStr.padStart(2, '0')}`;
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+      const startTs = startDate.getTime();
+      const endTs = endDate.getTime();
 
-      const emitidas = await (prisma as any).notaEmitida.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate }
-        }
-      });
+      // Consulta resiliente a SQLite: datas podem estar armazenadas como ISO strings ("2026-09-11...") ou Unix timestamps
+      const emitidasRaw: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "NotaEmitida"
+        WHERE ("createdAt" LIKE ? OR "dataEmissao" LIKE ?)
+           OR ("createdAt" >= ? AND "createdAt" <= ?)
+           OR (CAST("createdAt" AS INTEGER) >= ? AND CAST("createdAt" AS INTEGER) <= ?)
+      `, `${monthPrefix}%`, `${monthPrefix}%`, startIso, endIso, startTs, endTs);
 
-      const recebidas = await (prisma as any).notaRecebida.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate }
+      const recebidasRaw: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "NotaRecebida"
+        WHERE ("createdAt" LIKE ? OR "dataEmissao" LIKE ?)
+           OR ("createdAt" >= ? AND "createdAt" <= ?)
+           OR (CAST("createdAt" AS INTEGER) >= ? AND CAST("createdAt" AS INTEGER) <= ?)
+      `, `${monthPrefix}%`, `${monthPrefix}%`, startIso, endIso, startTs, endTs);
+
+      const emitidas = emitidasRaw || [];
+      // Se a nota recebida estiver com valorTotal zerado mas tiver XML, reextrai dinamicamente
+      const recebidas = (recebidasRaw || []).map((n: any) => {
+        let val = Number(n.valorTotal) || 0;
+        if (val === 0 && n.xmlContent && !n.xmlContent.startsWith('{')) {
+          try {
+            const parsed = parser.parse(n.xmlContent);
+            const nfe = parsed.nfeProc?.NFe?.infNFe || parsed.NFe?.infNFe;
+            const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || '0');
+            if (xmlVal > 0) val = xmlVal;
+          } catch (_) {}
         }
+        return { ...n, valorTotal: val };
       });
 
       const emitidasTotal = emitidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
@@ -2539,21 +2637,42 @@ export function createFiscalRouter() {
 
       const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
       const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
+      const monthPrefix = `${yearStr}-${monthStr.padStart(2, '0')}`;
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+      const startTs = startDate.getTime();
+      const endTs = endDate.getTime();
 
       const settings = await getFiscalSettingsSafe();
 
-      const emitidas = await (prisma as any).notaEmitida.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate }
-        },
-        orderBy: { createdAt: 'asc' }
-      });
+      const emitidasRaw: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "NotaEmitida"
+        WHERE ("createdAt" LIKE ? OR "dataEmissao" LIKE ?)
+           OR ("createdAt" >= ? AND "createdAt" <= ?)
+           OR (CAST("createdAt" AS INTEGER) >= ? AND CAST("createdAt" AS INTEGER) <= ?)
+        ORDER BY "createdAt" ASC
+      `, `${monthPrefix}%`, `${monthPrefix}%`, startIso, endIso, startTs, endTs);
 
-      const recebidas = await (prisma as any).notaRecebida.findMany({
-        where: {
-          createdAt: { gte: startDate, lte: endDate }
-        },
-        orderBy: { createdAt: 'asc' }
+      const recebidasRaw: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM "NotaRecebida"
+        WHERE ("createdAt" LIKE ? OR "dataEmissao" LIKE ?)
+           OR ("createdAt" >= ? AND "createdAt" <= ?)
+           OR (CAST("createdAt" AS INTEGER) >= ? AND CAST("createdAt" AS INTEGER) <= ?)
+        ORDER BY "createdAt" ASC
+      `, `${monthPrefix}%`, `${monthPrefix}%`, startIso, endIso, startTs, endTs);
+
+      const emitidas = emitidasRaw || [];
+      const recebidas = (recebidasRaw || []).map((n: any) => {
+        let val = Number(n.valorTotal) || 0;
+        if (val === 0 && n.xmlContent && !n.xmlContent.startsWith('{')) {
+          try {
+            const parsed = parser.parse(n.xmlContent);
+            const nfe = parsed.nfeProc?.NFe?.infNFe || parsed.NFe?.infNFe;
+            const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || '0');
+            if (xmlVal > 0) val = xmlVal;
+          } catch (_) {}
+        }
+        return { ...n, valorTotal: val };
       });
 
       const zip = new AdmZip();

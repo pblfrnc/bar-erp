@@ -225,7 +225,11 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         items: validMatches,
         chaveAcesso: keyToSend || undefined,
         supplierId: xmlData?.vendor?.id || undefined,
-        vendorName: xmlData?.vendor?.name || undefined
+        vendorName: xmlData?.vendor?.name || undefined,
+        numero: xmlData?.numero || undefined,
+        serie: xmlData?.serie || undefined,
+        dataEmissao: xmlData?.dataEmissao || undefined,
+        valorTotal: xmlData?.valorTotal !== undefined ? xmlData.valorTotal : undefined
       });
 
       if (res.error) {
