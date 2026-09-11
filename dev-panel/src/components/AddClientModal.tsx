@@ -141,7 +141,7 @@ export function AddClientModal({ isOpen, onClose, onSuccess }: Props) {
                 type="text"
                 value={document}
                 onChange={(e) => setDocument(e.target.value)}
-                placeholder="Ex: 36.275.163/0001-24"
+                placeholder="Ex: 68.817.608/0001-47"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>

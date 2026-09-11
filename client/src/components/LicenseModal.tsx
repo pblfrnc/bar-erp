@@ -36,12 +36,12 @@ export function LicenseModal({ machineId, onSuccess, status, developerContact }:
   const [copiedPix, setCopiedPix] = useState(false);
   const [showOfflineInput, setShowOfflineInput] = useState(false);
   const [showServerConfig, setShowServerConfig] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('bar_license_server_url') || '');
+  const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('bar_license_server_url') || 'https://bar-erp-licensas.onrender.com');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   const devPhone = developerContact?.phone || '5591988887777';
-  const devPix = developerContact?.pixKey || '36.275.163/0001-24';
+  const devPix = developerContact?.pixKey || '68.817.608/0001-47';
   const devName = developerContact?.developerName || 'Suporte do Bar ERP';
 
   const isExpired = status === 'EXPIRED';

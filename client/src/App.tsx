@@ -493,7 +493,7 @@ export function App() {
                 Chave PIX do Desenvolvedor:
               </span>
               <code className="text-xs font-mono font-bold text-slate-900 dark:text-indigo-200 block select-all">
-                {developerContact?.pixKey || '36.275.163/0001-24'}
+                {developerContact?.pixKey || '68.817.608/0001-47'}
               </code>
             </div>
 

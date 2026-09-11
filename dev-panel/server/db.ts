@@ -81,7 +81,10 @@ export function initDb() {
     insertSetting.run('developer_phone', '5591988887777'); // WhatsApp para recebimento de comprovantes
   }
   if (!getSetting.get('pix_key')) {
-    insertSetting.run('pix_key', '36.275.163/0001-24');
+    insertSetting.run('pix_key', '68.817.608/0001-47');
+  } else {
+    // Atualiza se for o CNPJ antigo
+    db.prepare("UPDATE dev_settings SET value = '68.817.608/0001-47' WHERE key = 'pix_key' AND value LIKE '%36.275%'").run();
   }
   if (!getSetting.get('default_monthly_fee')) {
     insertSetting.run('default_monthly_fee', '150.00');

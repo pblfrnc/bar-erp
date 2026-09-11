@@ -141,7 +141,7 @@ export function SettingsModal({ isOpen, onClose, onSuccess }: Props) {
               required
               value={pixKey}
               onChange={(e) => setPixKey(e.target.value)}
-              placeholder="Ex: 36.275.163/0001-24 ou email ou telefone"
+              placeholder="Ex: 68.817.608/0001-47 ou email ou telefone"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
             />
           </div>

@@ -129,7 +129,7 @@ router.get('/', async (req, res) => {
     // Parse developer contact se houver
     let developerContact = {
       phone: '5591988887777',
-      pixKey: '36.275.163/0001-24',
+      pixKey: '68.817.608/0001-47',
       developerName: 'Pablo Franco - Software House'
     };
     if (settings.developerContact) {
@@ -164,7 +164,7 @@ router.post('/license/sync-remote', async (req, res) => {
     }
 
     let settings: any = await prisma.systemSettings.findUnique({ where: { id: 'default' } });
-    const serverUrl = req.body.serverUrl || process.env.LICENSE_SERVER_URL || settings?.licenseServerUrl || 'http://localhost:4500';
+    const serverUrl = req.body.serverUrl || process.env.LICENSE_SERVER_URL || settings?.licenseServerUrl || 'https://bar-erp-licensas.onrender.com';
 
     console.log(`[Licensing] Sincronizando licença com: ${serverUrl}/api/v1/licenses/check/${currentMachineId}`);
 
