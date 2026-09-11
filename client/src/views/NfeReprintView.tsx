@@ -132,16 +132,15 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                   <button
                     type="button"
                     onClick={() => {
-                      if ((window as any).electronAPI?.printPdfSilent) {
-                        (window as any).electronAPI.printPdfSilent(result.caminhoDanfe);
-                        alert('Enviado diretamente para a impressora térmica!');
+                      if ((window as any).electronAPI?.printPdfDialog) {
+                        (window as any).electronAPI.printPdfDialog(result.caminhoDanfe);
                       } else {
                         window.open(result.caminhoDanfe, '_blank');
                       }
                     }}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+                    className="bg-blue-600 hover:bg-blue-500 text-white py-3 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 cursor-pointer"
                   >
-                    <Printer className="w-4 h-4" /> Imprimir Direto (Silencioso)
+                    <Printer className="w-4 h-4" /> Imprimir DANFE A4 (Janela do Sistema)
                   </button>
                   <a
                     href={result.caminhoDanfe}

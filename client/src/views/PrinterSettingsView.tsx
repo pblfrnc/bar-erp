@@ -340,6 +340,16 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
                   />
                 )}
               </div>
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                <span className="text-base leading-none">📄</span>
+                <div>
+                  <strong className="block font-black text-blue-800 dark:text-blue-300 uppercase tracking-wide text-[11px] mb-0.5">
+                    Impressão de NF-e (Modelo 55 - Folha A4) Diferenciada
+                  </strong>
+                  A NF-e para fornecedores/empresas <strong>não é enviada para a impressora térmica do caixa</strong>. Ao imprimir a NF-e, o Bar ERP <strong>abre a janela de impressão do sistema (Windows / macOS)</strong> para você escolher sua impressora A4 comum (Laser / Jato de Tinta) ou Salvar em PDF.
+                </div>
+              </div>
             </div>
           </div>
 

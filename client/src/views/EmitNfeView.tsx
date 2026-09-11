@@ -265,8 +265,12 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
                                 window.open(saleSuccessData.danfeUrl, '_blank');
                               }
                             } else {
-                              // No printer selected, fallback to open PDF
-                              window.open(saleSuccessData.danfeUrl, '_blank');
+                              // Abre o diálogo nativo do sistema operacional para selecionar impressora A4
+                              if ((window as any).electronAPI?.printPdfDialog) {
+                                (window as any).electronAPI.printPdfDialog(saleSuccessData.danfeUrl);
+                              } else {
+                                window.open(saleSuccessData.danfeUrl, '_blank');
+                              }
                             }
                           }
                           setShowPrinterModal(false);

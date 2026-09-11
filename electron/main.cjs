@@ -398,6 +398,82 @@ function createWindow() {
     }
   });
 
+  // 5b. Impressão de DANFE NF-e (Modelo 55 - Folha A4) com Diálogo do Sistema Windows
+  ipcMain.on('print-pdf-dialog', (event, urlOrPayload) => {
+    const pdfUrl = typeof urlOrPayload === 'string' ? urlOrPayload : urlOrPayload?.url;
+    if (!pdfUrl) return;
+
+    try {
+      const a4Win = new BrowserWindow({
+        width: 1000,
+        height: 800,
+        show: true,
+        title: 'DANFE NF-e (Modelo 55 - Folha A4)',
+        autoHideMenuBar: true,
+        webPreferences: {
+          plugins: true
+        }
+      });
+
+      a4Win.loadURL(pdfUrl);
+      a4Win.webContents.on('did-finish-load', () => {
+        // Dispara a janela de diálogo nativa do sistema operacional (Windows / macOS) para selecionar a impressora A4
+        setTimeout(() => {
+          if (!a4Win.isDestroyed()) {
+            a4Win.webContents.print({
+              silent: false, // ABRE A JANELA DO SISTEMA
+              printBackground: true
+            }, (success, failureReason) => {
+              if (!success && failureReason !== 'cancelled') {
+                console.error('Falha no diálogo de impressão de NF-e:', failureReason);
+              }
+            });
+          }
+        }, 500);
+      });
+    } catch (err) {
+      console.error('Erro ao abrir diálogo de impressão da NF-e:', err);
+    }
+  });
+
+  // 5c. Impressão direcionada de PDF (com impressora específica ou diálogo)
+  ipcMain.on('print-pdf', (event, { url, printerName }) => {
+    if (!url) return;
+    try {
+      const a4Win = new BrowserWindow({
+        width: 1000,
+        height: 800,
+        show: true,
+        title: 'DANFE NF-e (Modelo 55)',
+        autoHideMenuBar: true,
+        webPreferences: {
+          plugins: true
+        }
+      });
+      a4Win.loadURL(url);
+      a4Win.webContents.on('did-finish-load', () => {
+        setTimeout(() => {
+          if (!a4Win.isDestroyed()) {
+            const printOpts = {
+              silent: Boolean(printerName),
+              printBackground: true
+            };
+            if (printerName) {
+              printOpts.deviceName = printerName;
+            }
+            a4Win.webContents.print(printOpts, (success, failureReason) => {
+              if (!success && failureReason !== 'cancelled') {
+                console.error('Falha ao imprimir PDF:', failureReason);
+              }
+            });
+          }
+        }, 500);
+      });
+    } catch (err) {
+      console.error('Erro no print-pdf:', err);
+    }
+  });
+
   // 6. Impressão de Página de Teste Térmica de Calibração
   ipcMain.on('print-test-ticket', (event, customSettings) => {
     const saved = getLocalPrinterSettings();
