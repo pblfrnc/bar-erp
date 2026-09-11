@@ -49,8 +49,9 @@ jobs:
         shell: pwsh
         run: |
           $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $pkg = Get-Content "package.json" | ConvertFrom-Json
           $info = @{
-            version = "1.0.0"
+            version = $pkg.version
             buildTime = $date
             commit = "${{ github.sha }}"
           } | ConvertTo-Json -Compress
@@ -194,16 +195,18 @@ jobs:
           for f in *\ *; do
             [ -f "$f" ] && mv "$f" "${f// /-}"
           done
-          echo "{\"version\": \"1.0.0\", \"commit\": \"${{ github.sha }}\", \"buildTime\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > version.json
-          echo "Arquivos para publicação na release:"
+          VERSION=$(node -p "require('../package.json').version")
+          echo "{\"version\": \"$VERSION\", \"commit\": \"${{ github.sha }}\", \"buildTime\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > version.json
+          echo "Arquivos para publicação na release (Versão: $VERSION):"
           ls -la
 
       - name: Publicar ou Atualizar Release no GitHub
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION=$(node -p "require('./package.json').version")
           TAG="latest"
-          TITLE="BarERP - Versão de Produção"
+          TITLE="BarERP Pro v$VERSION - Versão de Produção"
           BODY="Baixe aqui os instaladores atualizados da última versão do BarERP:\n\n- **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa\n- **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas\n- **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
 
           # Ensure GitHub CLI is available (ubuntu-latest includes it, but we double‑check)

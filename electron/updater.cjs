@@ -39,11 +39,11 @@ function getLocalBuildInfo() {
 
   // Fallback para o package.json
   const pkgPath = path.join(__dirname, '..', 'package.json');
-  let version = '1.0.0';
+  let version = '1.6.9';
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      version = pkg.version || '1.0.0';
+      version = pkg.version || '1.6.9';
     } catch (e) {}
   }
 
@@ -53,6 +53,21 @@ function getLocalBuildInfo() {
     buildTime: '2026-01-01T00:00:00.000Z',
     commit: 'local'
   };
+}
+
+// Comparador Semver numérico (1.6.9 vs 1.0.0, etc.)
+function compareVersions(v1, v2) {
+  const clean1 = (v1 || '0.0.0').replace(/^v/i, '').trim();
+  const clean2 = (v2 || '0.0.0').replace(/^v/i, '').trim();
+  const p1 = clean1.split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = clean2.split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
 }
 
 // Faz requisição HTTP/HTTPS seguindo redirecionamentos (suporta GET, HEAD e redirecionamentos para Azure/S3)
@@ -95,8 +110,19 @@ async function checkForUpdates() {
       for await (const chunk of vRes) vData += chunk;
       const remote = JSON.parse(vData);
 
-      // Se temos commit SHA em ambos e forem idênticos, está na versão mais recente
-      if (local.commit && local.commit !== 'local' && remote.commit && local.commit === remote.commit) {
+      // Se temos commit SHA em ambos e forem idênticos com mesma versão, está atualizado
+      const semverDiff = compareVersions(remote.version, local.version);
+      if (semverDiff < 0) {
+        return {
+          hasUpdate: false,
+          currentVersion: local.version,
+          latestVersion: remote.version || local.version,
+          localBuildTime: local.buildTime,
+          message: 'Você já está utilizando uma compilação mais recente.'
+        };
+      }
+
+      if (semverDiff === 0 && local.commit && local.commit !== 'local' && remote.commit && local.commit === remote.commit) {
         return {
           hasUpdate: false,
           currentVersion: local.version,
@@ -106,7 +132,7 @@ async function checkForUpdates() {
         };
       }
 
-      // Se os commits são diferentes ou local é 'local'
+      // Se a versão é maior ou os commits são diferentes
       const headRes = await fetchWithRedirects(GITHUB_DOWNLOAD_INSTALLER, { method: 'HEAD' });
       const assetDate = headRes.headers['last-modified'] ? new Date(headRes.headers['last-modified']).toISOString() : (remote.buildTime || new Date().toISOString());
       const fileSize = parseInt(headRes.headers['content-length'] || '0', 10);
@@ -115,7 +141,7 @@ async function checkForUpdates() {
         hasUpdate: true,
         latestVersion: remote.version ? `v${remote.version}` : 'Nova Versão',
         currentVersion: local.version,
-        releaseName: `BarERP Pro (${remote.commit ? remote.commit.substring(0, 7) : 'Atualização'})`,
+        releaseName: `BarERP Pro v${remote.version || '1.6.9'} (${remote.commit ? remote.commit.substring(0, 7) : 'Atualização'})`,
         releaseNotes: 'Nova compilação do BarERP com melhorias de sistema e atualizações.',
         releaseDate: remote.buildTime || assetDate,
         assetDate,
@@ -161,13 +187,18 @@ async function checkForUpdates() {
         console.log('[AutoUpdater] Não foi possível carregar notas do feed atom:', atomErr.message);
       }
 
+      // Extrai versão do título (ex: "BarERP Pro v1.6.9")
+      const versionMatch = releaseTitle.match(/v?(\d+\.\d+\.\d+)/);
+      const remoteVersion = versionMatch ? versionMatch[1] : null;
+      const semverDiff = remoteVersion ? compareVersions(remoteVersion, local.version) : 0;
+
       const localTime = new Date(local.buildTime || '2026-01-01T00:00:00.000Z');
-      // Considera mais recente se a data do arquivo for maior que o build local (com tolerância de 1 min)
-      const isNewer = (assetDate.getTime() - localTime.getTime()) > (60 * 1000);
+      // Considera mais recente se a versão semver for maior, ou se semver for igual e o arquivo for mais recente
+      const isNewer = semverDiff > 0 || (semverDiff >= 0 && (assetDate.getTime() - localTime.getTime()) > (60 * 1000));
 
       return {
         hasUpdate: isNewer,
-        latestVersion: releaseTitle || 'Nova Versão',
+        latestVersion: remoteVersion ? `v${remoteVersion}` : releaseTitle,
         currentVersion: local.version,
         releaseName: releaseTitle,
         releaseNotes,
@@ -195,13 +226,17 @@ async function checkForUpdates() {
       );
 
       if (installerAsset) {
+        const versionMatch = (release.tag_name || release.name || '').match(/v?(\d+\.\d+\.\d+)/);
+        const remoteVersion = versionMatch ? versionMatch[1] : null;
+        const semverDiff = remoteVersion ? compareVersions(remoteVersion, local.version) : 0;
+
         const assetUpdatedAt = new Date(installerAsset.updated_at || release.published_at);
         const localTime = new Date(local.buildTime || '2026-01-01T00:00:00.000Z');
-        const isNewer = (assetUpdatedAt.getTime() - localTime.getTime()) > (60 * 1000);
+        const isNewer = semverDiff > 0 || (semverDiff >= 0 && (assetUpdatedAt.getTime() - localTime.getTime()) > (60 * 1000));
 
         return {
           hasUpdate: isNewer,
-          latestVersion: release.tag_name || release.name || 'Nova Versão',
+          latestVersion: remoteVersion ? `v${remoteVersion}` : (release.tag_name || release.name || 'Nova Versão'),
           currentVersion: local.version,
           releaseName: release.name || 'Atualização do BarERP',
           releaseNotes: release.body || 'Melhorias gerais e correções de desempenho.',
@@ -412,5 +447,6 @@ module.exports = {
   checkForUpdates,
   startDownloadUpdate,
   installAndRestart,
-  getLocalBuildInfo
+  getLocalBuildInfo,
+  compareVersions
 };

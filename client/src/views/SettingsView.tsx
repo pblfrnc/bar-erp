@@ -388,7 +388,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   Bar ERP Pro Desktop
                 </h3>
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                  {updateInfo?.currentVersion ? `v${updateInfo.currentVersion}` : 'v1.0.0'}
+                  {updateInfo?.currentVersion ? `v${updateInfo.currentVersion}` : 'v1.6.9'}
                 </span>
                 {updateInfo?.hasUpdate && (
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 animate-pulse">

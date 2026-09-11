@@ -1,5 +1,6 @@
 # 🧠 MEMÓRIA E CONTEXTO ARQUITETURAL DO BAR ERP PRO
 > **Data de Atualização:** 11 de Setembro de 2026  
+> **Versão Oficial do Sistema:** `v1.6.9`  
 > **Status:** Produção Estável  
 > **Repositório:** [pblfrnc/bar-erp](https://github.com/pblfrnc/bar-erp)  
 > **Branch Principal:** `main`  
