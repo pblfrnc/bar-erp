@@ -99,11 +99,13 @@ model Product {
   description String?
   price       Float
   costPrice   Float?
+  targetMargin Float?    // Margem de lucro alvo cadastrada pelo usuário (%)
 
   // Venda por Caixa / Fardo Fechado
   hasBoxPrice    Boolean   @default(false)
   boxQuantity    Int?      @default(24) // Qtd de unidades por caixa (ex: 6, 12, 15, 24)
-  boxPrice       Float?    // Preço total da caixa fechada
+  boxPrice       Float?    // Preço total de venda da caixa fechada
+  boxCostPrice   Float?    // Preço de custo da caixa fechada
   boxEan         String?   // Código de barras EAN/DUN-14 da caixa
 
   categoryId  String
@@ -117,6 +119,25 @@ model Product {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
+  priceHistories PriceHistory[]
+}
+
+model PriceHistory {
+  id             String   @id @default(cuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  oldCostPrice   Float?
+  newCostPrice   Float?
+  oldPrice       Float
+  newPrice       Float
+  costDiff       Float?
+  costPercent    Float?
+  priceDiff      Float
+  pricePercent   Float
+  changedBy      String   @default("Operador")
+  reason         String   // "IMPORT_XML" ou "MANUAL_UPDATE"
+  nfeChave       String?
+  createdAt      DateTime @default(now())
 }
 
 model Payment {
@@ -175,6 +196,7 @@ model SystemSettings {
   licenseKey       String?
   machineId        String?
   isLicensed       Boolean   @default(false)
+  defaultProfitMargin Float? @default(50.0) // Margem de lucro padrão (%) para novos produtos e cálculos de XML
   expiresAt        DateTime?
   lastVerifiedAt   DateTime?
   clientName       String?

@@ -95,6 +95,30 @@ async function ensureFiscalTables() {
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfe" INTEGER DEFAULT 1;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "serieNfce" TEXT DEFAULT '1';`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "FiscalSettings" ADD COLUMN "proximoNumeroNfce" INTEGER DEFAULT 1;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "targetMargin" REAL;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "boxCostPrice" REAL;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "SystemSettings" ADD COLUMN "defaultProfitMargin" REAL DEFAULT 50.0;`); } catch (e) {}
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PriceHistory" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "productId" TEXT NOT NULL,
+          "oldCostPrice" REAL,
+          "newCostPrice" REAL,
+          "oldPrice" REAL NOT NULL,
+          "newPrice" REAL NOT NULL,
+          "costDiff" REAL,
+          "costPercent" REAL,
+          "priceDiff" REAL NOT NULL,
+          "pricePercent" REAL NOT NULL,
+          "changedBy" TEXT NOT NULL DEFAULT 'Operador',
+          "reason" TEXT NOT NULL,
+          "nfeChave" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "PriceHistory_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+    } catch (e) {}
   } catch (err) {
     console.error('Erro ao verificar/criar tabelas fiscais:', err);
   }
@@ -481,21 +505,89 @@ export function createFiscalRouter() {
         const effectiveSupplierName = item.supplierName || vendorName || null;
 
         if (item.action === 'LINK' && item.productId) {
-          // Atualiza produto existente
+          // Buscar produto atual para histórico de preços e cálculos de margem/caixa
+          const existingProd = await prisma.product.findUnique({
+            where: { id: item.productId }
+          });
+
+          const newCost = item.xmlItem.unitCost;
+          const oldCost = existingProd?.costPrice ?? null;
+          const oldSale = existingProd?.price ?? 0;
+
+          // Se veio preço de venda ajustado pelo frontend baseado na margem de lucro
+          let newSale = oldSale;
+          if (item.newSalePrice !== undefined && item.newSalePrice !== null && !isNaN(item.newSalePrice)) {
+            newSale = Number(item.newSalePrice);
+          } else if (existingProd?.targetMargin && existingProd.targetMargin > 0 && newCost > 0) {
+            // Se não veio explícito, calcula com base na margem cadastrada do produto
+            const margin = existingProd.targetMargin;
+            newSale = margin < 100 ? Number((newCost / (1 - (margin / 100))).toFixed(2)) : Number((newCost * 2).toFixed(2));
+          }
+
           const updateData: any = {
             stock: { increment: item.xmlItem.quantity },
-            costPrice: item.xmlItem.unitCost
+            costPrice: newCost,
+            price: newSale
           };
+
+          // Atualizar preço e custo de caixa se solicitado
+          if (item.updateBoxPrice && existingProd?.hasBoxPrice && existingProd.boxQuantity) {
+            const bQty = existingProd.boxQuantity;
+            // Se veio preço de caixa explícito
+            if (item.newBoxPrice !== undefined && item.newBoxPrice !== null) {
+              updateData.boxPrice = Number(item.newBoxPrice);
+            } else if (oldSale > 0 && existingProd.boxPrice) {
+              // Proporcional à alteração da unidade
+              const unitRatio = newSale / oldSale;
+              updateData.boxPrice = Number((existingProd.boxPrice * unitRatio).toFixed(2));
+            } else {
+              updateData.boxPrice = Number((newSale * bQty).toFixed(2));
+            }
+            updateData.boxCostPrice = Number((newCost * bQty).toFixed(2));
+          }
+
           if (effectiveSupplierId) updateData.supplierId = effectiveSupplierId;
           if (effectiveSupplierName) updateData.supplier = effectiveSupplierName;
           if (item.xmlItem.ncm) updateData.ncm = item.xmlItem.ncm;
           if (item.xmlItem.cfop) updateData.cfop = item.xmlItem.cfop;
           if (item.xmlItem.ean) updateData.ean = item.xmlItem.ean;
 
-          await prisma.product.update({
+          const updatedProd = await prisma.product.update({
             where: { id: item.productId },
             data: updateData
           });
+
+          // Registrar no Histórico de Preços
+          const costChanged = (oldCost ?? null) !== (newCost ?? null);
+          const saleChanged = Math.abs(oldSale - newSale) > 0.001;
+          if (costChanged || saleChanged) {
+            try {
+              const costDiff = (oldCost !== null) ? Number((newCost - oldCost).toFixed(2)) : newCost;
+              const costPercent = (oldCost && oldCost > 0) ? Number((((newCost - oldCost) / oldCost) * 100).toFixed(2)) : null;
+              const priceDiff = Number((newSale - oldSale).toFixed(2));
+              const pricePercent = oldSale > 0 ? Number((((newSale - oldSale) / oldSale) * 100).toFixed(2)) : 0;
+
+              await (prisma as any).priceHistory.create({
+                data: {
+                  productId: item.productId,
+                  oldCostPrice: oldCost,
+                  newCostPrice: newCost,
+                  oldPrice: oldSale,
+                  newPrice: newSale,
+                  costDiff,
+                  costPercent,
+                  priceDiff,
+                  pricePercent,
+                  changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
+                  reason: 'IMPORT_XML',
+                  nfeChave: chaveAcesso || null
+                }
+              });
+            } catch (hErr) {
+              console.warn('[PriceHistory] Erro ao gravar histórico no apply-import:', hErr);
+            }
+          }
+
           results.updated++;
         } else if (item.action === 'NEW' && item.categoryId) {
           let finalCode = await getNextSequentialCode(item.categoryId);
@@ -503,8 +595,17 @@ export function createFiscalRouter() {
             finalCode = item.xmlItem.code;
           }
 
+          // Preço de venda para produto novo: baseado na margem do item, padrão ou 50%
+          const newCost = item.xmlItem.unitCost;
+          let newSale = item.newSalePrice;
+          let targetMargin = item.targetMargin ? Number(item.targetMargin) : 50.0;
+
+          if (!newSale || isNaN(newSale)) {
+            newSale = targetMargin < 100 ? Number((newCost / (1 - (targetMargin / 100))).toFixed(2)) : Number((newCost * 2).toFixed(2));
+          }
+
           // Cria novo produto com dados fiscais e fornecedor herdados da nota
-          await prisma.product.create({
+          const newProd = await prisma.product.create({
             data: {
               name: item.xmlItem.name,
               code: finalCode,
@@ -514,12 +615,34 @@ export function createFiscalRouter() {
               ncm: item.xmlItem.ncm || null,
               cfop: item.xmlItem.cfop || null,
               unit: item.xmlItem.unit || 'un',
-              price: item.xmlItem.unitCost * 2, // Sugestão: markup de 100%
-              costPrice: item.xmlItem.unitCost,
+              price: newSale,
+              costPrice: newCost,
+              targetMargin: targetMargin,
               stock: item.xmlItem.quantity,
               categoryId: item.categoryId
             }
           });
+
+          // Histórico inicial
+          try {
+            await (prisma as any).priceHistory.create({
+              data: {
+                productId: newProd.id,
+                oldCostPrice: null,
+                newCostPrice: newCost,
+                oldPrice: newSale,
+                newPrice: newSale,
+                costDiff: null,
+                costPercent: null,
+                priceDiff: 0,
+                pricePercent: 0,
+                changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
+                reason: 'IMPORT_XML',
+                nfeChave: chaveAcesso || null
+              }
+            });
+          } catch (_) {}
+
           results.created++;
         }
       }
@@ -2606,6 +2729,43 @@ export function createFiscalRouter() {
       const nfceTotal = nfceList.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
       const nfeTotal = nfeList.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
 
+      // Calcular Posição de Estoque e Lucro Previsto para o SPED / Contador
+      let stockCostTotal = 0;
+      let stockSaleTotal = 0;
+      const categoriesStockMap = new Map<string, { name: string; cost: number; sale: number; profit: number }>();
+
+      try {
+        const allProds = await prisma.product.findMany({
+          where: { isActive: true },
+          include: { category: true }
+        });
+        for (const p of allProds) {
+          const st = Math.max(0, p.stock || 0);
+          const cst = (p.costPrice || 0) * st;
+          const sl = (p.price || 0) * st;
+          stockCostTotal += cst;
+          stockSaleTotal += sl;
+
+          const catName = p.category?.name || 'Geral';
+          if (!categoriesStockMap.has(catName)) {
+            categoriesStockMap.set(catName, { name: catName, cost: 0, sale: 0, profit: 0 });
+          }
+          const c = categoriesStockMap.get(catName)!;
+          c.cost += cst;
+          c.sale += sl;
+          c.profit += (sl - cst);
+        }
+      } catch (_) {}
+
+      const stockProfitTotal = Number((stockSaleTotal - stockCostTotal).toFixed(2));
+      const categoriesStock = Array.from(categoriesStockMap.values()).map(c => ({
+        name: c.name,
+        cost: Number(c.cost.toFixed(2)),
+        sale: Number(c.sale.toFixed(2)),
+        profit: Number(c.profit.toFixed(2)),
+        margin: c.sale > 0 ? Number((((c.sale - c.cost) / c.sale) * 100).toFixed(1)) : 0
+      }));
+
       res.json({
         month,
         emitidasCount: emitidas.length,
@@ -2616,6 +2776,10 @@ export function createFiscalRouter() {
         nfeTotal,
         recebidasCount: recebidas.length,
         recebidasTotal,
+        stockCostTotal: Number(stockCostTotal.toFixed(2)),
+        stockSaleTotal: Number(stockSaleTotal.toFixed(2)),
+        stockProfitTotal,
+        categoriesStock,
         hasNotes: emitidas.length > 0 || recebidas.length > 0
       });
     } catch (err: any) {
@@ -2807,6 +2971,53 @@ export function createFiscalRouter() {
       csvContent += `Número;Série;Fornecedor;CNPJ Fornecedor;Data Emissão;Status;Valor (R$)\n`;
       for (const n of recebidas) {
         csvContent += `"${n.numero || ''}";"${n.serie || ''}";"${n.emitente || ''}";"${n.cnpjEmitente || ''}";"${n.dataEmissao || n.createdAt.toISOString()}";"${n.status}";"${(n.valorTotal || 0).toFixed(2).replace('.', ',')}"\n`;
+      }
+      csvContent += `\n`;
+
+      // 4. Posição de Estoque e Lucro Previsto Atual (Inventário e Análise de Lucratividade para Contabilidade)
+      try {
+        const allProds = await prisma.product.findMany({
+          where: { isActive: true },
+          include: { category: true }
+        });
+
+        let csvStockCost = 0;
+        let csvStockSale = 0;
+        const csvCatMap = new Map<string, { name: string; cost: number; sale: number }>();
+
+        for (const p of allProds) {
+          const st = Math.max(0, p.stock || 0);
+          const cst = (p.costPrice || 0) * st;
+          const sl = (p.price || 0) * st;
+          csvStockCost += cst;
+          csvStockSale += sl;
+
+          const catName = p.category?.name || 'Geral';
+          if (!csvCatMap.has(catName)) csvCatMap.set(catName, { name: catName, cost: 0, sale: 0 });
+          const item = csvCatMap.get(catName)!;
+          item.cost += cst;
+          item.sale += sl;
+        }
+
+        const csvStockProfit = csvStockSale - csvStockCost;
+        const csvStockMargin = csvStockSale > 0 ? ((csvStockProfit / csvStockSale) * 100) : 0;
+
+        csvContent += `--- POSIÇÃO DO ESTOQUE E LUCRO PREVISTO (SPED FISCAL / INVENTÁRIO) ---\n`;
+        csvContent += `Valor Total do Estoque a Preço de Custo:;R$ ${csvStockCost.toFixed(2).replace('.', ',')}\n`;
+        csvContent += `Valor Total do Estoque a Preço de Venda:;R$ ${csvStockSale.toFixed(2).replace('.', ',')}\n`;
+        csvContent += `Lucro Previsto Total do Estoque:;R$ ${csvStockProfit.toFixed(2).replace('.', ',')}\n`;
+        csvContent += `Margem Média Prevista do Estoque:;${csvStockMargin.toFixed(1).replace('.', ',')}%\n\n`;
+
+        csvContent += `--- LUCRO PREVISTO POR CATEGORIA DE PRODUTOS ---\n`;
+        csvContent += `Categoria;Estoque a Custo (R$);Estoque a Venda (R$);Lucro Previsto (R$);Margem Média (%)\n`;
+        for (const cat of csvCatMap.values()) {
+          const catProfit = cat.sale - cat.cost;
+          const catMargin = cat.sale > 0 ? ((catProfit / cat.sale) * 100) : 0;
+          csvContent += `"${cat.name}";"${cat.cost.toFixed(2).replace('.', ',')}";"${cat.sale.toFixed(2).replace('.', ',')}";"${cat.profit.toFixed(2).replace('.', ',')}";"${catMargin.toFixed(1).replace('.', ',')}%"\n`;
+        }
+        csvContent += `\n`;
+      } catch (errStock) {
+        console.warn('[Export Month] Erro ao calcular estoque no CSV:', errStock);
       }
 
       zip.addFile(`Relatorio_Fiscal_${month}.csv`, Buffer.from('\uFEFF' + csvContent, 'utf-8'));

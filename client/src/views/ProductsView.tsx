@@ -26,13 +26,20 @@ import {
   ArrowLeft,
   DollarSign,
   TrendingUp,
+  TrendingDown,
   Layers,
   ShieldCheck,
   Check,
   HelpCircle,
   Calculator,
   Globe,
-  UploadCloud
+  UploadCloud,
+  History,
+  BarChart2,
+  Boxes,
+  ArrowDown,
+  ArrowUp,
+  ArrowRight
 } from 'lucide-react';
 import { ImportXmlModal } from '../components/ImportXmlModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
@@ -84,6 +91,7 @@ export const ProductsView: React.FC = () => {
   const [formDescription, setFormDescription] = useState<string>('');
   const [formPrice, setFormPrice] = useState<string>('');
   const [formCostPrice, setFormCostPrice] = useState<string>('');
+  const [formTargetMargin, setFormTargetMargin] = useState<string>('50');
   const [formCategoryId, setFormCategoryId] = useState<string>('');
   const [formKdsStation, setFormKdsStation] = useState<KdsStation>('BAR');
   const [formStock, setFormStock] = useState<string>('100');
@@ -94,6 +102,17 @@ export const ProductsView: React.FC = () => {
   const [formUnit, setFormUnit] = useState<string>('un');
   const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
   const [isComposed, setIsComposed] = useState<boolean>(false);
+
+  // Modal Histórico de Preços
+  const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+  const [priceHistoryList, setPriceHistoryList] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+
+  // Modal Relatório de Estoque & Lucro Previsto
+  const [showStockReportModal, setShowStockReportModal] = useState<boolean>(false);
+  const [stockReportData, setStockReportData] = useState<any>(null);
+  const [stockReportLoading, setStockReportLoading] = useState<boolean>(false);
 
   // Venda por Caixa / Fardo Fechado
   const [formHasBoxPrice, setFormHasBoxPrice] = useState<boolean>(false);
@@ -179,6 +198,35 @@ export const ProductsView: React.FC = () => {
     }
   };
 
+  const openPriceHistoryModal = async (p: Product) => {
+    setHistoryProduct(p);
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+    try {
+      const history = await api.getPriceHistory(p.id);
+      setPriceHistoryList(Array.isArray(history) ? history : []);
+    } catch (err) {
+      console.error('Erro ao carregar histórico de preços:', err);
+      setPriceHistoryList([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openStockReportModal = async () => {
+    setShowStockReportModal(true);
+    setStockReportLoading(true);
+    try {
+      const report = await api.getStockReport();
+      setStockReportData(report);
+    } catch (err) {
+      console.error('Erro ao carregar relatório de estoque:', err);
+      setStockReportData(null);
+    } finally {
+      setStockReportLoading(false);
+    }
+  };
+
   const handleOrganizeBarKitchen = async () => {
     try {
       setOrganizingLoading(true);
@@ -237,6 +285,7 @@ export const ProductsView: React.FC = () => {
     setFormDescription('');
     setFormPrice('');
     setFormCostPrice('');
+    setFormTargetMargin('50');
     setFormKdsStation('BAR');
     setFormStock('100');
     setFormMinStock('10');
@@ -318,6 +367,7 @@ export const ProductsView: React.FC = () => {
     setFormDescription(p.description || '');
     setFormPrice(p.price.toString());
     setFormCostPrice(p.costPrice ? p.costPrice.toString() : '');
+    setFormTargetMargin(p.targetMargin ? p.targetMargin.toString() : (p.costPrice && p.price > 0 ? (((p.price - p.costPrice) / p.price) * 100).toFixed(1) : '50'));
     setFormCategoryId(p.categoryId);
     setFormKdsStation(p.kdsStation);
     setFormStock(p.stock.toString());
@@ -446,6 +496,7 @@ export const ProductsView: React.FC = () => {
         description: formDescription.trim() || null,
         price,
         costPrice: parsedCost,
+        targetMargin: formTargetMargin ? parseFloat(formTargetMargin.replace(',', '.')) : null,
         categoryId: formCategoryId,
         kdsStation: formKdsStation,
         stock: parsedStock,
@@ -1079,7 +1130,72 @@ export const ProductsView: React.FC = () => {
                     <h3 className="text-base font-black text-slate-900 dark:text-white">Preços, Custos & Rentabilidade</h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="prod-form-cost" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
+                        Preço de Custo (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
+                          R$
+                        </span>
+                        <input
+                          id="prod-form-cost"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="4,50"
+                          value={formCostPrice}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            setFormCostPrice(val);
+                            const parsedC = parseFloat(val.replace(',', '.')) || 0;
+                            const parsedM = parseFloat(formTargetMargin.replace(',', '.')) || 0;
+                            if (parsedC > 0 && parsedM > 0 && parsedM < 100) {
+                              const calcV = Number((parsedC / (1 - (parsedM / 100))).toFixed(2));
+                              setFormPrice(String(calcV));
+                            }
+                          }}
+                          className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Custo pago ao fornecedor ou insumos.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label htmlFor="prod-form-target-margin" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer flex items-center justify-between">
+                        <span>Margem Alvo (%)</span>
+                        <span className="text-[10px] text-amber-500 font-bold lowercase">auto-cálculo</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="prod-form-target-margin"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="50"
+                          value={formTargetMargin}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            setFormTargetMargin(val);
+                            const parsedM = parseFloat(val.replace(',', '.')) || 0;
+                            const parsedC = parseFloat(formCostPrice.replace(',', '.')) || 0;
+                            if (parsedC > 0 && parsedM > 0 && parsedM < 100) {
+                              const calcV = Number((parsedC / (1 - (parsedM / 100))).toFixed(2));
+                              setFormPrice(String(calcV));
+                            }
+                          }}
+                          className="w-full pl-4 pr-9 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
+                        />
+                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
+                          %
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Calcula o preço de venda automaticamente.
+                      </span>
+                    </div>
+
                     <div>
                       <label htmlFor="prod-form-price" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
                         Preço de Venda (R$) *
@@ -1095,35 +1211,21 @@ export const ProductsView: React.FC = () => {
                           required
                           placeholder="14,00"
                           value={formPrice}
-                          onChange={(e) => setFormPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            setFormPrice(val);
+                            const parsedV = parseFloat(val.replace(',', '.')) || 0;
+                            const parsedC = parseFloat(formCostPrice.replace(',', '.')) || 0;
+                            if (parsedV > 0 && parsedC > 0) {
+                              const calculatedMargin = Number((((parsedV - parsedC) / parsedV) * 100).toFixed(1));
+                              setFormTargetMargin(String(calculatedMargin));
+                            }
+                          }}
                           className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
                         />
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">
                         Valor cobrado do cliente na comanda / mesa.
-                      </span>
-                    </div>
-
-                    <div>
-                      <label htmlFor="prod-form-cost" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
-                        Preço de Custo (R$)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none select-none">
-                          R$
-                        </span>
-                        <input
-                          id="prod-form-cost"
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="4,50"
-                          value={formCostPrice}
-                          onChange={(e) => setFormCostPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                          className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-lg font-bold focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
-                        />
-                      </div>
-                      <span className="text-[10px] text-slate-500 mt-1 block">
-                        Valor pago ao distribuidor ou soma dos insumos.
                       </span>
                     </div>
                   </div>
@@ -1751,6 +1853,15 @@ export const ProductsView: React.FC = () => {
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
+            onClick={openStockReportModal}
+            className="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/60 cursor-pointer shadow-xs"
+            title="Ver valor do estoque a preço de custo e venda, e lucro previsto geral e por categoria"
+          >
+            <BarChart2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Relatório de Estoque</span>
+          </button>
+
+          <button
             onClick={() => setShowImportXmlModal(true)}
             className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 cursor-pointer"
             title="Importar produtos, categorias e fornecedores de arquivo XML"
@@ -2033,9 +2144,15 @@ export const ProductsView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-4 text-right font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {p.costPrice ? `R$ ${p.costPrice.toFixed(2)}` : '-'}
+                      <div>{p.costPrice ? `R$ ${p.costPrice.toFixed(2)}` : '-'}</div>
                       {margin !== null && (
-                        <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-sans">
+                        <span className={`inline-block text-[10px] font-bold font-sans px-1.5 py-0.2 rounded-md border mt-0.5 ${
+                          margin >= 50
+                            ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                            : margin >= 30
+                            ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30'
+                            : 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
+                        }`}>
                           {margin}% margem
                         </span>
                       )}
@@ -2080,6 +2197,13 @@ export const ProductsView: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => openPriceHistoryModal(p)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition cursor-pointer"
+                          title="Histórico de Preços (Custo e Venda)"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleDuplicateProduct(p)}
                           className="p-1.5 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
@@ -2775,6 +2899,303 @@ export const ProductsView: React.FC = () => {
             setShowNcmModal(false);
           }}
         />
+      )}
+
+      {/* Modal de Histórico de Preços (PriceHistory) */}
+      {showHistoryModal && historyProduct && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Histórico de Alterações de Preço
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {historyProduct.name} {historyProduct.code ? `(#${historyProduct.code})` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+                <span className="text-xs font-bold">Carregando histórico...</span>
+              </div>
+            ) : priceHistoryList.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 dark:text-slate-500 space-y-1">
+                <History className="w-8 h-8 mx-auto opacity-40 mb-2" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Nenhuma alteração registrada ainda</p>
+                <p className="text-xs">As alterações manuais e importações de XML aparecerão registradas aqui com responsável e variações.</p>
+              </div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {priceHistoryList.map((h: any) => {
+                  const dateStr = new Date(h.createdAt).toLocaleString('pt-BR');
+                  const costDiff = h.costDiff ?? (h.newCostPrice !== null && h.oldCostPrice !== null ? h.newCostPrice - h.oldCostPrice : null);
+                  const priceDiff = h.priceDiff ?? (h.newPrice - h.oldPrice);
+
+                  return (
+                    <div key={h.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{dateStr}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-slate-200/70 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                            Por: {h.changedBy || 'Operador'}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            h.reason === 'IMPORT_XML'
+                              ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30'
+                              : 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-300'
+                          }`}>
+                            {h.reason === 'IMPORT_XML' ? 'Entrada NF-e (XML)' : 'Edição Manual'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        {/* Venda */}
+                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Preço de Venda</span>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-slate-500 line-through">
+                              R$ {Number(h.oldPrice).toFixed(2)}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-mono font-black text-slate-900 dark:text-white">
+                              R$ {Number(h.newPrice).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[10px] font-bold flex items-center justify-end gap-1">
+                            {priceDiff > 0 ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 flex items-center">
+                                <ArrowUp className="w-3 h-3" /> +R$ {priceDiff.toFixed(2)} ({h.pricePercent ? `+${h.pricePercent}%` : ''})
+                              </span>
+                            ) : priceDiff < 0 ? (
+                              <span className="text-rose-600 dark:text-rose-400 flex items-center">
+                                <ArrowDown className="w-3 h-3" /> -R$ {Math.abs(priceDiff).toFixed(2)} ({h.pricePercent ? `${h.pricePercent}%` : ''})
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">Sem alteração de venda</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Custo */}
+                        <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Preço de Custo</span>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-slate-500">
+                              {h.oldCostPrice !== null ? `R$ ${Number(h.oldCostPrice).toFixed(2)}` : '-'}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                              {h.newCostPrice !== null ? `R$ ${Number(h.newCostPrice).toFixed(2)}` : '-'}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[10px] font-bold flex items-center justify-end gap-1">
+                            {costDiff !== null && costDiff > 0 ? (
+                              <span className="text-rose-600 dark:text-rose-400 flex items-center">
+                                <ArrowUp className="w-3 h-3" /> Custo subiu (+R$ {costDiff.toFixed(2)})
+                              </span>
+                            ) : costDiff !== null && costDiff < 0 ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 flex items-center">
+                                <ArrowDown className="w-3 h-3" /> Custo caiu (-R$ {Math.abs(costDiff).toFixed(2)})
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">Sem alteração de custo</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {h.nfeChave && (
+                        <div className="text-[10px] font-mono text-slate-400 truncate pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                          Chave NF-e: {h.nfeChave}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Relatório de Estoque & Lucro Previsto */}
+      {showStockReportModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <BarChart2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    Relatório de Estoque & Lucro Previsto
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Posição consolidada a preço de custo e venda, e lucratividade total e por categoria
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStockReportModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {stockReportLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+                <span className="text-xs font-bold">Calculando valores do inventário...</span>
+              </div>
+            ) : !stockReportData ? (
+              <div className="text-center py-12 text-slate-400">Falha ao carregar relatório.</div>
+            ) : (
+              <div className="space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+                {/* 4 Cards Principais */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-1">
+                      Total a Custo
+                    </span>
+                    <div className="text-lg font-black font-mono text-slate-900 dark:text-white">
+                      R$ {Number(stockReportData.summary?.totalCostValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">{stockReportData.summary?.totalProducts || 0} produtos cadastrados</span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-1">
+                      Total a Venda
+                    </span>
+                    <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                      R$ {Number(stockReportData.summary?.totalSaleValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">{stockReportData.summary?.totalStockUnits || 0} unidades em estoque</span>
+                  </div>
+
+                  <div className="bg-indigo-50/60 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4">
+                    <span className="text-[10px] font-bold uppercase text-indigo-700 dark:text-indigo-300 tracking-wider block mb-1">
+                      Lucro Previsto Total
+                    </span>
+                    <div className="text-lg font-black font-mono text-indigo-700 dark:text-indigo-300">
+                      R$ {Number(stockReportData.summary?.totalExpectedProfit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5 block">Venda - Custo</span>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-1">
+                      Margem Média
+                    </span>
+                    <div className="text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+                      {stockReportData.summary?.averageMargin || 0}%
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">Rentabilidade Geral</span>
+                  </div>
+                </div>
+
+                {/* Lucro Previsto por Categoria */}
+                <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-amber-500" />
+                      Lucro Previsto Agrupado por Categoria
+                    </h4>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {stockReportData.categories?.length || 0} categorias
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                      <thead className="bg-slate-100/70 dark:bg-slate-900/60 uppercase text-[10px] tracking-wider text-slate-500 font-bold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="py-2.5 px-4">Categoria</th>
+                          <th className="py-2.5 px-3 text-center">Produtos</th>
+                          <th className="py-2.5 px-3 text-center">Unidades</th>
+                          <th className="py-2.5 px-4 text-right">Estoque Custo</th>
+                          <th className="py-2.5 px-4 text-right">Estoque Venda</th>
+                          <th className="py-2.5 px-4 text-right">Lucro Previsto</th>
+                          <th className="py-2.5 px-3 text-center">Margem</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {stockReportData.categories?.map((cat: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                            <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white">
+                              {cat.category}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono text-slate-500">
+                              {cat.itemsCount}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-mono text-slate-500">
+                              {cat.unitsCount}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                              R$ {Number(cat.totalCost).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                              R$ {Number(cat.totalSale).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono font-black text-indigo-600 dark:text-indigo-400">
+                              R$ {Number(cat.expectedProfit).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                cat.marginPercent >= 50
+                                  ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                                  : cat.marginPercent >= 30
+                                  ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                  : 'bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400'
+                              }`}>
+                                {cat.marginPercent}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                onClick={() => setShowStockReportModal(false)}
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Fechar Relatório
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

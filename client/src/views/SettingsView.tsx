@@ -20,7 +20,8 @@ import {
   Sparkles,
   ArrowUpCircle,
   RefreshCw,
-  Key
+  Key,
+  TrendingUp
 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
@@ -109,8 +110,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     else onChangeFontScale('normal');
   };
 
+  const [defaultMarginInput, setDefaultMarginInput] = useState<string>('50');
+  const [isSavingMargin, setIsSavingMargin] = useState<boolean>(false);
+
   useEffect(() => {
     api.getBackupStatus().then(setBackupInfo).catch(() => {});
+    api.getSystemSettings().then(st => {
+      if (st?.defaultProfitMargin !== undefined && st?.defaultProfitMargin !== null) {
+        setDefaultMarginInput(String(st.defaultProfitMargin));
+      }
+    }).catch(() => {});
 
     // Buscar dispositivos iniciais
     fetch('/api/network/devices')
@@ -129,6 +138,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       socket.off('devices_updated', handleDevicesUpdated);
     };
   }, []);
+
+  const handleSaveDefaultMargin = async () => {
+    const val = parseFloat(defaultMarginInput.replace(',', '.'));
+    if (isNaN(val) || val <= 0 || val >= 100) {
+      alert('Informe uma margem de lucro válida entre 1% e 99%.');
+      return;
+    }
+    try {
+      setIsSavingMargin(true);
+      await api.updateSystemSettings({ defaultProfitMargin: val });
+      alert('Margem de lucro padrão do sistema salva com sucesso!');
+    } catch (err: any) {
+      alert('Erro ao salvar margem de lucro padrão: ' + (err.message || err));
+    } finally {
+      setIsSavingMargin(false);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-20 max-w-4xl mx-auto">
@@ -245,6 +271,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <ChevronRight className="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-purple-600 dark:group-hover:text-purple-300 group-hover:translate-x-1 transition-all shrink-0" />
         </button>
       )}
+
+      {/* Configuração de Margem de Lucro Padrão */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <TrendingUp className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Margem de Lucro Padrão do Sistema
+              </h3>
+              <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 px-2 py-0.5 rounded-full">
+                Entradas de NF-e
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Margem comercial sugerida para novos produtos e cálculos automáticos na importação de XMLs.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <div className="relative w-28">
+            <input
+              type="number"
+              min="1"
+              max="99"
+              step="1"
+              value={defaultMarginInput}
+              onChange={(e) => setDefaultMarginInput(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-sm font-bold rounded-xl py-2.5 pl-3 pr-7 focus:border-amber-500 outline-none transition"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">%</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveDefaultMargin}
+            disabled={isSavingMargin}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition disabled:opacity-50 cursor-pointer shadow-md shadow-amber-500/20"
+          >
+            {isSavingMargin ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
 
       {/* Grid de Opções - Backup Automático */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 flex items-center justify-between shadow-sm">

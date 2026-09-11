@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Briefcase, Download, Calendar, Loader2, FileSpreadsheet, ArrowUpRight, ArrowDownLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Briefcase, 
+  Download, 
+  Calendar, 
+  Loader2, 
+  FileSpreadsheet, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  AlertCircle, 
+  CheckCircle2,
+  Boxes,
+  TrendingUp,
+  Tag
+} from 'lucide-react';
 import { api } from '../services/api';
+
+interface CategoryStockSummary {
+  category: string;
+  itemsCount: number;
+  totalCost: number;
+  totalSale: number;
+  expectedProfit: number;
+  marginPercent: number;
+}
 
 interface MonthSummary {
   month: string;
@@ -13,6 +36,10 @@ interface MonthSummary {
   recebidasCount: number;
   recebidasTotal: number;
   hasNotes: boolean;
+  stockCostTotal?: number;
+  stockSaleTotal?: number;
+  stockProfitTotal?: number;
+  categoriesStock?: CategoryStockSummary[];
 }
 
 export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -173,6 +200,78 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
               </div>
             </div>
           </div>
+
+          {/* Posição de Estoque & Lucro Previsto (SPED Fiscal / Inventário) */}
+          {summary?.stockCostTotal !== undefined && (
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Boxes className="w-4 h-4 text-indigo-500" />
+                  Posição de Estoque & Lucro Previsto (SPED)
+                </span>
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-500/30">
+                  Inventário Contábil
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                    Estoque a Custo
+                  </div>
+                  <div className="text-sm font-black font-mono text-slate-800 dark:text-slate-200">
+                    {formatMoney(summary.stockCostTotal || 0)}
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                    Estoque a Venda
+                  </div>
+                  <div className="text-sm font-black font-mono text-emerald-600 dark:text-emerald-400">
+                    {formatMoney(summary.stockSaleTotal || 0)}
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 flex items-center justify-between">
+                    <span>Lucro Previsto Total</span>
+                    <TrendingUp className="w-3 h-3 text-indigo-500" />
+                  </div>
+                  <div className="text-sm font-black font-mono text-indigo-600 dark:text-indigo-400">
+                    {formatMoney(summary.stockProfitTotal || 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Categorias */}
+              {summary.categoriesStock && summary.categoriesStock.length > 0 && (
+                <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Tag className="w-3.5 h-3.5 text-amber-500" /> Lucro Previsto por Categoria
+                    </span>
+                    <span className="text-[10px] text-slate-400">Incluído no fechamento CSV</span>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                    {summary.categoriesStock.map((cat, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800/80">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {cat.category} ({cat.itemsCount} itens)
+                        </span>
+                        <div className="flex items-center gap-3 font-mono">
+                          <span className="text-slate-500 text-[11px]">Custo: {formatMoney(cat.totalCost)}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
+                            Lucro: {formatMoney(cat.expectedProfit)} ({cat.marginPercent}%)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Aviso sobre notas */}
           {summary && !summary.hasNotes && !isLoadingSummary && (

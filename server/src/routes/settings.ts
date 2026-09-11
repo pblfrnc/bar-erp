@@ -158,6 +158,29 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Atualizar configurações gerais (ex: Margem de Lucro padrão, Nome do Restaurante)
+router.put('/', async (req, res) => {
+  try {
+    const { restaurantName, defaultProfitMargin } = req.body;
+    const dataToUpdate: any = {};
+    if (restaurantName !== undefined) dataToUpdate.restaurantName = String(restaurantName).trim();
+    if (defaultProfitMargin !== undefined) {
+      dataToUpdate.defaultProfitMargin = Number(defaultProfitMargin) || 50.0;
+    }
+
+    const updated = await prisma.systemSettings.update({
+      where: { id: 'default' },
+      data: dataToUpdate
+    });
+
+    const { licenseKey, ...safeSettings } = updated;
+    res.json({ success: true, settings: safeSettings });
+  } catch (error: any) {
+    console.error('Erro ao atualizar configurações:', error);
+    res.status(500).json({ error: 'Erro ao salvar configurações' });
+  }
+});
+
 // Sincronização e verificação remota com o Servidor de Licenças da Software House
 router.post('/license/sync-remote', async (req, res) => {
   try {

@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileCode2, Upload, AlertCircle, CheckCircle2, PackagePlus, ArrowRight, ArrowLeft, Loader, Scan, Check } from 'lucide-react';
+import { 
+  FileCode2, 
+  Upload, 
+  AlertCircle, 
+  CheckCircle2, 
+  PackagePlus, 
+  ArrowRight, 
+  ArrowLeft, 
+  Loader, 
+  Scan, 
+  Check, 
+  TrendingUp, 
+  TrendingDown, 
+  Package, 
+  Percent, 
+  AlertTriangle 
+} from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Category } from '../types';
 
@@ -19,6 +35,11 @@ interface MatchState {
   action: 'LINK' | 'NEW' | 'IGNORE';
   productId?: string;
   categoryId?: string;
+  // Precificação inteligente
+  newSalePrice?: number;
+  targetMargin?: number;
+  updateBoxPrice?: boolean;
+  newBoxPrice?: number;
 }
 
 interface FiscalImportViewProps {
@@ -31,6 +52,9 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
   const [isUploading, setIsUploading] = useState(false);
   const [xmlData, setXmlData] = useState<any>(null);
   const [matches, setMatches] = useState<MatchState[]>([]);
+  const [defaultMargin, setDefaultMargin] = useState<number>(50.0);
+  const [showPriceDropModal, setShowPriceDropModal] = useState<boolean>(false);
+  const [pendingApplyAction, setPendingApplyAction] = useState<boolean>(false);
 
   // 2º Bip: chave bipada no início ou dentro da conferência
   const [bipChaveInput, setBipChaveInput] = useState('');
@@ -51,17 +75,55 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
   useEffect(() => {
     api.getProducts().then(setProducts).catch(() => {});
     api.getCategories().then(setCategories).catch(() => {});
+    api.getSystemSettings().then(st => {
+      if (st?.defaultProfitMargin && st.defaultProfitMargin > 0) {
+        setDefaultMargin(st.defaultProfitMargin);
+      }
+    }).catch(() => {});
     setTimeout(() => startBipInputRef.current?.focus(), 150);
   }, []);
 
-  const buildInitialMatches = (items: XmlItem[], prods: Product[], cats: Category[]): MatchState[] => {
+  const calculateSalePriceFromMargin = (cost: number, margin: number): number => {
+    if (cost <= 0) return 0;
+    if (margin >= 100) return Number((cost * 2).toFixed(2));
+    return Number((cost / (1 - (margin / 100))).toFixed(2));
+  };
+
+  const calculateMarginFromSaleAndCost = (cost: number, sale: number): number => {
+    if (sale <= 0) return 0;
+    return Number((((sale - cost) / sale) * 100).toFixed(1));
+  };
+
+  const buildInitialMatches = (items: XmlItem[], prods: Product[], cats: Category[], sysMargin = 50.0): MatchState[] => {
     return items.map((item: XmlItem) => {
       const exactMatch = prods.find(p => p.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+      
+      const margin = exactMatch?.targetMargin && exactMatch.targetMargin > 0 
+        ? exactMatch.targetMargin 
+        : sysMargin;
+      
+      const suggestedSale = calculateSalePriceFromMargin(item.unitCost, margin);
+
+      let newBoxPrice: number | undefined = undefined;
+      if (exactMatch?.hasBoxPrice && exactMatch.boxQuantity) {
+        // Proporcional
+        if (exactMatch.price > 0 && exactMatch.boxPrice) {
+          const ratio = suggestedSale / exactMatch.price;
+          newBoxPrice = Number((exactMatch.boxPrice * ratio).toFixed(2));
+        } else {
+          newBoxPrice = Number((suggestedSale * exactMatch.boxQuantity).toFixed(2));
+        }
+      }
+
       return {
         xmlItem: item,
         action: exactMatch ? 'LINK' : 'NEW',
         productId: exactMatch?.id,
-        categoryId: cats.length > 0 ? cats[0].id : undefined
+        categoryId: cats.length > 0 ? cats[0].id : undefined,
+        targetMargin: margin,
+        newSalePrice: suggestedSale,
+        updateBoxPrice: Boolean(exactMatch?.hasBoxPrice),
+        newBoxPrice: newBoxPrice
       };
     });
   };
@@ -195,6 +257,24 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
     }
   };
 
+  const checkPriceDrops = (validMatches: MatchState[]) => {
+    const drops: { name: string; oldPrice: number; newPrice: number; diff: number }[] = [];
+    for (const m of validMatches) {
+      if (m.action === 'LINK' && m.productId && m.newSalePrice !== undefined) {
+        const prod = products.find(p => p.id === m.productId);
+        if (prod && prod.price > 0 && m.newSalePrice < prod.price) {
+          drops.push({
+            name: prod.name,
+            oldPrice: prod.price,
+            newPrice: m.newSalePrice,
+            diff: Number((prod.price - m.newSalePrice).toFixed(2))
+          });
+        }
+      }
+    }
+    return drops;
+  };
+
   const handleApply = async () => {
     const validMatches = matches.filter(m => m.action !== 'IGNORE');
     if (validMatches.length === 0) {
@@ -218,6 +298,18 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       }
     }
 
+    // Verificar se há redução de preço em algum produto vinculado
+    const priceDrops = checkPriceDrops(validMatches);
+    if (priceDrops.length > 0) {
+      setShowPriceDropModal(true);
+      return;
+    }
+
+    await executeFinalApply();
+  };
+
+  const executeFinalApply = async () => {
+    const validMatches = matches.filter(m => m.action !== 'IGNORE');
     try {
       setIsUploading(true);
       const keyToSend = (confirmChave || chaveAcesso || xmlData?.accessKey || '').replace(/\D/g, '');
@@ -237,6 +329,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       }
 
       alert(`✅ Entrada no Estoque Confirmada com Sucesso!\n\n• Produtos atualizados: ${res.results?.updated ?? 0}\n• Novos produtos cadastrados: ${res.results?.created ?? 0}`);
+      setShowPriceDropModal(false);
       onBack();
     } catch (err: any) {
       alert("Erro ao efetivar entrada: " + err.message);
@@ -551,38 +644,276 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                 </div>
 
                 {match.action === 'LINK' && (
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
-                      Produto no Sistema (Estoque será somado):
-                    </label>
-                    <select
-                      value={match.productId || ''}
-                      onChange={(e) => updateMatch(i, { productId: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg p-2.5 focus:border-indigo-500 outline-none shadow-xs"
-                    >
-                      <option value="">-- Selecione o Produto Existente --</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} (Estoque atual: {p.stock})</option>
-                      ))}
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        Produto no Sistema (Estoque será somado):
+                      </label>
+                      <select
+                        value={match.productId || ''}
+                        onChange={(e) => {
+                          const pId = e.target.value;
+                          const found = products.find(p => p.id === pId);
+                          const margin = found?.targetMargin && found.targetMargin > 0 ? found.targetMargin : defaultMargin;
+                          const newSale = calculateSalePriceFromMargin(match.xmlItem.unitCost, margin);
+                          let newBox = undefined;
+                          if (found?.hasBoxPrice && found.boxQuantity) {
+                            if (found.price > 0 && found.boxPrice) {
+                              newBox = Number((found.boxPrice * (newSale / found.price)).toFixed(2));
+                            } else {
+                              newBox = Number((newSale * found.boxQuantity).toFixed(2));
+                            }
+                          }
+                          updateMatch(i, {
+                            productId: pId,
+                            targetMargin: margin,
+                            newSalePrice: newSale,
+                            updateBoxPrice: Boolean(found?.hasBoxPrice),
+                            newBoxPrice: newBox
+                          });
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg p-2.5 focus:border-indigo-500 outline-none shadow-xs"
+                      >
+                        <option value="">-- Selecione o Produto Existente --</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} (Estoque atual: {p.stock})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Preços e Margem Inteligente */}
+                    {(() => {
+                      const existingProd = products.find(p => p.id === match.productId);
+                      const currentSale = existingProd?.price || 0;
+                      const currentCost = existingProd?.costPrice || 0;
+                      const newCost = match.xmlItem.unitCost;
+                      const newSale = match.newSalePrice ?? currentSale;
+                      const isDrop = existingProd && currentSale > 0 && newSale < currentSale;
+                      const isRise = existingProd && currentSale > 0 && newSale > currentSale;
+
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            <span className="flex items-center gap-1">
+                              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                              Atualização de Preço de Venda
+                            </span>
+                            {existingProd && (
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                Venda Atual: R$ {currentSale.toFixed(2)} | Custo Ant.: R$ {currentCost ? currentCost.toFixed(2) : '-'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400 block mb-0.5">
+                                Margem Alvo (%)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="99"
+                                  step="1"
+                                  value={match.targetMargin ?? defaultMargin}
+                                  onChange={(e) => {
+                                    const m = parseFloat(e.target.value) || 0;
+                                    const calculatedSale = calculateSalePriceFromMargin(newCost, m);
+                                    let calculatedBox = match.newBoxPrice;
+                                    if (existingProd?.hasBoxPrice && existingProd.boxQuantity) {
+                                      if (existingProd.price > 0 && existingProd.boxPrice) {
+                                        calculatedBox = Number((existingProd.boxPrice * (calculatedSale / existingProd.price)).toFixed(2));
+                                      } else {
+                                        calculatedBox = Number((calculatedSale * existingProd.boxQuantity).toFixed(2));
+                                      }
+                                    }
+                                    updateMatch(i, {
+                                      targetMargin: m,
+                                      newSalePrice: calculatedSale,
+                                      newBoxPrice: calculatedBox
+                                    });
+                                  }}
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs rounded-lg p-1.5 focus:border-amber-500 outline-none"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">%</span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400 block mb-0.5">
+                                Novo Preço Venda
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold pointer-events-none">R$</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={match.newSalePrice !== undefined ? match.newSalePrice : ''}
+                                  onChange={(e) => {
+                                    const s = parseFloat(e.target.value) || 0;
+                                    const m = calculateMarginFromSaleAndCost(newCost, s);
+                                    let calculatedBox = match.newBoxPrice;
+                                    if (existingProd?.hasBoxPrice && existingProd.boxQuantity) {
+                                      if (existingProd.price > 0 && existingProd.boxPrice) {
+                                        calculatedBox = Number((existingProd.boxPrice * (s / existingProd.price)).toFixed(2));
+                                      } else {
+                                        calculatedBox = Number((s * existingProd.boxQuantity).toFixed(2));
+                                      }
+                                    }
+                                    updateMatch(i, {
+                                      newSalePrice: s,
+                                      targetMargin: m,
+                                      newBoxPrice: calculatedBox
+                                    });
+                                  }}
+                                  className={`w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg outline-none ${
+                                    isDrop ? 'border-amber-500 focus:border-amber-400 bg-amber-50/20' : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1 flex flex-col justify-center">
+                              {isDrop && (
+                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-md border border-amber-200 dark:border-amber-500/20">
+                                  <TrendingDown className="w-3 h-3 text-amber-500 shrink-0" />
+                                  <span>Preço abaixará (-R$ {(currentSale - newSale).toFixed(2)})</span>
+                                </span>
+                              )}
+                              {isRise && (
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                                  <TrendingUp className="w-3 h-3 text-emerald-500 shrink-0" />
+                                  <span>Reajuste (+R$ {(newSale - currentSale).toFixed(2)})</span>
+                                </span>
+                              )}
+                              {!isDrop && !isRise && existingProd && (
+                                <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                  Preço mantido
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Se for vendido em caixa, pergunta proporcional */}
+                          {existingProd?.hasBoxPrice && existingProd.boxQuantity && (
+                            <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(match.updateBoxPrice)}
+                                  onChange={(e) => updateMatch(i, { updateBoxPrice: e.target.checked })}
+                                  className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 border-slate-300 dark:border-slate-700"
+                                />
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                  <Package className="w-3.5 h-3.5 text-amber-500" />
+                                  Atualizar preço de caixa proporcional ({existingProd.boxQuantity} un)?
+                                </span>
+                              </label>
+
+                              {match.updateBoxPrice && (
+                                <div className="mt-2 pl-6 flex items-center gap-3">
+                                  <span className="text-[10px] text-slate-500">
+                                    Caixa Atual: R$ {existingProd.boxPrice?.toFixed(2) || '0.00'} ➔ Novo Caixa:
+                                  </span>
+                                  <div className="relative w-28">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold pointer-events-none">R$</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={match.newBoxPrice !== undefined ? match.newBoxPrice : ''}
+                                      onChange={(e) => updateMatch(i, { newBoxPrice: parseFloat(e.target.value) || 0 })}
+                                      className="w-full pl-7 pr-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg outline-none focus:border-amber-500"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
                 {match.action === 'NEW' && (
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
-                      Categoria do Novo Produto:
-                    </label>
-                    <select
-                      value={match.categoryId || ''}
-                      onChange={(e) => updateMatch(i, { categoryId: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg p-2.5 focus:border-amber-500 outline-none shadow-xs"
-                    >
-                      <option value="">-- Selecione a Categoria --</option>
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        Categoria do Novo Produto:
+                      </label>
+                      <select
+                        value={match.categoryId || ''}
+                        onChange={(e) => updateMatch(i, { categoryId: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg p-2.5 focus:border-amber-500 outline-none shadow-xs"
+                      >
+                        <option value="">-- Selecione a Categoria --</option>
+                        {categories.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Preço de Venda do Novo Produto */}
+                    <div className="bg-slate-50 dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-1">
+                          <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                          Preço de Venda Sugerido (Novo Produto)
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          Custo NF: R$ {match.xmlItem.unitCost.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400 block mb-0.5">
+                            Margem Alvo (%)
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              step="1"
+                              value={match.targetMargin ?? defaultMargin}
+                              onChange={(e) => {
+                                const m = parseFloat(e.target.value) || 0;
+                                updateMatch(i, {
+                                  targetMargin: m,
+                                  newSalePrice: calculateSalePriceFromMargin(match.xmlItem.unitCost, m)
+                                });
+                              }}
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs rounded-lg p-1.5 focus:border-amber-500 outline-none"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">%</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400 block mb-0.5">
+                            Preço de Venda
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold pointer-events-none">R$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={match.newSalePrice !== undefined ? match.newSalePrice : ''}
+                              onChange={(e) => {
+                                const s = parseFloat(e.target.value) || 0;
+                                updateMatch(i, {
+                                  newSalePrice: s,
+                                  targetMargin: calculateMarginFromSaleAndCost(match.xmlItem.unitCost, s)
+                                });
+                              }}
+                              className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -608,6 +939,65 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
           </button>
         </div>
       </div>
+
+      {/* Modal de Alerta de Redução de Preço */}
+      {showPriceDropModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  Atenção: Redução de Preço de Venda!
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  O preço de venda calculado para um ou mais produtos ficou abaixo do valor atual.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-3.5 space-y-2 max-h-56 overflow-y-auto">
+              <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Produtos que terão o preço reduzido:
+              </div>
+              <div className="space-y-1.5">
+                {checkPriceDrops(matches.filter(m => m.action !== 'IGNORE')).map((p, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-950 p-2 rounded-xl border border-amber-200/60 dark:border-amber-500/20">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate pr-2">
+                      {p.name}
+                    </span>
+                    <span className="font-mono whitespace-nowrap text-amber-700 dark:text-amber-400">
+                      R$ {p.oldPrice.toFixed(2)} ➔ <strong className="text-rose-600 dark:text-rose-400">R$ {p.newPrice.toFixed(2)}</strong>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Deseja realmente <strong>abaixar o preço de venda</strong> desses produtos no PDV/Mesas ou prefere manter os preços atuais e revisar as margens?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowPriceDropModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Voltar e Revisar Margens
+              </button>
+              <button
+                onClick={() => executeFinalApply()}
+                disabled={isUploading}
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                {isUploading ? 'Efetivando...' : 'Confirmar e Reduzir Preço'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

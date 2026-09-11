@@ -53,6 +53,7 @@ export interface Product {
   description?: string | null;
   price: number;
   costPrice?: number | null;
+  targetMargin?: number | null;
   categoryId: string;
   ncm?: string | null;
   cfop?: string | null;
@@ -70,7 +71,25 @@ export interface Product {
   hasBoxPrice?: boolean;
   boxQuantity?: number | null;
   boxPrice?: number | null;
+  boxCostPrice?: number | null;
   boxEan?: string | null;
+}
+
+export interface PriceHistory {
+  id: string;
+  productId: string;
+  oldCostPrice?: number | null;
+  newCostPrice?: number | null;
+  oldPrice: number;
+  newPrice: number;
+  costDiff?: number | null;
+  costPercent?: number | null;
+  priceDiff: number;
+  pricePercent: number;
+  changedBy: string;
+  reason: string;
+  nfeChave?: string | null;
+  createdAt: string;
 }
 
 export interface OrderItem {

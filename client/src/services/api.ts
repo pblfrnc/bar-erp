@@ -14,7 +14,8 @@ import {
   StaffPublicUser,
   StaffMember,
   LoggedUser,
-  PrinterSettings
+  PrinterSettings,
+  PriceHistory
 } from '../types';
 
 
@@ -270,6 +271,26 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(handleResponse<Product>);
+  },
+
+  getPriceHistory: async (productId: string): Promise<PriceHistory[]> => {
+    return fetchWithRetry(`${getApiUrl()}/products/${productId}/price-history`).then(handleResponse<PriceHistory[]>);
+  },
+
+  getStockReport: async (): Promise<any> => {
+    return fetchWithRetry(`${getApiUrl()}/products/stock-report`).then(handleResponse<any>);
+  },
+
+  getSystemSettings: async (): Promise<any> => {
+    return fetchWithRetry(`${getApiUrl()}/settings`).then(handleResponse<any>);
+  },
+
+  updateSystemSettings: async (data: { defaultProfitMargin?: number; restaurantName?: string }): Promise<any> => {
+    return fetchWithRetry(`${getApiUrl()}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(handleResponse<any>);
   },
 
   adjustStock: async (id: string, adjustment?: number, newStock?: number): Promise<Product> => {

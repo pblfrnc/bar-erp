@@ -239,9 +239,11 @@ export function createProductsRouter() {
           description: description || null,
           price: Number(price),
           costPrice: costPrice !== undefined && costPrice !== null && costPrice !== '' ? Number(costPrice) : null,
+          targetMargin: req.body.targetMargin !== undefined && req.body.targetMargin !== null && req.body.targetMargin !== '' ? Number(req.body.targetMargin) : null,
           hasBoxPrice: Boolean(req.body.hasBoxPrice),
           boxQuantity: req.body.boxQuantity ? parseInt(req.body.boxQuantity, 10) : 24,
           boxPrice: req.body.boxPrice !== undefined && req.body.boxPrice !== null && req.body.boxPrice !== '' ? Number(req.body.boxPrice) : null,
+          boxCostPrice: req.body.boxCostPrice !== undefined && req.body.boxCostPrice !== null && req.body.boxCostPrice !== '' ? Number(req.body.boxCostPrice) : null,
           boxEan: req.body.boxEan ? String(req.body.boxEan).trim() : null,
           categoryId,
           kdsStation: kdsStation || 'BAR',
@@ -258,6 +260,25 @@ export function createProductsRouter() {
         },
         include: { category: true, supplierRel: true, components: { include: { component: true } } }
       });
+
+      // Registrar preço inicial no histórico
+      try {
+        await (prisma as any).priceHistory.create({
+          data: {
+            productId: product.id,
+            oldCostPrice: null,
+            newCostPrice: product.costPrice,
+            oldPrice: product.price,
+            newPrice: product.price,
+            costDiff: null,
+            costPercent: null,
+            priceDiff: 0,
+            pricePercent: 0,
+            changedBy: (req.headers['x-user-name'] as string) || req.body.changedBy || 'Operador',
+            reason: 'CADASTRO_INICIAL'
+          }
+        });
+      } catch (_) {}
 
       res.status(201).json(product);
     } catch (error) {
@@ -284,6 +305,7 @@ export function createProductsRouter() {
         description,
         price,
         costPrice,
+        targetMargin,
         categoryId,
         kdsStation,
         stock,
@@ -291,6 +313,14 @@ export function createProductsRouter() {
         isActive,
         components
       } = req.body;
+
+      // Buscar estado anterior do produto para detecção de histórico de preços
+      const existingProduct = await prisma.product.findUnique({
+        where: { id }
+      });
+      if (!existingProduct) {
+        return res.status(404).json({ error: 'Produto não encontrado' });
+      }
 
       const dataToUpdate: any = {};
       if (name !== undefined) dataToUpdate.name = name.trim();
@@ -318,9 +348,11 @@ export function createProductsRouter() {
       if (description !== undefined) dataToUpdate.description = description;
       if (price !== undefined) dataToUpdate.price = Number(price);
       if (costPrice !== undefined) dataToUpdate.costPrice = costPrice !== null && costPrice !== '' ? Number(costPrice) : null;
+      if (targetMargin !== undefined) dataToUpdate.targetMargin = targetMargin !== null && targetMargin !== '' ? Number(targetMargin) : null;
       if (req.body.hasBoxPrice !== undefined) dataToUpdate.hasBoxPrice = Boolean(req.body.hasBoxPrice);
       if (req.body.boxQuantity !== undefined) dataToUpdate.boxQuantity = req.body.boxQuantity ? parseInt(req.body.boxQuantity, 10) : 24;
       if (req.body.boxPrice !== undefined) dataToUpdate.boxPrice = req.body.boxPrice !== null && req.body.boxPrice !== '' ? Number(req.body.boxPrice) : null;
+      if (req.body.boxCostPrice !== undefined) dataToUpdate.boxCostPrice = req.body.boxCostPrice !== null && req.body.boxCostPrice !== '' ? Number(req.body.boxCostPrice) : null;
       if (req.body.boxEan !== undefined) dataToUpdate.boxEan = req.body.boxEan ? String(req.body.boxEan).trim() : null;
       if (categoryId !== undefined) dataToUpdate.categoryId = categoryId;
       if (kdsStation !== undefined) dataToUpdate.kdsStation = kdsStation;
@@ -344,6 +376,42 @@ export function createProductsRouter() {
         include: { category: true, supplierRel: true, components: { include: { component: true } } }
       });
 
+      // Gravar histórico de preços se custo ou preço de venda foram alterados
+      const oldCost = existingProduct.costPrice;
+      const newCost = product.costPrice;
+      const oldSale = existingProduct.price;
+      const newSale = product.price;
+
+      const costChanged = (oldCost ?? null) !== (newCost ?? null);
+      const saleChanged = Math.abs(oldSale - newSale) > 0.001;
+
+      if (costChanged || saleChanged) {
+        try {
+          const costDiff = (newCost !== null && oldCost !== null) ? Number((newCost - oldCost).toFixed(2)) : (newCost !== null ? newCost : null);
+          const costPercent = (oldCost && oldCost > 0 && newCost !== null) ? Number((((newCost - oldCost) / oldCost) * 100).toFixed(2)) : null;
+          const priceDiff = Number((newSale - oldSale).toFixed(2));
+          const pricePercent = oldSale > 0 ? Number((((newSale - oldSale) / oldSale) * 100).toFixed(2)) : 0;
+
+          await (prisma as any).priceHistory.create({
+            data: {
+              productId: id,
+              oldCostPrice: oldCost,
+              newCostPrice: newCost,
+              oldPrice: oldSale,
+              newPrice: newSale,
+              costDiff,
+              costPercent,
+              priceDiff,
+              pricePercent,
+              changedBy: (req.headers['x-user-name'] as string) || req.body.changedBy || 'Operador',
+              reason: 'MANUAL_UPDATE'
+            }
+          });
+        } catch (hErr) {
+          console.warn('[PriceHistory] Erro ao gravar histórico manual:', hErr);
+        }
+      }
+
       res.json(product);
     } catch (error) {
       console.error('Erro ao atualizar produto:', error);
@@ -351,31 +419,121 @@ export function createProductsRouter() {
     }
   });
 
-  // Ajuste rápido de estoque
-  router.put('/:id/stock', async (req, res) => {
+  // Relatório de Estoque com Lucro Previsto (Geral e por Categoria)
+  router.get('/stock-report', async (_req, res) => {
     try {
-      const { id } = req.params;
-      const { adjustment, newStock } = req.body;
+      const categories = await prisma.category.findMany({
+        orderBy: { sortOrder: 'asc' }
+      });
 
-      let product;
-      if (newStock !== undefined) {
-        product = await prisma.product.update({
-          where: { id },
-          data: { stock: Number(newStock) }
+      const products = await prisma.product.findMany({
+        where: { isActive: true },
+        include: { category: true }
+      });
+
+      let totalStockItems = 0;
+      let totalCostValue = 0;
+      let totalSaleValue = 0;
+
+      const categoryMap = new Map<string, {
+        categoryId: string;
+        categoryName: string;
+        totalItems: number;
+        costValue: number;
+        saleValue: number;
+        expectedProfit: number;
+        marginPercent: number;
+      }>();
+
+      for (const cat of categories) {
+        categoryMap.set(cat.id, {
+          categoryId: cat.id,
+          categoryName: cat.name,
+          totalItems: 0,
+          costValue: 0,
+          saleValue: 0,
+          expectedProfit: 0,
+          marginPercent: 0
         });
-      } else if (adjustment !== undefined) {
-        product = await prisma.product.update({
-          where: { id },
-          data: { stock: { increment: Number(adjustment) } }
-        });
-      } else {
-        return res.status(400).json({ error: 'Informe adjustment ou newStock' });
       }
 
-      res.json(product);
-    } catch (error) {
-      console.error('Erro ao atualizar estoque:', error);
-      res.status(500).json({ error: 'Erro ao atualizar estoque' });
+      const productDetails = products.map((p: any) => {
+        const stock = Math.max(0, p.stock || 0);
+        const cost = p.costPrice || 0;
+        const price = p.price || 0;
+        const totalCost = Number((stock * cost).toFixed(2));
+        const totalSale = Number((stock * price).toFixed(2));
+        const profit = Number((totalSale - totalCost).toFixed(2));
+        const margin = price > 0 ? Number((((price - cost) / price) * 100).toFixed(1)) : 0;
+
+        totalStockItems += stock;
+        totalCostValue += totalCost;
+        totalSaleValue += totalSale;
+
+        if (p.categoryId && categoryMap.has(p.categoryId)) {
+          const c = categoryMap.get(p.categoryId)!;
+          c.totalItems += stock;
+          c.costValue = Number((c.costValue + totalCost).toFixed(2));
+          c.saleValue = Number((c.saleValue + totalSale).toFixed(2));
+          c.expectedProfit = Number((c.expectedProfit + profit).toFixed(2));
+        }
+
+        return {
+          id: p.id,
+          name: p.name,
+          code: p.code,
+          categoryName: p.category?.name || 'Sem categoria',
+          stock,
+          unit: p.unit,
+          costPrice: cost,
+          salePrice: price,
+          totalCost,
+          totalSale,
+          expectedProfit: profit,
+          marginPercent: margin,
+          hasBoxPrice: p.hasBoxPrice,
+          boxQuantity: p.boxQuantity,
+          boxPrice: p.boxPrice,
+          boxCostPrice: p.boxCostPrice
+        };
+      });
+
+      const totalExpectedProfit = Number((totalSaleValue - totalCostValue).toFixed(2));
+      const averageMargin = totalSaleValue > 0 ? Number((((totalSaleValue - totalCostValue) / totalSaleValue) * 100).toFixed(1)) : 0;
+
+      // Calcular margem média por categoria
+      const categoriesSummary = Array.from(categoryMap.values()).map(c => ({
+        ...c,
+        marginPercent: c.saleValue > 0 ? Number((((c.saleValue - c.costValue) / c.saleValue) * 100).toFixed(1)) : 0
+      }));
+
+      res.json({
+        totalStockItems,
+        totalCostValue: Number(totalCostValue.toFixed(2)),
+        totalSaleValue: Number(totalSaleValue.toFixed(2)),
+        totalExpectedProfit,
+        averageMargin,
+        categories: categoriesSummary,
+        products: productDetails
+      });
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório de estoque:', error);
+      res.status(500).json({ error: 'Erro ao gerar relatório de estoque' });
+    }
+  });
+
+  // Consultar Histórico de Preços de um Produto
+  router.get('/:id/price-history', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const history = await (prisma as any).priceHistory.findMany({
+        where: { productId: id },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(history);
+    } catch (error: any) {
+      console.error('Erro ao buscar histórico de preços:', error);
+      res.status(500).json({ error: 'Erro ao buscar histórico de preços' });
     }
   });
 
