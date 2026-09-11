@@ -16,7 +16,10 @@ import {
   BarChart3,
   Sun,
   Moon,
-  Type
+  Type,
+  Sparkles,
+  ArrowUpCircle,
+  RefreshCw
 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
@@ -35,6 +38,9 @@ interface SettingsViewProps {
   onToggleTheme?: () => void;
   fontScale?: 'normal' | 'large' | 'xlarge';
   onChangeFontScale?: (scale: 'normal' | 'large' | 'xlarge') => void;
+  onOpenUpdateModal?: () => void;
+  updateInfo?: any;
+  onCheckForUpdates?: () => Promise<any>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -50,10 +56,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   theme = 'dark',
   onToggleTheme,
   fontScale = 'normal',
-  onChangeFontScale
+  onChangeFontScale,
+  onOpenUpdateModal,
+  updateInfo,
+  onCheckForUpdates
 }) => {
   const [backupInfo, setBackupInfo] = useState<any>(null);
   const [connectedDevices, setConnectedDevices] = useState<any[]>([]);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
+
+  const handleManualCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    setCheckMessage(null);
+    try {
+      if (onCheckForUpdates) {
+        const res = await onCheckForUpdates();
+        if (res && res.hasUpdate) {
+          setCheckMessage(`Nova versão ${res.latestVersion} disponível!`);
+          if (onOpenUpdateModal) onOpenUpdateModal();
+        } else {
+          setCheckMessage('Você já está usando a versão mais recente do Bar ERP.');
+        }
+      } else {
+        setCheckMessage('Você já está usando a versão mais recente.');
+      }
+    } catch (e: any) {
+      setCheckMessage('Erro ao verificar atualizações: ' + (e.message || e));
+    } finally {
+      setCheckingUpdate(false);
+      setTimeout(() => setCheckMessage(null), 5000);
+    }
+  };
 
   const cycleFontScale = () => {
     if (!onChangeFontScale) return;
@@ -335,6 +369,62 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
 
       
+      </div>
+
+      {/* 🚀 Sobre o Bar ERP & Atualizador Automático */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm overflow-hidden relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+              <ArrowUpCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Bar ERP Pro Desktop
+                </h3>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  {updateInfo?.currentVersion ? `v${updateInfo.currentVersion}` : 'v1.0.0'}
+                </span>
+                {updateInfo?.hasUpdate && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 animate-pulse">
+                    Atualização Disponível
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {updateInfo?.hasUpdate 
+                  ? `Uma nova versão (${updateInfo.latestVersion}) está pronta para instalar!`
+                  : checkMessage 
+                    ? checkMessage 
+                    : 'Sistema atualizado. O Bar ERP verifica e notifica sobre novas versões automaticamente.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {updateInfo?.hasUpdate ? (
+              <button
+                type="button"
+                onClick={onOpenUpdateModal}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md shadow-amber-500/20 active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                Atualizar Agora
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={checkingUpdate}
+                onClick={handleManualCheckUpdates}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 cursor-pointer border border-slate-200 dark:border-slate-700"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin text-amber-500' : ''}`} />
+                {checkingUpdate ? 'Verificando...' : 'Verificar Atualizações'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Dispositivos Conectados */}

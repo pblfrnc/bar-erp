@@ -98,8 +98,47 @@
 
 ---
 
-## 7. 🚀 REGRAS PARA MANUTENÇÕES FUTURAS
+## 7. 🔄 SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA (AUTO-UPDATER)
+- **Objetivo:** O cliente no Windows não precisa mais baixar manualmente o executável do GitHub ou pedir suporte para atualizar. O próprio Bar ERP detecta, notifica, baixa e instala com 1 clique.
+- **Detecção de Versão:**
+  - Consulta `https://api.github.com/repos/pblfrnc/bar-erp/releases/latest`.
+  - Compara a data de modificação do asset (`updated_at` do instalador `.exe`) com o `buildTime` do build local (`build-info.json`).
+  - Agendamento automático: 15s após inicialização do app e recorrente a cada 4 horas.
+  - Verificação manual disponível em `Configurações` -> `Sobre o Bar ERP & Atualizador Automático` -> "Verificar Atualizações Agora".
+- **Interface e Experiência do Usuário (UI/UX):**
+  - **Banner Flutuante:** Aparece no canto inferior direito quando há nova versão disponível, permitindo "Ver Detalhes" ou "Lembrar mais tarde".
+  - **Badge no Navbar:** Botão pulsante colorido no topo do sistema exibindo "Nova Versão".
+  - **Modal Completo de Atualização (`UpdateNotificationModal.tsx`):**
+    - Comparativo visual da versão/data atual vs versão disponível.
+    - Notas da release extraídas diretamente do GitHub Releases.
+    - Barra de progresso com porcentagem, total baixado (MB/GB) e velocidade de download estimada.
+    - Botão de instalação imediata: "Reiniciar e Atualizar Agora".
+- **Download e Instalação (`electron/updater.cjs`):**
+  - Suporte a redirecionamento HTTP 302 (GitHub -> Amazon AWS S3) via `fetchWithRedirects`.
+  - Download salvo na pasta temporária do usuário (`app.getPath('temp')/BarERP-Update.exe`).
+  - Execução desanexada (`spawn` com `detached: true`, `stdio: 'ignore'`) e encerramento limpo do Electron (`app.quit()`).
+- **Segurança do Banco de Dados SQLite:**
+  - O banco SQLite do cliente fica isolado em `%APPDATA%\BarERP\bar.db` (`app.getPath('userData')`).
+  - A reinstalação do `.exe` altera apenas os binários do aplicativo e NUNCA apaga ou sobrescreve os dados, mesas, caixa ou estoque do cliente.
+
+---
+
+## 8. 📁 MAPEAMENTO DE ARQUIVOS DO ATUALIZADOR
+| Arquivo | Função Principal |
+| :--- | :--- |
+| `electron/updater.cjs` | Lógica de consulta ao GitHub, download em background com cálculo de progresso e disparo do instalador. |
+| `electron/main.cjs` | Inicialização do módulo updater e comunicação com a janela principal (`setupAutoUpdater`). |
+| `electron/preload.cjs` | Exposição segura dos métodos e ouvintes IPC de atualização para o React. |
+| `client/src/components/UpdateNotificationModal.tsx` | Banner flutuante e modal interativo de notas de release, progresso e atualização com 1 clique. |
+| `client/src/components/Navbar.tsx` | Badge de alerta pulsante quando `hasUpdate` é detectado. |
+| `client/src/views/SettingsView.tsx` | Card visual de verificação sob demanda e detalhes da compilação. |
+| `.github/workflows/build-artifacts.yml` | Injeção do `build-info.json` com timestamp UTC e commit hash durante a compilação no CI/CD. |
+
+---
+
+## 9. 🚀 REGRAS PARA MANUTENÇÕES FUTURAS
 1. **Nunca enviar NF-e (Modelo 55) para `printPdfSilent`:** A NF-e sempre deve usar `printPdfDialog` para abrir o diálogo de impressão A4 do sistema.
 2. **Nunca remover a neutralização do script de 250px da Focus:** Se removida, o QR Code voltará a sair gigante no cupom térmico.
 3. **Preservar a tolerância de esquemas no SQLite:** Sempre manter os métodos `*Safe` com fallback para SQL bruto ao lidar com configurações fiscais e de impressão.
 4. **Respeitar as diretrizes da SEFAZ:** O QR Code padrão deve permanecer entre 75px e 115px (padrão 100px) e o cabeçalho deve conter o Nome Fantasia + Razão Social + CNPJ.
+5. **Preservar o fluxo não destrutivo do instalador NSIS:** O instalador deve continuar instalando sobre a versão anterior mantendo o diretório `userData` intacto.

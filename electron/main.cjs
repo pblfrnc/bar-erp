@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { setupDailyBackup } = require('./backup.js');
+const { setupAutoUpdater } = require('./updater.cjs');
 
 // Desabilitar menu padrão do sistema para nunca prender o foco das teclas (ex: tecla Alt)
 Menu.setApplicationMenu(null);
@@ -140,6 +141,9 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
   }
+
+  // Inicializar subsistema de atualização automática via GitHub Releases
+  setupAutoUpdater(mainWindow);
 
   // Atalho F11 para Tela Cheia no Windows
   globalShortcut.register('F11', () => {

@@ -29,7 +29,8 @@
       "client/dist/**/*",
       "server/dist/**/*",
       "server/prisma/**/*",
-      "package.json"
+      "package.json",
+      "build-info.json"
     ],
     "win": {
 

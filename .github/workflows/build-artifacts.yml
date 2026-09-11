@@ -45,6 +45,19 @@ jobs:
         run: |
           npm run build
 
+      - name: Gerar Metadados de Build (build-info.json)
+        shell: pwsh
+        run: |
+          $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $info = @{
+            version = "1.0.0"
+            buildTime = $date
+            commit = "${{ github.sha }}"
+          } | ConvertTo-Json -Compress
+          Set-Content -Path "build-info.json" -Value $info
+          Set-Content -Path "electron/build-info.json" -Value $info
+          Write-Host "Metadados de build gerados com sucesso: $info"
+
       - name: Gerar Executável Windows (.EXE)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,6 +17,7 @@ import { FiscalSettingsView } from './views/FiscalSettingsView';
 import { ManualNfceView } from './views/ManualNfceView';
 import { CustomersView } from './views/CustomersView';
 import { PrinterSettingsView } from './views/PrinterSettingsView';
+import { UpdateNotificationModal, UpdateInfo } from './components/UpdateNotificationModal';
 
 
 
@@ -73,6 +74,57 @@ export function App() {
 
   // Modal para conectar celulares/tablets na rede local
   const [showConnectMobileModal, setShowConnectMobileModal] = useState<boolean>(false);
+
+  // Gerenciamento de Atualização Automática do Bar ERP
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    const electron = (window as any).electronAPI;
+    if (!electron) return;
+
+    let cleanupAvail: any = null;
+    if (electron.onUpdateAvailable) {
+      cleanupAvail = electron.onUpdateAvailable((info: UpdateInfo) => {
+        if (info && info.hasUpdate) {
+          setUpdateInfo(info);
+        }
+      });
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        if (electron.checkForUpdates) {
+          const res = await electron.checkForUpdates();
+          if (res && res.hasUpdate) {
+            setUpdateInfo(res);
+          }
+        }
+      } catch (e) {}
+    }, 4000);
+
+    return () => {
+      clearTimeout(timer);
+      if (cleanupAvail) cleanupAvail();
+    };
+  }, []);
+
+  const handleCheckForUpdates = async () => {
+    const electron = (window as any).electronAPI;
+    if (electron?.checkForUpdates) {
+      try {
+        const res = await electron.checkForUpdates();
+        if (res) {
+          setUpdateInfo(res);
+        }
+        return res;
+      } catch (err) {
+        console.error('Erro ao checar atualizações:', err);
+        return null;
+      }
+    }
+    return null;
+  };
 
   const [currentView, setCurrentView] = useState<'tables' | 'kds' | 'cash' | 'products' | 'suppliers' | 'dashboard' | 'audit' | 'settings' | 'customers' | 'fiscal' | 'fiscalSettings' | 'manualNfce' | 'printers'>('tables');
 
@@ -385,6 +437,8 @@ export function App() {
         isConnected={isConnected}
         currentUser={currentUser}
         onLogout={handleLogout}
+        hasUpdate={Boolean(updateInfo?.hasUpdate)}
+        onOpenUpdateModal={() => setShowUpdateModal(true)}
       />
 
 
@@ -433,6 +487,9 @@ export function App() {
             onToggleTheme={handleToggleTheme}
             fontScale={fontScale}
             onChangeFontScale={handleFontScaleChange}
+            updateInfo={updateInfo}
+            onOpenUpdateModal={() => setShowUpdateModal(true)}
+            onCheckForUpdates={handleCheckForUpdates}
           />
         )}
 
@@ -472,6 +529,14 @@ export function App() {
           onClose={() => setShowConnectMobileModal(false)}
         />
       )}
+
+      {/* Modal e Notificação de Atualização do Bar ERP */}
+      <UpdateNotificationModal
+        updateInfo={updateInfo}
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        onOpenModal={() => setShowUpdateModal(true)}
+      />
     </div>
   );
 }

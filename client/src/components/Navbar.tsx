@@ -10,7 +10,8 @@ import {
   Maximize2,
   Minimize2,
   WifiOff,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 import { LoggedUser } from '../types';
 
@@ -23,6 +24,8 @@ interface NavbarProps {
   isConnected: boolean;
   currentUser?: LoggedUser | null;
   onLogout?: () => void;
+  hasUpdate?: boolean;
+  onOpenUpdateModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,7 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isCashOpen,
   isConnected,
   currentUser,
-  onLogout
+  onLogout,
+  hasUpdate,
+  onOpenUpdateModal
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
@@ -173,6 +178,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </div>
+
+            {/* Botão de Nova Versão Disponível */}
+            {hasUpdate && (
+              <button
+                type="button"
+                onClick={onOpenUpdateModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer animate-pulse"
+                title="Nova versão do Bar ERP disponível! Clique para atualizar."
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Nova Versão</span>
+              </button>
+            )}
 
             {/* Botão Tela Cheia */}
             <button
