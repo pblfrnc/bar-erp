@@ -1047,16 +1047,20 @@ export function createFiscalRouter() {
           const marginBottom = printerSettings.marginBottom ?? 12;
           const marginLeft = printerSettings.marginLeft ?? 1;
           const marginRight = printerSettings.marginRight ?? 1;
-          const qrSize = printerSettings.qrSize || 170;
+          const qrSize = printerSettings.qrSize || 100;
           const fontScale = (printerSettings.fontScale || 100) / 100;
 
           // 1. Extrai a URL do QR Code da SEFAZ direto do script da Focus NFe e injeta <img> direto com tamanho configurado
           const qrMatch = htmlString.match(/text:\s*["']([^"']+)["']/);
           if (qrMatch && qrMatch[1]) {
             const qrTargetUrl = qrMatch[1];
-            const directQrImg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(qrTargetUrl)}&margin=1" alt="QR Code NFC-e SEFAZ" width="${qrSize}" height="${qrSize}" style="display:block;margin:0 auto;width:${qrSize}px;height:${qrSize}px;" />`;
-            htmlString = htmlString.replace(/<div id=['"]qr-code0['"][^>]*>/i, `<div id="qr-code0" style="margin:8px auto;text-align:center;display:flex;justify-content:center;min-height:${qrSize}px;">${directQrImg}`);
+            const directQrImg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(qrTargetUrl)}&margin=1" alt="QR Code NFC-e SEFAZ" width="${qrSize}" height="${qrSize}" style="display:block;margin:0 auto;width:${qrSize}px;height:${qrSize}px;max-width:${qrSize}px;max-height:${qrSize}px;" />`;
+            htmlString = htmlString.replace(/<div id=['"]qr-code0['"][^>]*>/i, `<div id="qr-code0" style="margin:4px auto;text-align:center;display:flex;justify-content:center;align-items:center;width:${qrSize}px;min-height:${qrSize}px;">${directQrImg}`);
           }
+
+          // Neutraliza o script original da Focus NFe que instanciaria um canvas de 250px com margem de 36px
+          htmlString = htmlString.replace(/var\s+qrcode\s*=\s*new\s+QRCode\([\s\S]*?\);?/gi, '/* QRCode inline desativado pelo BarERP */');
+          htmlString = htmlString.replace(/document\.getElementById\(['"]qr-code\d*['"]\)\.style\.margin\s*=\s*["'][^"']+["'];?/gi, '/* Margem 36px neutralizada */');
 
           const customThermalStyle = `
 <style type="text/css">
@@ -1089,19 +1093,23 @@ export function createFiscalRouter() {
     }
     .qrcode {
       width: 100% !important;
-      margin: 8px 0 !important;
+      margin: 4px 0 !important;
       text-align: center !important;
       display: block !important;
     }
     #qr-code0, #qr-code1 {
-      margin: 8px auto !important;
+      margin: 4px auto !important;
       text-align: center !important;
       display: flex !important;
       justify-content: center !important;
+      align-items: center !important;
       width: ${qrSize}px !important;
+      height: ${qrSize}px !important;
       min-height: ${qrSize}px !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
     }
-    #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+    #qr-code0 img, #qr-code0 canvas, #qr-code0 svg, #qr-code1 img, #qr-code1 canvas, #qr-code1 svg {
       width: ${qrSize}px !important;
       height: ${qrSize}px !important;
       max-width: ${qrSize}px !important;

@@ -110,7 +110,7 @@ export const defaultPrinterSettings = {
   marginLeft: 1,
   marginRight: 1,
   fontScale: 100,
-  qrSize: 170,
+  qrSize: 100,
   autoCut: true,
   silentPrint: true,
   copies: 1,
@@ -133,7 +133,7 @@ async function ensurePrinterSettingsTable() {
         "marginLeft" REAL DEFAULT 1,
         "marginRight" REAL DEFAULT 1,
         "fontScale" REAL DEFAULT 100,
-        "qrSize" REAL DEFAULT 170,
+        "qrSize" REAL DEFAULT 100,
         "autoCut" BOOLEAN DEFAULT 1,
         "silentPrint" BOOLEAN DEFAULT 1,
         "copies" INTEGER DEFAULT 1,
@@ -164,7 +164,7 @@ export async function getPrinterSettingsSafe() {
         marginLeft: Number(row.marginLeft) || 1,
         marginRight: Number(row.marginRight) || 1,
         fontScale: Number(row.fontScale) || 100,
-        qrSize: Number(row.qrSize) || 170,
+        qrSize: Number(row.qrSize) || 100,
         autoCut: Boolean(row.autoCut),
         silentPrint: Boolean(row.silentPrint),
         copies: Number(row.copies) || 1,
@@ -203,7 +203,7 @@ router.post('/printer', async (req, res) => {
     const marginLeft = Number(body.marginLeft ?? 1);
     const marginRight = Number(body.marginRight ?? 1);
     const fontScale = Number(body.fontScale ?? 100);
-    const qrSize = Number(body.qrSize ?? 170);
+    const qrSize = Number(body.qrSize ?? 100);
     const autoCut = body.autoCut !== false ? 1 : 0;
     const silentPrint = body.silentPrint !== false ? 1 : 0;
     const copies = Math.max(1, Number(body.copies || 1));

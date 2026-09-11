@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS: PrinterSettings = {
   marginLeft: 1,
   marginRight: 1,
   fontScale: 100,
-  qrSize: 170,
+  qrSize: 100,
   autoCut: true,
   silentPrint: true,
   copies: 1,
@@ -142,7 +142,7 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
   };
 
   const handleResetDefaults = () => {
-    if (confirm('Deseja restaurar as configurações recomendadas padrão (80mm, margens zeradas e QR Code 170px)?')) {
+    if (confirm('Deseja restaurar as configurações recomendadas padrão (80mm, margens zeradas e QR Code 100px)?')) {
       setSettings(DEFAULT_SETTINGS);
     }
   };
@@ -358,7 +358,7 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
                 onClick={() => setSettings({ 
                   ...settings, 
                   paperWidth: 80, 
-                  qrSize: 170, 
+                  qrSize: 100, 
                   marginLeft: 1, 
                   marginRight: 1 
                 })}
@@ -384,7 +384,7 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
                 onClick={() => setSettings({ 
                   ...settings, 
                   paperWidth: 58, 
-                  qrSize: 140, 
+                  qrSize: 85, 
                   marginLeft: 1, 
                   marginRight: 1 
                 })}
@@ -519,16 +519,35 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-6">
+              {/* Controle de QR Code */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase">
-                  Tamanho do QR Code: <span className="text-amber-500">{settings.qrSize}px</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">
+                  <span>Tamanho do QR Code da NFC-e:</span>
+                  <span className="font-mono text-amber-500 font-black">
+                    {settings.qrSize}px <span className="text-[10px] text-slate-500 font-normal">({Math.round((settings.qrSize / 96) * 25.4)}mm aprox.)</span>
+                  </span>
+                </div>
+
+                {/* Slider contínuo de 60px a 160px */}
+                <input
+                  type="range"
+                  min="60"
+                  max="160"
+                  step="5"
+                  value={settings.qrSize}
+                  onChange={e => setSettings({ ...settings, qrSize: Number(e.target.value) })}
+                  className="w-full accent-amber-500 cursor-pointer mb-3"
+                />
+
+                {/* Botões de atalho rápido */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {[
-                    { label: 'Pequeno', size: 140 },
-                    { label: 'Padrão', size: 170 },
-                    { label: 'Grande', size: 200 }
+                    { label: 'Micro', size: 75, desc: '20mm (Mín. SEFAZ)' },
+                    { label: 'Pequeno', size: 85, desc: '22mm' },
+                    { label: 'Padrão', size: 100, desc: '26mm (Ideal)' },
+                    { label: 'Médio', size: 115, desc: '30mm' },
+                    { label: 'Grande', size: 130, desc: '35mm' }
                   ].map(opt => (
                     <button
                       key={opt.size}
@@ -536,36 +555,57 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
                       onClick={() => setSettings({ ...settings, qrSize: opt.size })}
                       className={`py-2 px-1 text-xs font-bold rounded-xl border transition cursor-pointer text-center ${
                         settings.qrSize === opt.size
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400 font-black shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
                       }`}
                     >
-                      {opt.label} ({opt.size})
+                      <div>{opt.label}</div>
+                      <div className="text-[10px] opacity-75 font-normal mt-0.5">{opt.size}px</div>
+                      <div className="text-[9px] text-amber-600/80 dark:text-amber-400/80">{opt.desc}</div>
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  💡 A SEFAZ recomenda QR Code entre 20mm e 28mm (~75px a 105px). Tamanhos menores economizam papel e mantêm a leitura instantânea pela câmera do celular.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase">
-                  Escala do Texto: <span className="text-amber-500">{settings.fontScale}%</span>
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[85, 90, 100, 110].map(scale => (
+              {/* Controle de Escala do Texto */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">
+                  <span>Escala do Texto da Impressão:</span>
+                  <span className="font-mono text-amber-500 font-black">{settings.fontScale}%</span>
+                </div>
+
+                <input
+                  type="range"
+                  min="70"
+                  max="115"
+                  step="5"
+                  value={settings.fontScale}
+                  onChange={e => setSettings({ ...settings, fontScale: Number(e.target.value) })}
+                  className="w-full accent-amber-500 cursor-pointer mb-3"
+                />
+
+                <div className="grid grid-cols-6 gap-1.5">
+                  {[75, 80, 85, 90, 100, 110].map(scale => (
                     <button
                       key={scale}
                       type="button"
                       onClick={() => setSettings({ ...settings, fontScale: scale })}
                       className={`py-2 px-1 text-xs font-bold rounded-xl border transition cursor-pointer text-center ${
                         settings.fontScale === scale
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400'
-                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400 font-black'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-400'
                       }`}
                     >
                       {scale}%
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  💡 A escala em <strong>85%</strong> ou <strong>90%</strong> é excelente para impressoras de 80mm com margens estreitas, evitando quebras de linhas de produtos.
+                </p>
               </div>
             </div>
           </div>
@@ -686,7 +726,10 @@ export const PrinterSettingsView: React.FC<{ onBack: () => void }> = ({ onBack }
                   >
                     <QrCode className="w-full h-full text-slate-800" />
                   </div>
-                  <div className="text-[8px] text-slate-600 mt-1 font-mono break-all">
+                  <div className="text-[8px] text-slate-500 font-mono mt-1">
+                    Dimensão: {settings.qrSize}px (~{Math.round((settings.qrSize / 96) * 25.4)}mm)
+                  </div>
+                  <div className="text-[8px] text-slate-600 font-mono break-all">
                     Chave: 1526 0936 2751 6300 0124...
                   </div>
                 </div>

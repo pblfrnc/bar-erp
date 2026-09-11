@@ -175,7 +175,7 @@ function createWindow() {
       marginLeft: 1,
       marginRight: 1,
       fontScale: 100,
-      qrSize: 170,
+      qrSize: 100,
       autoCut: true,
       silentPrint: true,
       copies: 1,
@@ -248,7 +248,7 @@ function createWindow() {
     const marginBottom = Number(settings.marginBottom ?? 12);
     const marginLeft = Number(settings.marginLeft ?? 1);
     const marginRight = Number(settings.marginRight ?? 1);
-    const qrSize = Number(settings.qrSize || 170);
+    const qrSize = Number(settings.qrSize || 100);
     const fontScale = (Number(settings.fontScale || 100)) / 100;
     const targetPrinter = settings.deviceName || settings.cashierPrinter || undefined;
 
@@ -273,6 +273,28 @@ function createWindow() {
           if (docHeight && docHeight > 800) {
             printWin.setSize(winWidth, Math.ceil(docHeight + 200));
           }
+        } catch (e) {}
+
+        // Neutraliza scripts que expandem o QR Code além do configurado
+        try {
+          await printWin.webContents.executeJavaScript(`
+            try {
+              const qrEl = document.getElementById('qr-code0') || document.getElementById('qr-code1');
+              if (qrEl) {
+                qrEl.style.margin = '4px auto';
+                qrEl.style.width = '${qrSize}px';
+                qrEl.style.height = '${qrSize}px';
+                qrEl.style.maxWidth = '${qrSize}px';
+                qrEl.style.maxHeight = '${qrSize}px';
+                qrEl.querySelectorAll('img, canvas, svg').forEach(el => {
+                  el.style.width = '${qrSize}px';
+                  el.style.height = '${qrSize}px';
+                  el.style.maxWidth = '${qrSize}px';
+                  el.style.maxHeight = '${qrSize}px';
+                });
+              }
+            } catch(e) {}
+          `);
         } catch (e) {}
 
         // Injeta estilização calibrada conforme as preferências do usuário
@@ -305,19 +327,23 @@ function createWindow() {
               }
               .qrcode {
                 width: 100% !important;
-                margin: 8px 0 !important;
+                margin: 4px 0 !important;
                 text-align: center !important;
                 display: block !important;
               }
               #qr-code0, #qr-code1 {
-                margin: 8px auto !important;
+                margin: 4px auto !important;
                 text-align: center !important;
                 display: flex !important;
                 justify-content: center !important;
+                align-items: center !important;
                 width: ${qrSize}px !important;
+                height: ${qrSize}px !important;
                 min-height: ${qrSize}px !important;
+                max-width: 100% !important;
+                overflow: hidden !important;
               }
-              #qr-code0 img, #qr-code0 canvas, #qr-code1 img, #qr-code1 canvas {
+              #qr-code0 img, #qr-code0 canvas, #qr-code0 svg, #qr-code1 img, #qr-code1 canvas, #qr-code1 svg {
                 width: ${qrSize}px !important;
                 height: ${qrSize}px !important;
                 max-width: ${qrSize}px !important;
@@ -383,7 +409,7 @@ function createWindow() {
     const marginBottom = Number(settings.marginBottom ?? 12);
     const marginLeft = Number(settings.marginLeft ?? 1);
     const marginRight = Number(settings.marginRight ?? 1);
-    const qrSize = Number(settings.qrSize || 170);
+    const qrSize = Number(settings.qrSize || 100);
     const fontScale = (Number(settings.fontScale || 100)) / 100;
     const targetPrinter = settings.cashierPrinter || undefined;
     const extraFeedLines = Number(settings.extraFeedLines ?? 3);
