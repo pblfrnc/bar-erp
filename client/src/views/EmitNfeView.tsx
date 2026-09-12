@@ -18,10 +18,102 @@ import {
   RotateCcw,
   Loader2,
   ExternalLink,
-  SlidersHorizontal
+  SlidersHorizontal,
+  AlertCircle,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product } from '../types';
+
+// ============================================================
+// Funções Utilitárias de Formatação e Validação Fiscal (SEFAZ)
+// ============================================================
+
+/**
+ * Formata CPF ou CNPJ dinamicamente conforme os dígitos são digitados
+ */
+function formatCpfCnpj(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 11) {
+    // CPF: 000.000.000-00
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  } else {
+    // CNPJ: 00.000.000/0000-00
+    return digits
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+  }
+}
+
+/**
+ * Validação dos dois dígitos verificadores do CPF (módulo 11)
+ */
+function validateCpf(cpf: string): boolean {
+  const clean = cpf.replace(/\D/g, '');
+  if (clean.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (10 - i);
+  }
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(9), 10)) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (11 - i);
+  }
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(10), 10)) return false;
+
+  return true;
+}
+
+/**
+ * Validação dos dois dígitos verificadores do CNPJ (módulo 11)
+ */
+function validateCnpj(cnpj: string): boolean {
+  const clean = cnpj.replace(/\D/g, '');
+  if (clean.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(clean)) return false;
+
+  const length = clean.length - 2;
+  const numbers = clean.substring(0, length);
+  const digits = clean.substring(length);
+  let sum = 0;
+  let pos = length - 7;
+
+  for (let i = length; i >= 1; i--) {
+    sum += parseInt(numbers.charAt(length - i), 10) * pos--;
+    if (pos < 2) pos = 9;
+  }
+
+  let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(0), 10)) return false;
+
+  const newLength = length + 1;
+  const newNumbers = clean.substring(0, newLength);
+  sum = 0;
+  pos = newLength - 7;
+  for (let i = newLength; i >= 1; i--) {
+    sum += parseInt(newNumbers.charAt(newLength - i), 10) * pos--;
+    if (pos < 2) pos = 9;
+  }
+
+  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(1), 10)) return false;
+
+  return true;
+}
 
 interface EmitNfeViewProps {
   onBack: () => void;
@@ -32,8 +124,18 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   const [items, setItems] = useState<{ product: Product; quantity: number }[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showDropdownResults, setShowDropdownResults] = useState<boolean>(false);
+
+  // Destinatário (Obrigatório na NF-e Modelo 55)
   const [customerCpf, setCustomerCpf] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
+  const [isSearchingDocument, setIsSearchingDocument] = useState<boolean>(false);
+  const [docFeedback, setDocFeedback] = useState<{
+    isValid: boolean | null;
+    type: 'CPF' | 'CNPJ' | null;
+    message: string;
+    details?: string;
+  }>({ isValid: null, type: null, message: '' });
+
   const [paymentMethod, setPaymentMethod] = useState<string>('PIX');
   const [isEmitting, setIsEmitting] = useState<boolean>(false);
 
@@ -149,12 +251,94 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
 
   const total = items.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0);
 
+  // Consulta cadastral na Receita Federal via endpoint do backend
+  const consultarCnpjReceita = async (cleanCnpj: string) => {
+    setIsSearchingDocument(true);
+    try {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/consulta-cnpj/${cleanCnpj}`);
+      const data = await res.json();
+      if (res.ok && (data.razaoSocial || data.nomeFantasia)) {
+        const nomeFinal = data.razaoSocial || data.nomeFantasia;
+        setCustomerName(nomeFinal);
+        const local = [data.municipio, data.uf].filter(Boolean).join('/');
+        setDocFeedback({
+          isValid: true,
+          type: 'CNPJ',
+          message: 'CNPJ Localizado na Receita Federal',
+          details: `${nomeFinal}${local ? ' • ' + local : ''}`
+        });
+      } else {
+        setDocFeedback({
+          isValid: true,
+          type: 'CNPJ',
+          message: 'CNPJ Válido',
+          details: data.error || 'Dados da empresa não localizados automaticamente. Preencha o nome abaixo.'
+        });
+      }
+    } catch (err: any) {
+      setDocFeedback({
+        isValid: true,
+        type: 'CNPJ',
+        message: 'CNPJ Válido',
+        details: 'Não foi possível consultar a Receita Federal agora. Digite a Razão Social manualmente.'
+      });
+    } finally {
+      setIsSearchingDocument(false);
+    }
+  };
+
+  // Manipulação e validação do documento enquanto o usuário digita
+  const handleDocumentChange = (raw: string) => {
+    const formatted = formatCpfCnpj(raw);
+    setCustomerCpf(formatted);
+
+    const clean = raw.replace(/\D/g, '');
+    if (clean.length === 11) {
+      const valid = validateCpf(clean);
+      if (valid) {
+        setDocFeedback({ isValid: true, type: 'CPF', message: 'CPF Válido' });
+        // Tenta buscar no banco de clientes cadastrados no sistema
+        api.getCustomers().then((custs) => {
+          const match = custs.find((c: any) => c.document && c.document.replace(/\D/g, '') === clean);
+          if (match && match.name) {
+            setCustomerName(match.name);
+            setDocFeedback({
+              isValid: true,
+              type: 'CPF',
+              message: 'CPF Válido',
+              details: `Cliente Cadastrado: ${match.name}`
+            });
+          }
+        }).catch(() => {});
+      } else {
+        setDocFeedback({ isValid: false, type: 'CPF', message: 'CPF Inválido (dígitos verificadores incorretos)' });
+      }
+    } else if (clean.length === 14) {
+      const valid = validateCnpj(clean);
+      if (valid) {
+        setDocFeedback({ isValid: true, type: 'CNPJ', message: 'CNPJ Válido. Consultando Receita...' });
+        consultarCnpjReceita(clean);
+      } else {
+        setDocFeedback({ isValid: false, type: 'CNPJ', message: 'CNPJ Inválido (dígitos verificadores incorretos)' });
+      }
+    } else if (clean.length > 0) {
+      setDocFeedback({
+        isValid: null,
+        type: clean.length <= 11 ? 'CPF' : 'CNPJ',
+        message: `Digitando ${clean.length <= 11 ? 'CPF' : 'CNPJ'} (${clean.length} de ${clean.length <= 11 ? '11' : '14'} dígitos)...`
+      });
+    } else {
+      setDocFeedback({ isValid: null, type: null, message: '' });
+    }
+  };
+
   const handleResetForNewSale = () => {
     setItems([]);
     setSaleSuccessData(null);
     setSearchTerm('');
     setCustomerCpf('');
     setCustomerName('');
+    setDocFeedback({ isValid: null, type: null, message: '' });
     setEmailInput('');
     setEmailSentSuccess(false);
     setEmailError(null);
@@ -249,17 +433,48 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   // Transmissão da NF-e para a SEFAZ
   const handleEmit = async () => {
     const isTest = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test';
-    if (items.length === 0 && !isTest) {
-      alert('Adicione pelo menos um produto à nota fiscal.');
-      return;
+    
+    // Validações estritas de negócio para emissão em ambiente de produção/operação
+    if (!isTest) {
+      if (items.length === 0) {
+        alert('Adicione pelo menos um produto à nota fiscal.');
+        return;
+      }
+
+      const cleanDoc = customerCpf.replace(/\D/g, '');
+      if (!cleanDoc) {
+        alert('Atenção: A SEFAZ exige obrigatoriamente a identificação do comprador (CPF ou CNPJ) para emissão de NF-e (Modelo 55).');
+        return;
+      }
+
+      if (cleanDoc.length === 11 && !validateCpf(cleanDoc)) {
+        alert('O CPF informado possui dígitos verificadores inválidos. Por favor, corrija o documento digitado antes de emitir.');
+        return;
+      }
+
+      if (cleanDoc.length === 14 && !validateCnpj(cleanDoc)) {
+        alert('O CNPJ informado possui dígitos verificadores inválidos. Por favor, corrija o documento digitado antes de emitir.');
+        return;
+      }
+
+      if (cleanDoc.length !== 11 && cleanDoc.length !== 14) {
+        alert('Documento incompleto. Digite um CPF válido com 11 dígitos ou um CNPJ com 14 dígitos.');
+        return;
+      }
+
+      if (!customerName.trim() || customerName.trim().length < 2) {
+        alert('Informe o Nome ou Razão Social do comprador para a NF-e. Este campo é obrigatório pela SEFAZ.');
+        return;
+      }
     }
 
     setIsEmitting(true);
     try {
       const saleTotal = total;
+      const cleanDoc = customerCpf.replace(/\D/g, '');
       const payload = {
         orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
-        customerCpf: customerCpf.replace(/\D/g, '') || undefined,
+        customerCpf: cleanDoc || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,
         items: items.map((i) => ({
@@ -306,6 +521,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   };
 
   const isTestEnv = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test';
+  const cleanDoc = customerCpf.replace(/\D/g, '');
   const isEmitDisabled = isEmitting || (items.length === 0 && !isTestEnv);
 
   return (
@@ -329,7 +545,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Busque produtos do estoque por iniciais, código ou bipe o leitor para emitir Nota Fiscal Eletrônica A4
+              Identifique o comprador com CPF ou CNPJ válido e selecione produtos do estoque para emissão oficial da NF-e
             </p>
           </div>
         </div>
@@ -558,44 +774,103 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
               <ShieldCheck className="w-5 h-5 text-amber-500" />
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Dados da Emissão & Pagamento</h3>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">Identificação do Destinatário</h3>
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                  Exigência obrigatória da SEFAZ para NF-e (Modelo 55)
+                </span>
+              </div>
             </div>
 
-            {/* CPF / CNPJ do Destinatário */}
-            <div>
-              <label htmlFor="nfe-customer-cpf" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
-                CPF / CNPJ do Destinatário (Opcional)
-              </label>
-              <input
-                id="nfe-customer-cpf"
-                type="text"
-                placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                value={customerCpf}
-                onChange={(e) => setCustomerCpf(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
-              />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
-                Se preenchido, a NF‑e conterá os dados do comprador na SEFAZ.
-              </span>
+            {/* CPF / CNPJ do Destinatário com Validação Automática */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="nfe-customer-cpf" className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
+                  <span>CPF / CNPJ do Comprador *</span>
+                </label>
+                {isSearchingDocument && (
+                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Buscando Receita...
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="nfe-customer-cpf"
+                  type="text"
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  value={customerCpf}
+                  onChange={(e) => handleDocumentChange(e.target.value)}
+                  className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:outline-none transition shadow-xs ${
+                    docFeedback.isValid === true
+                      ? 'border-emerald-500 focus:border-emerald-500 ring-1 ring-emerald-500/20'
+                      : docFeedback.isValid === false
+                      ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                      : 'border-slate-300 dark:border-slate-800 focus:border-amber-500'
+                  }`}
+                />
+                {cleanDoc.length === 14 && (
+                  <button
+                    type="button"
+                    disabled={isSearchingDocument}
+                    onClick={() => consultarCnpjReceita(cleanDoc)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                    title="Reconsultar na Receita Federal"
+                  >
+                    <Building2 className="w-3.5 h-3.5" />
+                    <span>Buscar CNPJ</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Feedback visual de validação e busca automática */}
+              {docFeedback.message && (
+                <div className={`p-2.5 rounded-xl border text-xs font-medium flex items-start gap-2 animate-in fade-in duration-150 ${
+                  docFeedback.isValid === true
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300'
+                    : docFeedback.isValid === false
+                    ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-400'
+                    : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {docFeedback.isValid === true ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  ) : docFeedback.isValid === false ? (
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <UserCheck className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <span className="font-bold">{docFeedback.message}</span>
+                    {docFeedback.details && (
+                      <p className="text-[11px] opacity-90 mt-0.5">{docFeedback.details}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Nome / Razão Social do Destinatário */}
             <div>
-              <label htmlFor="nfe-customer-name" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
-                Nome / Razão Social (Opcional)
+              <label htmlFor="nfe-customer-name" className="block text-xs font-bold uppercase text-slate-700 dark:text-slate-300 mb-1.5 cursor-pointer flex items-center justify-between">
+                <span>Nome do Cliente ou Razão Social *</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Obrigatório</span>
               </label>
               <input
                 id="nfe-customer-name"
                 type="text"
-                placeholder="Ex: Razão Social ou Nome do Cliente"
+                placeholder="Ex: João da Silva ou Bar e Restaurante LTDA"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs"
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none cursor-text shadow-xs font-medium"
               />
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
+                Nome completo exigido pela SEFAZ para autorização da NF-e Modelo 55.
+              </span>
             </div>
 
             {/* Forma de Pagamento SEFAZ */}
-            <div>
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
               <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">
                 Forma de Pagamento (SEFAZ) *
               </label>
@@ -652,7 +927,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
               </button>
 
               <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-                A NF‑e (Modelo 55) é assinada digitalmente via certificado digital A1 e enviada diretamente para autorização nos servidores da SEFAZ.
+                A NF‑e (Modelo 55) é assinada digitalmente com certificado A1 e transmitida à SEFAZ com os dados fiscais do comprador e tributação homologada.
               </p>
             </div>
           </div>
