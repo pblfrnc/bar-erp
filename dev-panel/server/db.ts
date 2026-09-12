@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createClient, type Client } from '@libsql/client';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -6,21 +6,33 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataDir = process.env.DATA_DIR || path.resolve(__dirname, '../data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+// Configuração de Conexão: Turso Cloud ou SQLite Local (com libSQL file://)
+const tursoUrl = process.env.TURSO_DATABASE_URL;
+const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
+
+let client: Client;
+
+if (tursoUrl) {
+  console.log('[DevPanel DB] Conectando ao Turso Cloud em:', tursoUrl);
+  client = createClient({
+    url: tursoUrl,
+    authToken: tursoAuthToken,
+  });
+} else {
+  const dataDir = process.env.DATA_DIR || path.resolve(__dirname, '../data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  const dbPath = path.join(dataDir, 'software_house.db');
+  console.log('[DevPanel DB] Variáveis Turso não detectadas. Usando SQLite local em:', dbPath);
+  client = createClient({
+    url: `file:${dbPath}`,
+  });
 }
 
-const dbPath = path.join(dataDir, 'software_house.db');
-const db = new DatabaseSync(dbPath);
-
-// Habilitar Foreign Keys e WAL mode para performance máxima
-db.exec('PRAGMA foreign_keys = ON;');
-db.exec('PRAGMA journal_mode = WAL;');
-
 // Inicialização das tabelas
-export function initDb() {
-  db.exec(`
+export async function initDb() {
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,
       business_name TEXT NOT NULL,
@@ -33,7 +45,9 @@ export function initDb() {
       status TEXT NOT NULL DEFAULT 'ACTIVE',
       created_at TEXT NOT NULL
     );
+  `);
 
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS licenses (
       id TEXT PRIMARY KEY,
       client_id TEXT NOT NULL,
@@ -46,10 +60,12 @@ export function initDb() {
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
     );
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_licenses_machine ON licenses(machine_id);
-    CREATE INDEX IF NOT EXISTS idx_licenses_client ON licenses(client_id);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_licenses_machine ON licenses(machine_id);`);
+  await client.execute(`CREATE INDEX IF NOT EXISTS idx_licenses_client ON licenses(client_id);`);
 
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS payments (
       id TEXT PRIMARY KEY,
       client_id TEXT NOT NULL,
@@ -63,7 +79,9 @@ export function initDb() {
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
     );
+  `);
 
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS dev_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -71,28 +89,31 @@ export function initDb() {
   `);
 
   // Inserir configurações padrão se não existirem
-  const getSetting = db.prepare('SELECT value FROM dev_settings WHERE key = ?');
-  const insertSetting = db.prepare('INSERT INTO dev_settings (key, value) VALUES (?, ?)');
-
-  if (!getSetting.get('developer_name')) {
-    insertSetting.run('developer_name', 'Pablo Franco - Software House');
-  }
-  if (!getSetting.get('developer_phone')) {
-    insertSetting.run('developer_phone', '5547974002560'); // WhatsApp para recebimento de comprovantes
-  } else {
-    db.prepare("UPDATE dev_settings SET value = '5547974002560' WHERE key = 'developer_phone' AND (value LIKE '%91988887777%' OR value = '5591988887777')").run();
-  }
-  if (!getSetting.get('pix_key')) {
-    insertSetting.run('pix_key', '68.817.608/0001-47');
-  } else {
-    // Atualiza se for o CNPJ antigo
-    db.prepare("UPDATE dev_settings SET value = '68.817.608/0001-47' WHERE key = 'pix_key' AND value LIKE '%36.275%'").run();
-  }
-  if (!getSetting.get('default_monthly_fee')) {
-    insertSetting.run('default_monthly_fee', '150.00');
+  const devNameRes = await client.execute({ sql: 'SELECT value FROM dev_settings WHERE key = ?', args: ['developer_name'] });
+  if (devNameRes.rows.length === 0) {
+    await client.execute({ sql: 'INSERT INTO dev_settings (key, value) VALUES (?, ?)', args: ['developer_name', 'Pablo Franco - Software House'] });
   }
 
-  console.log('[DevPanel DB] Banco de dados inicializado em:', dbPath);
+  const devPhoneRes = await client.execute({ sql: 'SELECT value FROM dev_settings WHERE key = ?', args: ['developer_phone'] });
+  if (devPhoneRes.rows.length === 0) {
+    await client.execute({ sql: 'INSERT INTO dev_settings (key, value) VALUES (?, ?)', args: ['developer_phone', '5547974002560'] });
+  } else {
+    await client.execute({ sql: "UPDATE dev_settings SET value = '5547974002560' WHERE key = 'developer_phone' AND (value LIKE '%91988887777%' OR value = '5591988887777')", args: [] });
+  }
+
+  const pixRes = await client.execute({ sql: 'SELECT value FROM dev_settings WHERE key = ?', args: ['pix_key'] });
+  if (pixRes.rows.length === 0) {
+    await client.execute({ sql: 'INSERT INTO dev_settings (key, value) VALUES (?, ?)', args: ['pix_key', '68.817.608/0001-47'] });
+  } else {
+    await client.execute({ sql: "UPDATE dev_settings SET value = '68.817.608/0001-47' WHERE key = 'pix_key' AND value LIKE '%36.275%'", args: [] });
+  }
+
+  const feeRes = await client.execute({ sql: 'SELECT value FROM dev_settings WHERE key = ?', args: ['default_monthly_fee'] });
+  if (feeRes.rows.length === 0) {
+    await client.execute({ sql: 'INSERT INTO dev_settings (key, value) VALUES (?, ?)', args: ['default_monthly_fee', '150.00'] });
+  }
+
+  console.log('[DevPanel DB] Banco de dados inicializado com sucesso.');
 }
 
 // Interfaces
@@ -122,37 +143,42 @@ export interface LicenseRecord {
   created_at: string;
 }
 
-// Métodos de Acesso
+// Métodos de Acesso Assíncronos
 export const devDb = {
   // Configurações
-  getSettings(): Record<string, string> {
-    const rows = db.prepare('SELECT key, value FROM dev_settings').all() as { key: string; value: string }[];
+  async getSettings(): Promise<Record<string, string>> {
+    const res = await client.execute('SELECT key, value FROM dev_settings');
     const result: Record<string, string> = {};
-    for (const r of rows) {
-      result[r.key] = r.value;
+    for (const r of res.rows) {
+      result[String(r.key)] = String(r.value);
     }
     return result;
   },
 
-  updateSettings(settings: Record<string, string>) {
-    const upsert = db.prepare(`
-      INSERT INTO dev_settings (key, value) VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `);
+  async updateSettings(settings: Record<string, string>): Promise<void> {
     for (const [k, v] of Object.entries(settings)) {
-      upsert.run(k, String(v));
+      await client.execute({
+        sql: `INSERT INTO dev_settings (key, value) VALUES (?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        args: [k, String(v)]
+      });
     }
   },
 
   // Overview / Métricas
-  getMetrics() {
+  async getMetrics() {
     const nowIso = new Date().toISOString();
     const in7DaysIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const clientsCount = (db.prepare("SELECT COUNT(*) as count FROM clients WHERE status != 'CANCELLED'").get() as any)?.count || 0;
-    const totalMonthlyRevenue = (db.prepare("SELECT SUM(monthly_fee) as total FROM clients WHERE status = 'ACTIVE'").get() as any)?.total || 0;
+    const clientsRes = await client.execute("SELECT COUNT(*) as count FROM clients WHERE status != 'CANCELLED'");
+    const clientsCount = Number(clientsRes.rows[0]?.count || 0);
 
-    const licenses = db.prepare('SELECT * FROM licenses').all() as LicenseRecord[];
+    const revRes = await client.execute("SELECT SUM(monthly_fee) as total FROM clients WHERE status = 'ACTIVE'");
+    const totalMonthlyRevenue = Number(revRes.rows[0]?.total || 0);
+
+    const licRes = await client.execute('SELECT * FROM licenses');
+    const licenses = licRes.rows as unknown as LicenseRecord[];
+    
     let activeLicenses = 0;
     let expiringSoon = 0;
     let expired = 0;
@@ -183,7 +209,7 @@ export const devDb = {
   },
 
   // Listagem de clientes com suas respectivas máquinas
-  listClients(search?: string): ClientRecord[] {
+  async listClients(search?: string): Promise<ClientRecord[]> {
     let clientsQuery = 'SELECT * FROM clients';
     const params: any[] = [];
 
@@ -194,8 +220,11 @@ export const devDb = {
     }
     clientsQuery += ' ORDER BY created_at DESC';
 
-    const clients = db.prepare(clientsQuery).all(...params) as ClientRecord[];
-    const allLicenses = db.prepare('SELECT * FROM licenses ORDER BY created_at ASC').all() as LicenseRecord[];
+    const clientsRes = await client.execute({ sql: clientsQuery, args: params });
+    const clients = clientsRes.rows as unknown as ClientRecord[];
+
+    const licRes = await client.execute('SELECT * FROM licenses ORDER BY created_at ASC');
+    const allLicenses = licRes.rows as unknown as LicenseRecord[];
 
     const licensesByClient = new Map<string, LicenseRecord[]>();
     for (const lic of allLicenses) {
@@ -213,15 +242,19 @@ export const devDb = {
   },
 
   // Buscar cliente por ID
-  getClientById(id: string): ClientRecord | null {
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id) as ClientRecord | undefined;
-    if (!client) return null;
-    client.licenses = db.prepare('SELECT * FROM licenses WHERE client_id = ?').all(id) as LicenseRecord[];
-    return client;
+  async getClientById(id: string): Promise<ClientRecord | null> {
+    const res = await client.execute({ sql: 'SELECT * FROM clients WHERE id = ?', args: [id] });
+    if (res.rows.length === 0) return null;
+    const clientRecord = res.rows[0] as unknown as ClientRecord;
+
+    const licRes = await client.execute({ sql: 'SELECT * FROM licenses WHERE client_id = ?', args: [id] });
+    clientRecord.licenses = licRes.rows as unknown as LicenseRecord[];
+
+    return clientRecord;
   },
 
   // Criar cliente
-  createClient(data: {
+  async createClient(data: {
     businessName: string;
     ownerName?: string;
     phone: string;
@@ -232,71 +265,72 @@ export const devDb = {
     machineId?: string;
     machineName?: string;
     initialDays?: number;
-  }) {
+  }): Promise<ClientRecord | null> {
     const clientId = 'cli_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const now = new Date();
     const createdAt = now.toISOString();
     const monthlyFee = data.monthlyFee ?? 150.0;
 
-    db.prepare(`
-      INSERT INTO clients (id, business_name, owner_name, phone, document, city, state, monthly_fee, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
-    `).run(
-      clientId,
-      data.businessName.trim(),
-      data.ownerName?.trim() || null,
-      data.phone.trim(),
-      data.document?.trim() || null,
-      data.city?.trim() || null,
-      data.state?.trim() || null,
-      monthlyFee,
-      createdAt
-    );
+    await client.execute({
+      sql: `INSERT INTO clients (id, business_name, owner_name, phone, document, city, state, monthly_fee, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
+      args: [
+        clientId,
+        data.businessName.trim(),
+        data.ownerName?.trim() || null,
+        data.phone.trim(),
+        data.document?.trim() || null,
+        data.city?.trim() || null,
+        data.state?.trim() || null,
+        monthlyFee,
+        createdAt
+      ]
+    });
 
-    // Se forneceu machineId, vincula a máquina com os dias iniciais (default 30 dias)
     if (data.machineId && data.machineId.trim()) {
       const days = data.initialDays && data.initialDays > 0 ? data.initialDays : 30;
       const expiresDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
       expiresDate.setUTCHours(23, 59, 59, 999);
 
       const licenseId = 'lic_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      db.prepare(`
-        INSERT INTO licenses (id, client_id, machine_id, machine_name, expires_at, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
-      `).run(
-        licenseId,
-        clientId,
-        data.machineId.trim(),
-        data.machineName?.trim() || 'Terminal Principal',
-        expiresDate.toISOString(),
-        createdAt
-      );
+      await client.execute({
+        sql: `INSERT INTO licenses (id, client_id, machine_id, machine_name, expires_at, status, created_at)
+              VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)`,
+        args: [
+          licenseId,
+          clientId,
+          data.machineId.trim(),
+          data.machineName?.trim() || 'Terminal Principal',
+          expiresDate.toISOString(),
+          createdAt
+        ]
+      });
 
-      // Registra pagamento inicial
       const paymentId = 'pay_' + Date.now().toString(36);
-      db.prepare(`
-        INSERT INTO payments (id, client_id, machine_id, amount, payment_date, days_added, previous_expires_at, new_expires_at, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Ativação inicial da máquina', ?)
-      `).run(
-        paymentId,
-        clientId,
-        data.machineId.trim(),
-        monthlyFee,
-        createdAt,
-        days,
-        null,
-        expiresDate.toISOString(),
-        createdAt
-      );
+      await client.execute({
+        sql: `INSERT INTO payments (id, client_id, machine_id, amount, payment_date, days_added, previous_expires_at, new_expires_at, notes, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Ativação inicial da máquina', ?)`,
+        args: [
+          paymentId,
+          clientId,
+          data.machineId.trim(),
+          monthlyFee,
+          createdAt,
+          days,
+          null,
+          expiresDate.toISOString(),
+          createdAt
+        ]
+      });
     }
 
-    return this.getClientById(clientId);
+    return await this.getClientById(clientId);
   },
 
   // Adicionar máquina a um cliente existente
-  addMachineToClient(clientId: string, machineId: string, machineName: string = 'Terminal', days: number = 30) {
-    const existing = db.prepare('SELECT * FROM licenses WHERE machine_id = ?').get(machineId.trim()) as LicenseRecord | undefined;
-    if (existing) {
+  async addMachineToClient(clientId: string, machineId: string, machineName: string = 'Terminal', days: number = 30) {
+    const existing = await client.execute({ sql: 'SELECT * FROM licenses WHERE machine_id = ?', args: [machineId.trim()] });
+    if (existing.rows.length > 0) {
       throw new Error(`A máquina com ID "${machineId}" já está cadastrada para outro cliente.`);
     }
 
@@ -305,23 +339,25 @@ export const devDb = {
     expiresDate.setUTCHours(23, 59, 59, 999);
 
     const licenseId = 'lic_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    db.prepare(`
-      INSERT INTO licenses (id, client_id, machine_id, machine_name, expires_at, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
-    `).run(
-      licenseId,
-      clientId,
-      machineId.trim(),
-      machineName.trim(),
-      expiresDate.toISOString(),
-      now.toISOString()
-    );
+    await client.execute({
+      sql: `INSERT INTO licenses (id, client_id, machine_id, machine_name, expires_at, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)`,
+      args: [
+        licenseId,
+        clientId,
+        machineId.trim(),
+        machineName.trim(),
+        expiresDate.toISOString(),
+        now.toISOString()
+      ]
+    });
 
-    return db.prepare('SELECT * FROM licenses WHERE id = ?').get(licenseId) as LicenseRecord;
+    const added = await client.execute({ sql: 'SELECT * FROM licenses WHERE id = ?', args: [licenseId] });
+    return added.rows[0] as unknown as LicenseRecord;
   },
 
   // Atualizar cliente
-  updateClient(id: string, data: Partial<ClientRecord>) {
+  async updateClient(id: string, data: Partial<ClientRecord>) {
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -336,22 +372,26 @@ export const devDb = {
 
     if (updates.length > 0) {
       params.push(id);
-      db.prepare(`UPDATE clients SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+      await client.execute({
+        sql: `UPDATE clients SET ${updates.join(', ')} WHERE id = ?`,
+        args: params
+      });
     }
-    return this.getClientById(id);
+    return await this.getClientById(id);
   },
 
   // Excluir cliente
-  deleteClient(id: string) {
-    db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+  async deleteClient(id: string) {
+    await client.execute({ sql: 'DELETE FROM clients WHERE id = ?', args: [id] });
   },
 
   // Renovar Licença da Máquina (+30 dias ou data customizada)
-  renewLicense(machineId: string, daysToAdd: number = 30, amountPaid?: number, notes?: string) {
-    const license = db.prepare('SELECT * FROM licenses WHERE machine_id = ?').get(machineId.trim()) as LicenseRecord | undefined;
-    if (!license) {
+  async renewLicense(machineId: string, daysToAdd: number = 30, amountPaid?: number, notes?: string) {
+    const licRes = await client.execute({ sql: 'SELECT * FROM licenses WHERE machine_id = ?', args: [machineId.trim()] });
+    if (licRes.rows.length === 0) {
       throw new Error(`Máquina com ID "${machineId}" não encontrada.`);
     }
+    const license = licRes.rows[0] as unknown as LicenseRecord;
 
     const now = new Date();
     const currentExp = new Date(license.expires_at);
@@ -364,32 +404,33 @@ export const devDb = {
 
     const newExpiresIso = newExpires.toISOString();
 
-    db.prepare(`
-      UPDATE licenses
-      SET expires_at = ?, status = 'ACTIVE'
-      WHERE id = ?
-    `).run(newExpiresIso, license.id);
+    await client.execute({
+      sql: `UPDATE licenses SET expires_at = ?, status = 'ACTIVE' WHERE id = ?`,
+      args: [newExpiresIso, license.id]
+    });
 
     // Registra o pagamento no histórico
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(license.client_id) as ClientRecord;
-    const amount = amountPaid !== undefined ? amountPaid : (client?.monthly_fee || 150.0);
+    const clientRes = await client.execute({ sql: 'SELECT * FROM clients WHERE id = ?', args: [license.client_id] });
+    const clientRecord = clientRes.rows[0] as unknown as ClientRecord | undefined;
+    const amount = amountPaid !== undefined ? amountPaid : (clientRecord?.monthly_fee || 150.0);
 
     const paymentId = 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    db.prepare(`
-      INSERT INTO payments (id, client_id, machine_id, amount, payment_date, days_added, previous_expires_at, new_expires_at, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      paymentId,
-      license.client_id,
-      machineId.trim(),
-      amount,
-      now.toISOString(),
-      daysToAdd,
-      license.expires_at,
-      newExpiresIso,
-      notes?.trim() || 'Renovação mensal remota',
-      now.toISOString()
-    );
+    await client.execute({
+      sql: `INSERT INTO payments (id, client_id, machine_id, amount, payment_date, days_added, previous_expires_at, new_expires_at, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        paymentId,
+        license.client_id,
+        machineId.trim(),
+        amount,
+        now.toISOString(),
+        daysToAdd,
+        license.expires_at,
+        newExpiresIso,
+        notes?.trim() || 'Renovação mensal remota',
+        now.toISOString()
+      ]
+    });
 
     return {
       success: true,
@@ -397,37 +438,43 @@ export const devDb = {
       machineId: license.machine_id,
       previousExpiresAt: license.expires_at,
       newExpiresAt: newExpiresIso,
-      clientName: client?.business_name || 'Cliente'
+      clientName: clientRecord?.business_name || 'Cliente'
     };
   },
 
   // Alternar Bloqueio da Máquina
-  toggleBlockLicense(machineId: string) {
-    const license = db.prepare('SELECT * FROM licenses WHERE machine_id = ?').get(machineId.trim()) as LicenseRecord | undefined;
-    if (!license) throw new Error('Máquina não encontrada.');
+  async toggleBlockLicense(machineId: string) {
+    const licRes = await client.execute({ sql: 'SELECT * FROM licenses WHERE machine_id = ?', args: [machineId.trim()] });
+    if (licRes.rows.length === 0) throw new Error('Máquina não encontrada.');
+    const license = licRes.rows[0] as unknown as LicenseRecord;
 
     const newStatus = license.status === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED';
-    db.prepare('UPDATE licenses SET status = ? WHERE id = ?').run(newStatus, license.id);
+    await client.execute({ sql: 'UPDATE licenses SET status = ? WHERE id = ?', args: [newStatus, license.id] });
     return { success: true, status: newStatus };
   },
 
   // Consulta da Máquina pelo Bar ERP (Check-in remoto)
-  checkLicenseByMachineId(machineId: string, ip?: string) {
-    const license = db.prepare('SELECT * FROM licenses WHERE machine_id = ?').get(machineId.trim()) as LicenseRecord | undefined;
-    if (!license) {
+  async checkLicenseByMachineId(machineId: string, ip?: string) {
+    const licRes = await client.execute({ sql: 'SELECT * FROM licenses WHERE machine_id = ?', args: [machineId.trim()] });
+    if (licRes.rows.length === 0) {
       return { found: false };
     }
+    const license = licRes.rows[0] as unknown as LicenseRecord;
 
     // Registra o check-in e IP
     const nowIso = new Date().toISOString();
-    db.prepare('UPDATE licenses SET last_check_in = ?, last_ip = ? WHERE id = ?').run(nowIso, ip || null, license.id);
+    await client.execute({
+      sql: 'UPDATE licenses SET last_check_in = ?, last_ip = ? WHERE id = ?',
+      args: [nowIso, ip || null, license.id]
+    });
 
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(license.client_id) as ClientRecord | undefined;
+    const clientRes = await client.execute({ sql: 'SELECT * FROM clients WHERE id = ?', args: [license.client_id] });
+    const clientRecord = clientRes.rows[0] as unknown as ClientRecord | undefined;
 
     const now = new Date();
     const expDate = new Date(license.expires_at);
     const isExpired = expDate < now;
-    const isBlocked = license.status === 'BLOCKED' || client?.status === 'BLOCKED';
+    const isBlocked = license.status === 'BLOCKED' || clientRecord?.status === 'BLOCKED';
     const isValid = !isExpired && !isBlocked;
 
     const diffMs = expDate.getTime() - now.getTime();
@@ -442,7 +489,7 @@ export const devDb = {
       valid: isValid,
       status,
       machineId: license.machine_id,
-      clientName: client?.business_name || 'Bar ERP Cliente',
+      clientName: clientRecord?.business_name || 'Bar ERP Cliente',
       expiresAt: license.expires_at,
       daysRemaining,
     };

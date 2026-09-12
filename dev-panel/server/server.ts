@@ -13,8 +13,8 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Inicializa banco SQLite do painel
-initDb();
+// Inicializa banco do painel
+await initDb();
 
 const app = express();
 const PORT = process.env.PORT || process.env.DEV_PANEL_PORT || 4500;
@@ -31,59 +31,64 @@ app.use((req, res, next) => {
 // ============================================================================
 // 1. ENDPOINT PÚBLICO: Verificação de Licença consumida pelo Bar ERP
 // ============================================================================
-app.get('/api/v1/licenses/check/:machineId', (req, res) => {
+app.get('/api/v1/licenses/check/:machineId', async (req, res) => {
   const { machineId } = req.params;
   if (!machineId) {
     return res.status(400).json({ success: false, error: 'ID da máquina não informado' });
   }
 
-  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-  const checkResult = devDb.checkLicenseByMachineId(machineId, String(clientIp));
-  const settings = devDb.getSettings();
+  try {
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const checkResult = await devDb.checkLicenseByMachineId(machineId, String(clientIp));
+    const settings = await devDb.getSettings();
 
-  const developerContact = {
-    developerName: settings.developer_name || 'Software House',
-    phone: settings.developer_phone || '',
-    pixKey: settings.pix_key || '',
-  };
+    const developerContact = {
+      developerName: settings.developer_name || 'Software House',
+      phone: settings.developer_phone || '',
+      pixKey: settings.pix_key || '',
+    };
 
-  if (!checkResult.found) {
+    if (!checkResult.found) {
+      return res.json({
+        success: true,
+        found: false,
+        valid: false,
+        status: 'UNREGISTERED',
+        machineId,
+        message: 'Esta máquina ainda não está registrada no painel da Software House.',
+        developerContact,
+      });
+    }
+
+    let token: string | undefined = undefined;
+    if (checkResult.valid && checkResult.expiresAt) {
+      token = generateSignedLicenseToken({
+        machineId,
+        expiresAt: checkResult.expiresAt,
+        clientName: checkResult.clientName || 'Cliente',
+        issuedAt: new Date().toISOString(),
+      });
+    }
+
     return res.json({
       success: true,
-      found: false,
-      valid: false,
-      status: 'UNREGISTERED',
-      machineId,
-      message: 'Esta máquina ainda não está registrada no painel da Software House.',
-      developerContact,
-    });
-  }
-
-  let token: string | undefined = undefined;
-  if (checkResult.valid && checkResult.expiresAt) {
-    token = generateSignedLicenseToken({
-      machineId,
+      found: true,
+      valid: checkResult.valid,
+      status: checkResult.status,
+      machineId: checkResult.machineId,
+      clientName: checkResult.clientName,
       expiresAt: checkResult.expiresAt,
-      clientName: checkResult.clientName || 'Cliente',
-      issuedAt: new Date().toISOString(),
+      daysRemaining: checkResult.daysRemaining,
+      token,
+      developerContact,
+      message: checkResult.valid 
+        ? 'Licença ativa e regular.' 
+        : (checkResult.status === 'BLOCKED' ? 'Máquina bloqueada pelo desenvolvedor.' : 'Mensalidade expirada.'),
     });
+  } catch (err: any) {
+    console.error('[DevPanel API Error checkLicense]', err);
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  return res.json({
-    success: true,
-    found: true,
-    valid: checkResult.valid,
-    status: checkResult.status,
-    machineId: checkResult.machineId,
-    clientName: checkResult.clientName,
-    expiresAt: checkResult.expiresAt,
-    daysRemaining: checkResult.daysRemaining,
-    token,
-    developerContact,
-    message: checkResult.valid 
-      ? 'Licença ativa e regular.' 
-      : (checkResult.status === 'BLOCKED' ? 'Máquina bloqueada pelo desenvolvedor.' : 'Mensalidade expirada.'),
-  });
 });
 
 // ============================================================================
@@ -91,9 +96,9 @@ app.get('/api/v1/licenses/check/:machineId', (req, res) => {
 // ============================================================================
 
 // Métricas gerais do dashboard
-app.get('/api/admin/metrics', (req, res) => {
+app.get('/api/admin/metrics', async (req, res) => {
   try {
-    const metrics = devDb.getMetrics();
+    const metrics = await devDb.getMetrics();
     res.json({ success: true, ...metrics });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -101,10 +106,10 @@ app.get('/api/admin/metrics', (req, res) => {
 });
 
 // Listagem de clientes e máquinas
-app.get('/api/admin/clients', (req, res) => {
+app.get('/api/admin/clients', async (req, res) => {
   try {
     const search = req.query.search ? String(req.query.search) : undefined;
-    const clients = devDb.listClients(search);
+    const clients = await devDb.listClients(search);
     res.json({ success: true, clients });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -112,14 +117,14 @@ app.get('/api/admin/clients', (req, res) => {
 });
 
 // Cadastrar novo cliente (com máquina opcional)
-app.post('/api/admin/clients', (req, res) => {
+app.post('/api/admin/clients', async (req, res) => {
   try {
     const { businessName, ownerName, phone, document, city, state, monthlyFee, machineId, machineName, initialDays } = req.body;
     if (!businessName || !phone) {
       return res.status(400).json({ success: false, error: 'Nome do Estabelecimento e Telefone/WhatsApp são obrigatórios.' });
     }
 
-    const client = devDb.createClient({
+    const client = await devDb.createClient({
       businessName,
       ownerName,
       phone,
@@ -139,10 +144,10 @@ app.post('/api/admin/clients', (req, res) => {
 });
 
 // Atualizar cliente
-app.put('/api/admin/clients/:id', (req, res) => {
+app.put('/api/admin/clients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = devDb.updateClient(id, req.body);
+    const updated = await devDb.updateClient(id, req.body);
     res.json({ success: true, client: updated });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -150,10 +155,10 @@ app.put('/api/admin/clients/:id', (req, res) => {
 });
 
 // Excluir cliente
-app.delete('/api/admin/clients/:id', (req, res) => {
+app.delete('/api/admin/clients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    devDb.deleteClient(id);
+    await devDb.deleteClient(id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -161,7 +166,7 @@ app.delete('/api/admin/clients/:id', (req, res) => {
 });
 
 // Adicionar nova máquina a um cliente
-app.post('/api/admin/clients/:id/machines', (req, res) => {
+app.post('/api/admin/clients/:id/machines', async (req, res) => {
   try {
     const { id } = req.params;
     const { machineId, machineName, days } = req.body;
@@ -169,7 +174,7 @@ app.post('/api/admin/clients/:id/machines', (req, res) => {
       return res.status(400).json({ success: false, error: 'ID da máquina é obrigatório.' });
     }
 
-    const license = devDb.addMachineToClient(id, machineId, machineName, days ? Number(days) : 30);
+    const license = await devDb.addMachineToClient(id, machineId, machineName, days ? Number(days) : 30);
     res.json({ success: true, license });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -177,14 +182,14 @@ app.post('/api/admin/clients/:id/machines', (req, res) => {
 });
 
 // Renovar máquina remota (Ação principal do comprovante)
-app.post('/api/admin/licenses/renew', (req, res) => {
+app.post('/api/admin/licenses/renew', async (req, res) => {
   try {
     const { machineId, daysToAdd, amountPaid, notes } = req.body;
     if (!machineId) {
       return res.status(400).json({ success: false, error: 'ID da máquina é obrigatório.' });
     }
 
-    const result = devDb.renewLicense(
+    const result = await devDb.renewLicense(
       machineId, 
       daysToAdd ? Number(daysToAdd) : 30, 
       amountPaid !== undefined ? Number(amountPaid) : undefined, 
@@ -205,11 +210,11 @@ app.post('/api/admin/licenses/renew', (req, res) => {
 });
 
 // Bloquear / Desbloquear máquina
-app.post('/api/admin/licenses/toggle-block', (req, res) => {
+app.post('/api/admin/licenses/toggle-block', async (req, res) => {
   try {
     const { machineId } = req.body;
     if (!machineId) return res.status(400).json({ success: false, error: 'ID da máquina é obrigatório.' });
-    const result = devDb.toggleBlockLicense(machineId);
+    const result = await devDb.toggleBlockLicense(machineId);
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -217,10 +222,10 @@ app.post('/api/admin/licenses/toggle-block', (req, res) => {
 });
 
 // Obter chave de ativação offline para envio por WhatsApp
-app.get('/api/admin/licenses/offline-key/:machineId', (req, res) => {
+app.get('/api/admin/licenses/offline-key/:machineId', async (req, res) => {
   try {
     const { machineId } = req.params;
-    const checkResult = devDb.checkLicenseByMachineId(machineId);
+    const checkResult = await devDb.checkLicenseByMachineId(machineId);
     if (!checkResult.found || !checkResult.expiresAt) {
       return res.status(404).json({ success: false, error: 'Máquina não encontrada ou sem expiração válida.' });
     }
@@ -238,19 +243,19 @@ app.get('/api/admin/licenses/offline-key/:machineId', (req, res) => {
 });
 
 // Configurações do Desenvolvedor (PIX, WhatsApp, etc)
-app.get('/api/admin/settings', (req, res) => {
+app.get('/api/admin/settings', async (req, res) => {
   try {
-    const settings = devDb.getSettings();
+    const settings = await devDb.getSettings();
     res.json({ success: true, settings });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post('/api/admin/settings', (req, res) => {
+app.post('/api/admin/settings', async (req, res) => {
   try {
-    devDb.updateSettings(req.body);
-    res.json({ success: true, settings: devDb.getSettings() });
+    await devDb.updateSettings(req.body);
+    res.json({ success: true, settings: await devDb.getSettings() });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

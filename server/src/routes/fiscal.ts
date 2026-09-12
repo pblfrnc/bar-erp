@@ -42,12 +42,14 @@ function isNfce(n: { referencia?: string | null; chave?: string | null }): boole
   return false;
 }
 
-function isNfe(n: { referencia?: string | null; chave?: string | null }): boolean {
+function isNfe(n: { referencia?: string | null; chave?: string | null; serie?: string | null }): boolean {
   if (n.referencia?.startsWith('nfce_') || n.referencia?.startsWith('cupom_')) return false;
   if (n.chave && n.chave.length === 44 && n.chave.substring(20, 22) === '65') return false;
   if (n.referencia?.startsWith('nfe_')) return true;
   if (n.chave && n.chave.length === 44 && n.chave.substring(20, 22) === '55') return true;
-  return false;
+  if (n.serie && String(n.serie) === '2') return true;
+  // Se não é explicitamente NFC-e (modelo 65), considera NF-e
+  return true;
 }
 
 // Garantir que as tabelas de notas fiscais existem no banco SQLite
@@ -1090,13 +1092,76 @@ export function createFiscalRouter() {
         const cleanNum = String(numero || '').trim();
         if (!cleanNum) return res.status(400).json({ error: 'Número ou Referência da NF-e não informado.' });
 
-        const numAsInt = parseInt(cleanNum, 10);
+        // Suporta formatos como "1", "1/2", "1-2", "1 serie 2" ou query param ?serie=2
+        let targetNumero = cleanNum;
+        let targetSerie = String(req.query.serie || '').trim();
+
+        const combinedMatch = cleanNum.match(/^(\d+)(?:[\/\-\s]+(?:s[eé]rie\s*)?(\d+))?$/i);
+        if (combinedMatch) {
+          targetNumero = combinedMatch[1];
+          if (combinedMatch[2] && !targetSerie) targetSerie = combinedMatch[2];
+        }
+
+        const numAsInt = parseInt(targetNumero, 10);
+        const padded6 = !isNaN(numAsInt) ? String(numAsInt).padStart(6, '0') : null;
+        const padded9 = !isNaN(numAsInt) ? String(numAsInt).padStart(9, '0') : null;
+
+        const settings = await getFiscalSettingsSafe();
+        const isProducao = settings?.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = settings?.apiToken ? ('Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64')) : null;
+
+        // Se houver notas com status 'processando' ou sem número no banco local, sincroniza antes da busca
+        if (authHeader) {
+          try {
+            const pendingNotas = await (prisma as any).notaEmitida.findMany({
+              where: {
+                OR: [
+                  { status: 'processando' },
+                  { numero: null }
+                ]
+              },
+              take: 15
+            });
+            for (const pn of pendingNotas) {
+              if (pn.referencia) {
+                try {
+                  const sRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(pn.referencia)}?completa=1`, {
+                    headers: { 'Authorization': authHeader }
+                  });
+                  const sData: any = await sRes.json().catch(() => ({}));
+                  if (sData.status === 'autorizado') {
+                    await (prisma as any).notaEmitida.updateMany({
+                      where: { referencia: pn.referencia },
+                      data: {
+                        status: 'autorizado',
+                        chave: sData.chave_nfe || sData.chave || pn.chave,
+                        numero: sData.numero ? String(sData.numero) : pn.numero,
+                        serie: sData.serie ? String(sData.serie) : pn.serie,
+                        pdfUrl: sData.caminho_danfe || pn.pdfUrl,
+                        xmlUrl: sData.caminho_xml_nota_fiscal || pn.xmlUrl
+                      }
+                    });
+                  }
+                } catch {}
+              }
+            }
+          } catch {}
+        }
+
+        // 1. Busca ampla no banco de dados local
         const candidatas = await (prisma as any).notaEmitida.findMany({
           where: {
             OR: [
               { numero: cleanNum },
+              { numero: targetNumero },
               ...(isNaN(numAsInt) ? [] : [{ numero: String(numAsInt) }]),
+              ...(padded6 ? [{ numero: padded6 }] : []),
+              ...(padded9 ? [{ numero: padded9 }] : []),
               { referencia: cleanNum },
+              { referencia: targetNumero },
+              { referencia: `nfe_${cleanNum}` },
+              { referencia: `nfe_${targetNumero}` },
               { chave: cleanNum },
               { id: cleanNum },
               { id: `nfe_${cleanNum}` }
@@ -1105,12 +1170,32 @@ export function createFiscalRouter() {
           orderBy: { createdAt: 'desc' }
         });
 
-        let nota = candidatas.find((n: any) => isNfe(n));
+        let nota = candidatas.find((n: any) => {
+          if (!isNfe(n)) return false;
+          if (targetSerie) {
+            const nSerie = String(n.serie || '').trim();
+            if (nSerie && nSerie !== targetSerie) return false;
+          }
+          return true;
+        });
 
-        const settings = await getFiscalSettingsSafe();
-        const isProducao = settings?.environment === 'producao';
-        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
-        const authHeader = settings?.apiToken ? ('Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64')) : null;
+        // Se não encontrou por correspondência exata, busca notas onde a chave de acesso contenha o número da NF-e
+        if (!nota && !isNaN(numAsInt) && padded9) {
+          const notasChave = await (prisma as any).notaEmitida.findMany({
+            where: {
+              chave: { contains: padded9 }
+            },
+            orderBy: { createdAt: 'desc' }
+          });
+          nota = notasChave.find((n: any) => {
+            if (!isNfe(n)) return false;
+            if (targetSerie && n.chave && n.chave.length === 44) {
+              const serieFromKey = String(parseInt(n.chave.substring(22, 25), 10));
+              if (serieFromKey !== targetSerie) return false;
+            }
+            return true;
+          });
+        }
 
         // Se a nota foi encontrada localmente mas estava processando ou sem número/chave, sincroniza com a Focus NFe
         if (nota && authHeader && (nota.status === 'processando' || !nota.numero || !nota.chave)) {
@@ -1509,13 +1594,36 @@ export function createFiscalRouter() {
     // ============================================================
     router.post('/cancel-nfe', async (req, res) => {
       try {
-        const { referencia, justificativa } = req.body;
-        if (!referencia) {
-          return res.status(400).json({ error: 'Referência (ID do Pedido) não informada.' });
+        const { referencia, justificativa, numero, chave } = req.body;
+        const searchTarget = String(referencia || chave || numero || '').trim();
+        if (!searchTarget) {
+          return res.status(400).json({ error: 'Referência, Chave ou Número da NF-e não informado.' });
         }
-        if (!justificativa || justificativa.length < 15) {
+        if (!justificativa || justificativa.trim().length < 15) {
           return res.status(400).json({ error: 'A justificativa deve ter no mínimo 15 caracteres (Regra da SEFAZ).' });
         }
+
+        // Tenta resolver a referência real no banco de dados local caso o usuário tenha passado o número ou chave
+        let targetRef = searchTarget;
+        try {
+          const numInt = parseInt(searchTarget, 10);
+          const padded9 = !isNaN(numInt) ? String(numInt).padStart(9, '0') : null;
+          const localNota = await (prisma as any).notaEmitida.findFirst({
+            where: {
+              OR: [
+                { referencia: searchTarget },
+                { chave: searchTarget },
+                { numero: searchTarget },
+                ...(padded9 ? [{ numero: padded9 }, { chave: { contains: padded9 } }] : []),
+                { id: searchTarget }
+              ]
+            }
+          });
+          if (localNota?.referencia) {
+            targetRef = localNota.referencia;
+          }
+        } catch {}
+
         const settings = await getFiscalSettingsSafe();
         if (!settings?.apiToken) {
           return res.status(400).json({ error: 'Token da API não configurado.' });
@@ -1523,14 +1631,14 @@ export function createFiscalRouter() {
         const isProducao = settings.environment === 'producao';
         const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
         const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
-        const focusUrl = `${baseURL}/v2/nfe/${encodeURIComponent(referencia)}`;
+        const focusUrl = `${baseURL}/v2/nfe/${encodeURIComponent(targetRef)}`;
         const focusRes = await fetch(focusUrl, {
           method: 'DELETE',
           headers: {
             'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ justificativa })
+          body: JSON.stringify({ justificativa: justificativa.trim() })
         });
         const data = await focusRes.json().catch(() => ({}));
         if (!focusRes.ok) {
@@ -1538,7 +1646,15 @@ export function createFiscalRouter() {
           const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
           return res.status(focusRes.status).json({ error: `Erro ao cancelar NF-e: ${erroMsg}`, details: data });
         }
-        await (prisma as any).notaEmitida.updateMany({ where: { referencia }, data: { status: 'cancelado' } });
+        await (prisma as any).notaEmitida.updateMany({
+          where: {
+            OR: [
+              { referencia: targetRef },
+              { referencia: searchTarget }
+            ]
+          },
+          data: { status: 'cancelado' }
+        });
         return res.json({ ok: true, mensagem: 'NF-e cancelada com sucesso!', data });
       } catch (err: any) {
         console.error('[FocusNFe Cancel NFe Exception]', err);
@@ -1579,9 +1695,9 @@ export function createFiscalRouter() {
           const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
           return res.status(focusRes.status).json({ error: `Erro na Carta de Correção: ${erroMsg}`, details: data });
         }
-        return res.json({ ok: true, mensagem: 'Carta de Correção transmitida à SEFAZ!', data });
+        return res.json({ ok: true, mensagem: 'Carta de Correção registrada com sucesso!', data });
       } catch (err: any) {
-        console.error('[FocusNFe CC-e Exception]', err);
+        console.error('[FocusNFe CCe Exception]', err);
         return res.status(500).json({ error: 'Erro interno ao emitir Carta de Correção.', detail: err.message });
       }
     });
@@ -1589,17 +1705,15 @@ export function createFiscalRouter() {
     // ============================================================
     router.get('/nfe/cancelable-notes', async (req, res) => {
       try {
-        const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
         let notas = await (prisma as any).notaEmitida.findMany({
           where: {
-            status: { in: ['autorizado', 'processando'] },
-            createdAt: { gte: since24h }
+            status: { in: ['autorizado', 'processando'] }
           },
           orderBy: { createdAt: 'desc' },
-          take: 100
+          take: 200
         });
 
-        // Sincroniza qualquer nota que esteja como 'processando' com a Focus NFe
+        // Sincroniza qualquer nota que esteja como 'processando' ou sem número com a Focus NFe
         const settings = await getFiscalSettingsSafe();
         if (settings?.apiToken) {
           const isProducao = settings.environment === 'producao';
@@ -1607,7 +1721,7 @@ export function createFiscalRouter() {
           const authHeader = 'Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64');
 
           for (const n of notas) {
-            if (n.status === 'processando' && n.referencia) {
+            if ((n.status === 'processando' || !n.numero) && n.referencia && isNfe(n)) {
               try {
                 const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(n.referencia)}?completa=1`, {
                   headers: { 'Authorization': authHeader }
@@ -1637,7 +1751,7 @@ export function createFiscalRouter() {
         const cancelable = notas
           .filter((n: any) => isNfe(n) && n.status === 'autorizado')
           .map((n: any) => {
-            const createdAtMs = new Date(n.createdAt).getTime();
+            const createdAtMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
             const diffMinutes = Math.floor((now - createdAtMs) / 60000);
             const hoursRemaining = Math.max(0, 24 - Math.floor(diffMinutes / 60));
             const minutesInHour = Math.max(0, 60 - (diffMinutes % 60));
@@ -1646,7 +1760,7 @@ export function createFiscalRouter() {
               diffMinutes,
               hoursRemaining,
               minutesInHour,
-              isCancelable: hoursRemaining > 0 || (hoursRemaining === 0 && minutesInHour > 0)
+              isCancelable: diffMinutes <= (24 * 60)
             };
           })
           .filter((n: any) => n.isCancelable);
@@ -3198,49 +3312,55 @@ export function createFiscalRouter() {
       csvContent += `\n`;
 
       // 4. Posição de Estoque e Lucro Previsto Atual (Inventário e Análise de Lucratividade para Contabilidade)
-      try {
-        const allProds = await prisma.product.findMany({
-          where: { isActive: true },
-          include: { category: true }
-        });
+      const includeStock = req.query.includeStock === 'true';
+      if (includeStock) {
+        try {
+          const allProds = await prisma.product.findMany({
+            where: { isActive: true },
+            include: { category: true }
+          });
 
-        let csvStockCost = 0;
-        let csvStockSale = 0;
-        const csvCatMap = new Map<string, { name: string; cost: number; sale: number }>();
+          let csvStockCost = 0;
+          let csvStockSale = 0;
+          const csvCatMap = new Map<string, { name: string; cost: number; sale: number }>();
 
-        for (const p of allProds) {
-          const st = Math.max(0, p.stock || 0);
-          const cst = (p.costPrice || 0) * st;
-          const sl = (p.price || 0) * st;
-          csvStockCost += cst;
-          csvStockSale += sl;
+          for (const p of allProds) {
+            const st = Math.max(0, p.stock || 0);
+            const cst = (p.costPrice || 0) * st;
+            const sl = (p.price || 0) * st;
+            csvStockCost += cst;
+            csvStockSale += sl;
 
-          const catName = p.category?.name || 'Geral';
-          if (!csvCatMap.has(catName)) csvCatMap.set(catName, { name: catName, cost: 0, sale: 0 });
-          const item = csvCatMap.get(catName)!;
-          item.cost += cst;
-          item.sale += sl;
+            const catName = p.category?.name || 'Geral';
+            if (!csvCatMap.has(catName)) csvCatMap.set(catName, { name: catName, cost: 0, sale: 0 });
+            const item = csvCatMap.get(catName)!;
+            item.cost += cst;
+            item.sale += sl;
+          }
+
+          const csvStockProfit = csvStockSale - csvStockCost;
+          const csvStockMargin = csvStockSale > 0 ? ((csvStockProfit / csvStockSale) * 100) : 0;
+
+          csvContent += `--- POSIÇÃO DO ESTOQUE E LUCRO PREVISTO (SPED FISCAL / INVENTÁRIO) ---\n`;
+          csvContent += `Valor Total do Estoque a Preço de Custo:;R$ ${csvStockCost.toFixed(2).replace('.', ',')}\n`;
+          csvContent += `Valor Total do Estoque a Preço de Venda:;R$ ${csvStockSale.toFixed(2).replace('.', ',')}\n`;
+          csvContent += `Lucro Previsto Total do Estoque:;R$ ${csvStockProfit.toFixed(2).replace('.', ',')}\n`;
+          csvContent += `Margem Média Prevista do Estoque:;${csvStockMargin.toFixed(1).replace('.', ',')}%\n\n`;
+
+          csvContent += `--- LUCRO PREVISTO POR CATEGORIA DE PRODUTOS ---\n`;
+          csvContent += `Categoria;Estoque a Custo (R$);Estoque a Venda (R$);Lucro Previsto (R$);Margem Média (%)\n`;
+          for (const cat of csvCatMap.values()) {
+            const catProfit = cat.sale - cat.cost;
+            const catMargin = cat.sale > 0 ? ((catProfit / cat.sale) * 100) : 0;
+            csvContent += `"${cat.name}";"${cat.cost.toFixed(2).replace('.', ',')}";"${cat.sale.toFixed(2).replace('.', ',')}";"${catProfit.toFixed(2).replace('.', ',')}";"${catMargin.toFixed(1).replace('.', ',')}%"\n`;
+          }
+          csvContent += `\n`;
+        } catch (errStock) {
+          console.warn('[Export Month] Erro ao calcular estoque no CSV:', errStock);
         }
-
-        const csvStockProfit = csvStockSale - csvStockCost;
-        const csvStockMargin = csvStockSale > 0 ? ((csvStockProfit / csvStockSale) * 100) : 0;
-
+      } else {
         csvContent += `--- POSIÇÃO DO ESTOQUE E LUCRO PREVISTO (SPED FISCAL / INVENTÁRIO) ---\n`;
-        csvContent += `Valor Total do Estoque a Preço de Custo:;R$ ${csvStockCost.toFixed(2).replace('.', ',')}\n`;
-        csvContent += `Valor Total do Estoque a Preço de Venda:;R$ ${csvStockSale.toFixed(2).replace('.', ',')}\n`;
-        csvContent += `Lucro Previsto Total do Estoque:;R$ ${csvStockProfit.toFixed(2).replace('.', ',')}\n`;
-        csvContent += `Margem Média Prevista do Estoque:;${csvStockMargin.toFixed(1).replace('.', ',')}%\n\n`;
-
-        csvContent += `--- LUCRO PREVISTO POR CATEGORIA DE PRODUTOS ---\n`;
-        csvContent += `Categoria;Estoque a Custo (R$);Estoque a Venda (R$);Lucro Previsto (R$);Margem Média (%)\n`;
-        for (const cat of csvCatMap.values()) {
-          const catProfit = cat.sale - cat.cost;
-          const catMargin = cat.sale > 0 ? ((catProfit / cat.sale) * 100) : 0;
-          csvContent += `"${cat.name}";"${cat.cost.toFixed(2).replace('.', ',')}";"${cat.sale.toFixed(2).replace('.', ',')}";"${cat.profit.toFixed(2).replace('.', ',')}";"${catMargin.toFixed(1).replace('.', ',')}%"\n`;
-        }
-        csvContent += `\n`;
-      } catch (errStock) {
-        console.warn('[Export Month] Erro ao calcular estoque no CSV:', errStock);
+        csvContent += `Posição de estoque desabilitada no fechamento deste mês (Aguardando conferência e correção física do inventário).\n\n`;
       }
 
       zip.addFile(`Relatorio_Fiscal_${month}.csv`, Buffer.from('\uFEFF' + csvContent, 'utf-8'));

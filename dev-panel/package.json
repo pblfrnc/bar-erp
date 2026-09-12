@@ -12,6 +12,7 @@
     "build": "npx vite build"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
