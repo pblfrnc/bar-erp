@@ -163,7 +163,36 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
       ).catch(() => []);
 
       if (!existing || existing.length === 0) {
-        // Nova nota encontrada na SEFAZ!
+        // Tenta buscar o XML completo imediatamente
+        let initialXml: string | null = null;
+        let initialValor = valorTotal;
+        let initialEmitente = emitente;
+        let initialCnpj = cnpjEmitente;
+        let initialNumero = numero;
+        let initialSerie = serie;
+        let initialDataEmissao = dataEmissao;
+
+        const xmlResult = await fetchNfeRecebidaXmlDirect(baseURL, authHeader, chaveClean);
+        if (xmlResult?.xmlText) {
+          initialXml = xmlResult.xmlText;
+          try {
+            const jsonObj = parser.parse(xmlResult.xmlText);
+            const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
+            if (nfe) {
+              if (nfe.emit?.xNome) initialEmitente = nfe.emit.xNome;
+              if (nfe.emit?.CNPJ || nfe.emit?.CPF) initialCnpj = (nfe.emit.CNPJ || nfe.emit.CPF).replace(/\D/g, '');
+              if (nfe.ide?.nNF) initialNumero = String(nfe.ide.nNF);
+              if (nfe.ide?.serie) initialSerie = String(nfe.ide.serie);
+              if (nfe.ide?.dhEmi) initialDataEmissao = String(nfe.ide.dhEmi);
+              if (nfe.total?.ICMSTot?.vNF) initialValor = parseFloat(nfe.total.ICMSTot.vNF);
+            }
+          } catch (_) {}
+
+          try { secureArchiveXML('ENTRADA', chaveClean, xmlResult.xmlText); } catch (_) {}
+          updatedWithXml++;
+        }
+
+        // Nova nota encontrada na SEFAZ: status inicial é 'pendente' aguardando o 1º Bip
         await prisma.$executeRawUnsafe(`
           INSERT INTO "NotaRecebida"
             ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
@@ -171,14 +200,14 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
         `,
           chaveClean,
           chaveClean,
-          emitente,
-          cnpjEmitente,
-          numero,
-          serie,
-          dataEmissao,
-          valorTotal,
-          item.nfe_completa ? 'recebida' : 'ciencia_registrada',
-          null,
+          initialEmitente,
+          initialCnpj,
+          initialNumero,
+          initialSerie,
+          initialDataEmissao,
+          initialValor,
+          'pendente',
+          initialXml,
           new Date().toISOString()
         );
         added++;
@@ -201,23 +230,38 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
           const result = await fetchNfeRecebidaXmlDirect(baseURL, authHeader, chaveClean);
           if (result?.xmlText) {
             let parsedValor = valorTotal;
+            let parsedEmitente = emitente;
+            let parsedCnpj = cnpjEmitente;
+            let parsedNumero = numero;
+            let parsedSerie = serie;
             try {
               const jsonObj = parser.parse(result.xmlText);
               const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
-              if (nfe?.total?.ICMSTot?.vNF) {
-                parsedValor = parseFloat(nfe.total.ICMSTot.vNF);
+              if (nfe) {
+                if (nfe.emit?.xNome) parsedEmitente = nfe.emit.xNome;
+                if (nfe.emit?.CNPJ || nfe.emit?.CPF) parsedCnpj = (nfe.emit.CNPJ || nfe.emit.CPF).replace(/\D/g, '');
+                if (nfe.ide?.nNF) parsedNumero = String(nfe.ide.nNF);
+                if (nfe.ide?.serie) parsedSerie = String(nfe.ide.serie);
+                if (nfe.total?.ICMSTot?.vNF) parsedValor = parseFloat(nfe.total.ICMSTot.vNF);
               }
             } catch (_) {}
+
+            // Preserva o status atual da nota (se 'pendente', continua 'pendente'; se 'recebida' ou 'finalizada', preserva)
+            const currentStatus = cur.status || 'pendente';
 
             await prisma.$executeRawUnsafe(`
               UPDATE "NotaRecebida"
               SET "xmlContent" = ?,
-                  "status" = 'recebida',
+                  "status" = ?,
+                  "emitente" = COALESCE(NULLIF(?, ''), "emitente"),
+                  "cnpjEmitente" = COALESCE(NULLIF(?, ''), "cnpjEmitente"),
+                  "numero" = COALESCE(NULLIF(?, ''), "numero"),
+                  "serie" = COALESCE(NULLIF(?, ''), "serie"),
                   "valorTotal" = CASE WHEN ? > 0 THEN ? ELSE "valorTotal" END
               WHERE "chave" = ?
-            `, result.xmlText, parsedValor, parsedValor, chaveClean);
+            `, result.xmlText, currentStatus, parsedEmitente, parsedCnpj, parsedNumero, parsedSerie, parsedValor, parsedValor, chaveClean);
 
-            secureArchiveXML('ENTRADA', chaveClean, result.xmlText);
+            try { secureArchiveXML('ENTRADA', chaveClean, result.xmlText); } catch (_) {}
             updatedWithXml++;
           }
         }

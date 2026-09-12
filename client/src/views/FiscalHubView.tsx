@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Receipt, FileText, ArrowLeft, Settings, Scan, ShieldAlert, BookOpen, Printer, XCircle } from 'lucide-react';
+import { Receipt, FileText, ArrowLeft, Settings, Scan, ShieldAlert, BookOpen, Printer, XCircle, Package } from 'lucide-react';
 import { FiscalImportView } from './FiscalImportView';
 import { EmitNfeView } from './EmitNfeView';
 import { FiscalSettingsView } from './FiscalSettingsView';
 import { NfReceivingView } from './NfReceivingView';
+import { PendingInvoicesView } from './PendingInvoicesView';
 import { api } from '../services/api';
 
 import { ManualNfceView } from './ManualNfceView';
@@ -18,7 +19,7 @@ import { NfeInutilizacaoModal } from './NfeInutilizacaoModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
 
 export const FiscalHubView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'emitNfce' | 'settings' | 'cancelNfce' | 'cancelNfe' | 'reprintNfce' | 'reprintNfe' | 'accountant'>('hub');
+  const [activeTab, setActiveTab] = useState<'hub' | 'receive' | 'import' | 'emit' | 'emitNfce' | 'settings' | 'cancelNfce' | 'cancelNfe' | 'reprintNfce' | 'reprintNfe' | 'accountant' | 'pendingInvoices'>('hub');
   const [chaveParaImportar, setChaveParaImportar] = useState<string | null>(null);
   const [showInutilizacao, setShowInutilizacao] = useState(false);
   const [showInutilizacaoNfe, setShowInutilizacaoNfe] = useState(false);
@@ -44,6 +45,16 @@ export const FiscalHubView: React.FC = () => {
       <FiscalImportView
         onBack={() => { setChaveParaImportar(null); setActiveTab('hub'); }}
         chaveAcesso={chaveParaImportar ?? undefined}
+      />
+    );
+  }
+
+  if (activeTab === 'pendingInvoices') {
+    return (
+      <PendingInvoicesView
+        onBack={() => setActiveTab('hub')}
+        onIrParaPrimeiroBip={() => setActiveTab('receive')}
+        onIrParaSegundoBip={handleImportarDeChave}
       />
     );
   }
@@ -130,6 +141,38 @@ export const FiscalHubView: React.FC = () => {
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">2º BIP — Entrada no Estoque</h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
                 Bipe a DANFE impressa ou selecione o arquivo <strong className="text-slate-900 dark:text-slate-300">.xml</strong> para conferir os itens recebidos e dar entrada definitiva no estoque.
+              </p>
+            </button>
+
+            {/* Card: Módulo de Notas Pendentes (DF-e / SEFAZ) */}
+            <button
+              onClick={() => setActiveTab('pendingInvoices')}
+              className="w-full bg-white dark:bg-slate-900 border border-amber-500/40 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl p-8 text-left transition group relative overflow-hidden shadow-xs cursor-pointer"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition" />
+              <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <Package className="w-10 h-10 text-amber-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    DF-e SEFAZ
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    XML Baixado
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                    XML Pendente
+                  </span>
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                Notas Fiscais Pendentes SEFAZ 📋
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                Consulte todas as notas emitidas contra o CNPJ da sua empresa. Acompanhe o ciclo de status (<strong className="text-amber-600 dark:text-amber-400">Pendente</strong> ➔ <strong className="text-blue-600 dark:text-blue-400">Recebida</strong> ➔ <strong className="text-emerald-600 dark:text-emerald-400">Finalizada</strong>) e a disponibilidade do XML com filtros completos de data, status e fornecedor.
               </p>
             </button>
           </div>

@@ -14,6 +14,7 @@ import { getNextSequentialCode } from '../services/catalogService.js';
 import { buildNfePayload, persistNfeRecord } from '../services/nfeService.js';
 import { getPrinterSettingsSafe } from './settings.js';
 import { encryptField, decryptField } from '../services/securityVault.js';
+import { runNfeRecebidasSync } from '../services/nfeRecebidasScheduler.js';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {
@@ -682,10 +683,10 @@ export function createFiscalRouter() {
         const now = new Date().toISOString();
 
         try {
-          // Atualiza registro existente
+          // Atualiza registro existente para 'finalizada' (estoque conferido e atualizado)
           const updateCount = await prisma.$executeRawUnsafe(
             `UPDATE "NotaRecebida"
-             SET "status" = 'importada',
+             SET "status" = 'finalizada',
                  "valorTotal" = CASE WHEN ? > 0 THEN ? ELSE "valorTotal" END,
                  "emitente" = COALESCE(?, "emitente"),
                  "numero" = COALESCE(?, "numero"),
@@ -695,12 +696,12 @@ export function createFiscalRouter() {
             valorNum, valorNum, vendorName || null, numeroNf, serieNf, dataEmissao, chaveAcesso
           );
 
-          // Se a nota não existia ainda em NotaRecebida, insere para não perder no SPED/fechamento contábil
+          // Se a nota não existia ainda em NotaRecebida, insere como finalizada
           if (updateCount === 0) {
             await prisma.$executeRawUnsafe(
               `INSERT INTO "NotaRecebida"
                 ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'importada', NULL, ?)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'finalizada', NULL, ?)`,
               chaveAcesso,
               chaveAcesso,
               vendorName || 'Fornecedor',
@@ -716,10 +717,10 @@ export function createFiscalRouter() {
           try {
             await (prisma as any).notaRecebida.updateMany({
               where: { chave: chaveAcesso },
-              data: { status: 'importada' }
+              data: { status: 'finalizada' }
             });
           } catch (e2) {
-            console.error("Erro ao marcar nota como importada:", e2);
+            console.error("Erro ao marcar nota como finalizada:", e2);
           }
         }
       }
@@ -2701,6 +2702,189 @@ export function createFiscalRouter() {
     }
   });
 
+  // ============================================================
+  // MÓDULO DE NOTAS PENDENTES (DF-e / SEFAZ) COM FILTROS E INDICADORES
+  // ============================================================
+  router.get('/notas-pendentes', async (req, res) => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "NotaRecebida" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "chave" TEXT NOT NULL UNIQUE,
+          "emitente" TEXT,
+          "cnpjEmitente" TEXT,
+          "numero" TEXT,
+          "serie" TEXT,
+          "dataEmissao" TEXT,
+          "valorTotal" REAL,
+          "status" TEXT NOT NULL DEFAULT 'pendente',
+          "xmlContent" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      const { status, xmlStatus, dataInicio, dataFim, fornecedor } = req.query as {
+        status?: string;
+        xmlStatus?: string;
+        dataInicio?: string;
+        dataFim?: string;
+        fornecedor?: string;
+      };
+
+      const allRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT "id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt"
+        FROM "NotaRecebida"
+        ORDER BY "createdAt" DESC, "dataEmissao" DESC
+      `);
+
+      const normalizedAll = (allRows || []).map(row => {
+        let normStatus = (row.status || 'pendente').toLowerCase();
+        if (normStatus === 'importada') normStatus = 'finalizada';
+        if (normStatus === 'ciencia_registrada') normStatus = 'pendente';
+        
+        const hasXml = Boolean(
+          row.xmlContent &&
+          typeof row.xmlContent === 'string' &&
+          row.xmlContent.length > 50 &&
+          (row.xmlContent.includes('<nfeProc') || row.xmlContent.includes('<NFe') || row.xmlContent.startsWith('<?xml'))
+        );
+
+        return {
+          id: row.id,
+          chave: row.chave,
+          emitente: row.emitente || 'Fornecedor',
+          cnpjEmitente: row.cnpjEmitente || '',
+          numero: row.numero || '',
+          serie: row.serie || '',
+          dataEmissao: row.dataEmissao || row.createdAt,
+          valorTotal: typeof row.valorTotal === 'number' ? row.valorTotal : parseFloat(row.valorTotal || '0'),
+          status: normStatus,
+          hasXml,
+          createdAt: row.createdAt
+        };
+      });
+
+      const summary = {
+        total: normalizedAll.length,
+        pendentes: normalizedAll.filter(n => n.status === 'pendente').length,
+        recebidas: normalizedAll.filter(n => n.status === 'recebida').length,
+        finalizadas: normalizedAll.filter(n => n.status === 'finalizada').length,
+        comXml: normalizedAll.filter(n => n.hasXml).length,
+        semXml: normalizedAll.filter(n => !n.hasXml).length,
+      };
+
+      let filtered = [...normalizedAll];
+
+      if (status && status !== 'todos') {
+        const target = status.toLowerCase();
+        filtered = filtered.filter(n => n.status === target);
+      }
+
+      if (xmlStatus && xmlStatus !== 'todos') {
+        if (xmlStatus === 'com_xml') {
+          filtered = filtered.filter(n => n.hasXml);
+        } else if (xmlStatus === 'sem_xml') {
+          filtered = filtered.filter(n => !n.hasXml);
+        }
+      }
+
+      if (fornecedor && fornecedor.trim()) {
+        const q = fornecedor.toLowerCase().trim();
+        filtered = filtered.filter(n =>
+          (n.emitente && n.emitente.toLowerCase().includes(q)) ||
+          (n.cnpjEmitente && n.cnpjEmitente.includes(q)) ||
+          (n.chave && n.chave.includes(q)) ||
+          (n.numero && n.numero.includes(q))
+        );
+      }
+
+      if (dataInicio && dataInicio.trim()) {
+        const dIni = dataInicio.trim();
+        filtered = filtered.filter(n => {
+          const dateStr = (n.dataEmissao || n.createdAt || '').substring(0, 10);
+          return dateStr >= dIni;
+        });
+      }
+      if (dataFim && dataFim.trim()) {
+        const dFim = dataFim.trim();
+        filtered = filtered.filter(n => {
+          const dateStr = (n.dataEmissao || n.createdAt || '').substring(0, 10);
+          return dateStr <= dFim;
+        });
+      }
+
+      res.json({
+        notas: filtered,
+        summary
+      });
+    } catch (err: any) {
+      console.error('[Notas Pendentes] Erro:', err);
+      res.status(500).json({ error: 'Erro ao consultar notas pendentes: ' + err.message });
+    }
+  });
+
+  // Ação Rápida: Receber Nota Pendente (1º Bip instantâneo)
+  router.post('/notas-pendentes/:chave/receber', async (req, res) => {
+    try {
+      const { chave } = req.params;
+      const chaveClean = (chave || '').replace(/\D/g, '');
+      if (chaveClean.length !== 44) {
+        return res.status(400).json({ error: 'Chave de acesso deve conter 44 dígitos.' });
+      }
+
+      const settings = await getFiscalSettingsSafe();
+      let xmlText: string | null = null;
+
+      if (settings?.apiToken) {
+        const isProducao = settings.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+
+        // Manifesta ciência
+        try {
+          await fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': authHeader },
+            body: JSON.stringify({ tipo: 'ciencia' })
+          });
+        } catch (_) {}
+
+        // Tenta baixar XML
+        const nfeResult = await fetchNfeRecebidaXml(baseURL, authHeader, chaveClean);
+        if (nfeResult?.xmlText) {
+          xmlText = nfeResult.xmlText;
+          try { secureArchiveXML('ENTRADA', chaveClean, xmlText); } catch (_) {}
+        }
+      }
+
+      if (xmlText) {
+        await prisma.$executeRawUnsafe(`
+          UPDATE "NotaRecebida"
+          SET "status" = 'recebida',
+              "xmlContent" = ?
+          WHERE "chave" = ?
+        `, xmlText, chaveClean);
+      } else {
+        await prisma.$executeRawUnsafe(`
+          UPDATE "NotaRecebida"
+          SET "status" = 'recebida'
+          WHERE "chave" = ?
+        `, chaveClean);
+      }
+
+      res.json({
+        success: true,
+        message: xmlText
+          ? '✓ Nota recebida com sucesso (1º Bip)! XML baixado e arquivado.'
+          : '✓ Nota recebida com sucesso (1º Bip)! Ciência registrada na SEFAZ.',
+        hasXml: Boolean(xmlText)
+      });
+    } catch (err: any) {
+      console.error('[Receber Nota Pendente] Erro:', err);
+      res.status(500).json({ error: 'Erro ao receber nota: ' + (err.message || err) });
+    }
+  });
+
   // Listar Notas Recebidas (registros locais)
   router.get('/notas-recebidas', async (req, res) => {
     try {
@@ -2996,80 +3180,33 @@ export function createFiscalRouter() {
   });
 
   // ============================================================
-  // Sincronizar Notas Destinadas (Focus NFe) - Consulta de Lote Real
+  // Sincronizar Notas Destinadas (Focus NFe / SEFAZ)
   // ============================================================
   router.get('/sync-nfe-recebidas', async (req, res) => {
     try {
-      const settings = await getFiscalSettingsSafe();
-      if (!settings || !settings.apiToken) {
-        return res.status(400).json({ error: 'Configuração fiscal incompleta. Configure o token da Focus NFe.' });
+      const syncResult = await runNfeRecebidasSync();
+      const added = syncResult?.added || 0;
+      const updatedXml = syncResult?.updatedWithXml || 0;
+
+      let message = 'Sincronização com a SEFAZ concluída.';
+      if (added > 0 && updatedXml > 0) {
+        message = `✓ ${added} nova(s) nota(s) detectada(s) e ${updatedXml} arquivo(s) XML baixado(s) com sucesso.`;
+      } else if (added > 0) {
+        message = `✓ ${added} nova(s) nota(s) detectada(s) contra o seu CNPJ.`;
+      } else if (updatedXml > 0) {
+        message = `✓ ${updatedXml} arquivo(s) XML baixado(s) da SEFAZ com sucesso.`;
+      } else {
+        message = 'Sincronização concluída. Nenhuma nova nota ou XML pendente na SEFAZ.';
       }
 
-      const isProducao = settings.environment === 'producao';
-      const baseURL = isProducao
-        ? 'https://api.focusnfe.com.br'
-        : 'https://homologacao.focusnfe.com.br';
-
-      const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
-      const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
-
-      let added = 0;
-      try {
-        const queryParams = cleanCnpj ? `?cnpj_destinatario=${cleanCnpj}` : '';
-        const focusRes = await fetch(`${baseURL}/v2/nfes_recebidas${queryParams}`, {
-          headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
-        });
-
-        if (focusRes.ok) {
-          const notasFocus = await focusRes.json();
-          if (Array.isArray(notasFocus)) {
-            for (const item of notasFocus) {
-              const chaveItem = item.chave_nfe || item.chave;
-              if (!chaveItem) continue;
-
-              const chaveClean = chaveItem.replace(/\D/g, '');
-              const parsedKey = parseChaveAcessoNfe(chaveClean);
-              const emitente = item.nome_emitente || (parsedKey ? `Fornecedor CNPJ ${parsedKey.cnpjFormatado}` : 'Fornecedor');
-              const cnpjEmitente = (item.documento_emitente || item.cnpj_emitente || parsedKey?.cnpjEmitente || '').replace(/\D/g, '');
-              const numero = item.numero || parsedKey?.numero || '';
-              const serie = item.serie || parsedKey?.serie || '';
-              const valorTotal = parseFloat(item.valor_total || '0');
-              const dataEmissao = item.data_emissao || new Date().toISOString();
-
-              await prisma.$executeRawUnsafe(`
-                INSERT OR IGNORE INTO "NotaRecebida"
-                  ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `,
-                chaveClean,
-                chaveClean,
-                emitente,
-                cnpjEmitente,
-                numero,
-                serie,
-                dataEmissao,
-                valorTotal,
-                item.nfe_completa ? 'recebida' : 'ciencia_registrada',
-                null,
-                new Date().toISOString()
-              );
-              added++;
-            }
-          }
-        }
-      } catch (syncErr: any) {
-        console.warn('[Sync NFe Recebidas] Falha ao consultar Focus NFe:', syncErr?.message);
-      }
-
-      res.json({ 
-        success: true, 
-        count: added, 
-        message: added > 0 
-          ? `${added} novas notas de fornecedores sincronizadas da SEFAZ com sucesso.`
-          : 'Sincronização com a SEFAZ concluída. Nenhuma nova nota pendente no momento.'
+      res.json({
+        success: true,
+        count: added,
+        updatedWithXml,
+        message
       });
     } catch (err: any) {
-      console.error(err);
+      console.error('[Sync NFe Recebidas] Erro:', err);
       res.status(500).json({ error: 'Erro ao sincronizar SEFAZ: ' + (err.message || err) });
     }
   });
