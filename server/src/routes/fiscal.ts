@@ -1429,6 +1429,44 @@ export function createFiscalRouter() {
     });
 
     // ============================================================
+    // Carta de Correção Eletrônica (CC-e) de NF-e (Modelo 55)
+    // ============================================================
+    router.post('/nfe/carta-correcao', async (req, res) => {
+      try {
+        const { referencia, correcao } = req.body;
+        if (!referencia || !correcao) {
+          return res.status(400).json({ error: 'Referência da NF-e e texto da correção são obrigatórios.' });
+        }
+        if (String(correcao).trim().length < 15) {
+          return res.status(400).json({ error: 'O texto da Carta de Correção deve conter no mínimo 15 caracteres.' });
+        }
+        const settings = await getFiscalSettingsSafe();
+        if (!settings?.apiToken) {
+          return res.status(400).json({ error: 'Token da API não configurado.' });
+        }
+        const isProducao = settings.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = 'Basic ' + Buffer.from(settings.apiToken + ':').toString('base64');
+        const focusUrl = `${baseURL}/v2/nfe/${encodeURIComponent(referencia)}/carta_correcao`;
+        const focusRes = await fetch(focusUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ correcao: String(correcao).trim() })
+        });
+        const data = await focusRes.json().catch(() => ({}));
+        if (!focusRes.ok) {
+          const erroMsg = data.mensagem || data.codigo || JSON.stringify(data);
+          return res.status(focusRes.status).json({ error: `Erro na Carta de Correção: ${erroMsg}`, details: data });
+        }
+        return res.json({ ok: true, mensagem: 'Carta de Correção transmitida à SEFAZ!', data });
+      } catch (err: any) {
+        console.error('[FocusNFe CC-e Exception]', err);
+        return res.status(500).json({ error: 'Erro interno ao emitir Carta de Correção.', detail: err.message });
+      }
+    });
     // Listar NF-es Disponíveis para Cancelamento (Prazo 24h SEFAZ)
     // ============================================================
     router.get('/nfe/cancelable-notes', async (req, res) => {
@@ -1785,7 +1823,8 @@ export function createFiscalRouter() {
         items,
         customerDoc: customerCpf,
         orderId,
-        settings
+        settings,
+        paymentMethod
       });
 
       if (customerName && String(customerName).trim()) {
@@ -1919,7 +1958,9 @@ export function createFiscalRouter() {
       const isProducao = settings.environment === 'producao';
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
 
-      const focusUrl = `${baseURL}/v2/nfce/${encodeURIComponent(referencia)}/email`;
+      const isNfe = referencia.startsWith('nfe_');
+      const docTipo = isNfe ? 'nfe' : 'nfce';
+      const focusUrl = `${baseURL}/v2/${docTipo}/${encodeURIComponent(referencia)}/email`;
 
       const focusRes = await fetch(focusUrl, {
         method: 'POST',

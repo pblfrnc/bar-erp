@@ -10,8 +10,9 @@ export async function buildNfePayload(params: {
   customerDoc?: string; // CPF or CNPJ of the recipient
   orderId?: string | number;
   settings: any;
+  paymentMethod?: string;
 }) {
-  const { items, customerDoc, orderId, settings } = params;
+  const { items, customerDoc, orderId, settings, paymentMethod } = params;
 
   // Generate a unique reference identifier (required by Focus)
   const ts = Date.now();
@@ -48,7 +49,9 @@ export async function buildNfePayload(params: {
 
   const cleanCnpj = (settings.cnpj || '').replace(/\D/g, '');
 
-  const payload = {
+  const totalItemsValue = items.reduce((acc, i) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+
+  const payload: any = {
     cnpj_emitente: cleanCnpj,
     data_emissao: dataEmissao,
     natureza_operacao: 'VENDA AO CONSUMIDOR',
@@ -89,10 +92,36 @@ export async function buildNfePayload(params: {
         icms_origem: '0',
         icms_situacao_tributaria: (settings.crt === '3')
           ? (cleanCfop === '5405' ? '60' : '00')
-          : (cleanCfop === '5405' ? '500' : '102')
+          : (cleanCfop === '5405' ? '500' : '102'),
+        pis_situacao_tributaria: '07',
+        cofins_situacao_tributaria: '07',
+        ...(i.cest ? { codigo_cest: String(i.cest).replace(/\D/g, '') } : {})
       } as any;
-    })
+    }),
+    formas_pagamento: [
+      {
+        forma_pagamento: (() => {
+          const pm = ((params as any).paymentMethod || '').toUpperCase();
+          if (pm === 'PIX') return '17';
+          if (pm === 'CREDITO' || pm === 'CARD' || pm === 'CARTÃO DE CRÉDITO') return '03';
+          if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO') return '04';
+          if (pm === 'DINHEIRO' || pm === 'MONEY' || pm === 'CASH') return '01';
+          return '01';
+        })(),
+        valor_pagamento: totalItemsValue.toFixed(2)
+      }
+    ]
   };
+
+  if (customerDoc) {
+    const cleanDoc = String(customerDoc).replace(/\D/g, '');
+    if (cleanDoc.length === 11) {
+      payload.cpf_destinatario = cleanDoc;
+    } else if (cleanDoc.length === 14) {
+      payload.cnpj_destinatario = cleanDoc;
+    }
+  }
+
   return { payload, ref };
 }
 
