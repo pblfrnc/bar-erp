@@ -554,7 +554,12 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
           ncm: i.product.ncm || '22030000',
           cfop: i.product.cfop || '5102',
           unit: i.product.unit || 'un',
-          cest: i.product.cest || undefined
+          cest: (() => {
+            const raw = i.product.cest ? String(i.product.cest).replace(/\D/g, '') : '';
+            if (raw.length === 6) return raw.padStart(7, '0');
+            if (/^\d{7}$/.test(raw) && raw !== '0000000') return raw;
+            return undefined;
+          })()
         }))
       };
 

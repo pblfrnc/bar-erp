@@ -63,7 +63,7 @@ export async function buildNfePayload(params: {
     cnpj_emitente: cleanCnpj,
     data_emissao: dataEmissao,
     natureza_operacao: 'VENDA AO CONSUMIDOR',
-    tipo_documento: '55', // NF‑e (55) – foco na nota fiscal eletrônica padrão
+    tipo_documento: '1', // 1 = Saída (SEFAZ tpNF aceita exclusivamente '0'=Entrada ou '1'=Saída)
     finalidade_emissao: '1', // Normal
     consumidor_final: '1', // Consumidor final
     presenca_comprador: '1', // Presencial
@@ -81,6 +81,19 @@ export async function buildNfePayload(params: {
       const eanValido = eanClean.length >= 8 ? eanClean : '';
       const codigoInterno = String(i.code || '').trim();
       const codigoProduto = (eanValido || codigoInterno || String(idx + 1)).slice(0, 60);
+
+      // CEST (Código Especificador da Substituição Tributária)
+      // Exigência estrita da SEFAZ: exatamente 7 dígitos numéricos ([0-9]{7})
+      // Ex: 302103 (cervejas/bebidas sem o zero inicial) -> preenche com padStart para '0302103'
+      const rawCest = i.cest ? String(i.cest).replace(/\D/g, '') : '';
+      let cleanCest: string | undefined = undefined;
+      if (rawCest) {
+        const paddedCest = rawCest.length === 6 ? rawCest.padStart(7, '0') : rawCest;
+        if (/^\d{7}$/.test(paddedCest) && paddedCest !== '0000000') {
+          cleanCest = paddedCest;
+        }
+      }
+
       return {
         numero_item: String(idx + 1),
         codigo_produto: codigoProduto,
@@ -103,7 +116,7 @@ export async function buildNfePayload(params: {
           : (cleanCfop === '5405' ? '500' : '102'),
         pis_situacao_tributaria: '07',
         cofins_situacao_tributaria: '07',
-        ...(i.cest ? { codigo_cest: String(i.cest).replace(/\D/g, '') } : {})
+        ...(cleanCest ? { codigo_cest: cleanCest } : {})
       } as any;
     }),
     formas_pagamento: [
