@@ -248,7 +248,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
 
   // Transmissão da NF-e para a SEFAZ
   const handleEmit = async () => {
-    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const isTest = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test';
     if (items.length === 0 && !isTest) {
       alert('Adicione pelo menos um produto à nota fiscal.');
       return;
@@ -305,7 +305,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
     }
   };
 
-  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  const isTestEnv = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test';
   const isEmitDisabled = isEmitting || (items.length === 0 && !isTestEnv);
 
   return (
