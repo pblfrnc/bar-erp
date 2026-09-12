@@ -384,7 +384,13 @@ export function App() {
     socket.on('kds:batch_updated', onKdsUpdated);
     socket.on('cash:updated', onCashUpdated);
 
+    // Verificação periódica de licença a cada 60 segundos
+    const licenseInterval = setInterval(() => {
+      loadSettings();
+    }, 60 * 1000);
+
     return () => {
+      clearInterval(licenseInterval);
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('table:updated', onTableUpdated);
@@ -404,8 +410,10 @@ export function App() {
     }
   }, [tables]);
 
-  
-  if (isLicensed === false) {
+  // BLOQUEIO TOTAL E FORÇADO: Se a licença não estiver ativa, ou estiver expirada / bloqueada, trava tudo na tela de ativação
+  const isBlockedOrExpired = isLicensed === false || licenseStatus === 'BLOCKED' || licenseStatus === 'EXPIRED' || licenseStatus === 'UNLICENSED' || licenseStatus === 'INVALID';
+
+  if (isBlockedOrExpired) {
     return (
       <LicenseModal 
         machineId={machineId} 

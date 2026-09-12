@@ -90,21 +90,26 @@ router.get('/', async (req, res) => {
       });
     }
 
-    // Verificação de expiração mensal
+    // Verificação de expiração mensal e bloqueio
     let isLicensed = Boolean(settings.isLicensed);
     let daysRemaining = 0;
     let isExpiringSoon = false;
+
+    // Se o status estiver explicitamente BLOQUEADO, força isLicensed = false
+    if (settings.licenseStatus === 'BLOCKED' || settings.licenseStatus === 'INVALID' || settings.licenseStatus === 'EXPIRED') {
+      isLicensed = false;
+    }
 
     if (settings.expiresAt) {
       const now = new Date();
       const expDate = new Date(settings.expiresAt);
       const diffMs = expDate.getTime() - now.getTime();
-      daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
       if (now > expDate) {
         // Licença expirou!
-        if (isLicensed) {
-          isLicensed = false;
+        isLicensed = false;
+        if (settings.isLicensed || settings.licenseStatus !== 'EXPIRED') {
           settings = await prisma.systemSettings.update({
             where: { id: 'default' },
             data: { isLicensed: false, licenseStatus: 'EXPIRED' }
@@ -114,6 +119,13 @@ router.get('/', async (req, res) => {
         // Faltam 5 dias ou menos
         isExpiringSoon = true;
       }
+    } else if (isLicensed && !settings.licenseKey) {
+      // Se não tem data de expiração nem chave legada, não é licenciado
+      isLicensed = false;
+      settings = await prisma.systemSettings.update({
+        where: { id: 'default' },
+        data: { isLicensed: false, licenseStatus: 'UNLICENSED' }
+      });
     } else if (settings.isLicensed && settings.licenseEmail && settings.licenseKey) {
       // Checagem de licença legado por hash
       const expectedKey = generateExpectedKey(settings.licenseEmail, currentMachineId);
@@ -124,6 +136,50 @@ router.get('/', async (req, res) => {
           data: { isLicensed: false, licenseStatus: 'INVALID' }
         });
       }
+    }
+
+    // Checagem periódica em segundo plano com o servidor do desenvolvedor (Render)
+    // Se a última verificação tiver mais de 2 minutos ou se a máquina estiver como ativa, revalida silenciosamente
+    const lastCheckMs = settings.lastVerifiedAt ? new Date(settings.lastVerifiedAt).getTime() : 0;
+    const shouldCheckRemote = (Date.now() - lastCheckMs) > 2 * 60 * 1000; // a cada 2 min
+
+    if (shouldCheckRemote) {
+      const serverUrl = process.env.LICENSE_SERVER_URL || settings?.licenseServerUrl || 'https://bar-erp-licensas.onrender.com';
+      (async () => {
+        try {
+          const controller = new AbortController();
+          const tId = setTimeout(() => controller.abort(), 4000);
+          const remoteRes = await fetch(`${serverUrl}/api/v1/licenses/check/${currentMachineId}`, { signal: controller.signal });
+          clearTimeout(tId);
+          if (remoteRes.ok) {
+            const data: any = await remoteRes.json();
+            if (data.success) {
+              if (data.status === 'BLOCKED' || !data.valid) {
+                await prisma.systemSettings.update({
+                  where: { id: 'default' },
+                  data: {
+                    isLicensed: false,
+                    licenseStatus: data.status || 'EXPIRED',
+                    lastVerifiedAt: new Date()
+                  }
+                });
+              } else if (data.valid && data.expiresAt) {
+                await prisma.systemSettings.update({
+                  where: { id: 'default' },
+                  data: {
+                    isLicensed: true,
+                    expiresAt: new Date(data.expiresAt),
+                    licenseStatus: 'ACTIVE',
+                    lastVerifiedAt: new Date()
+                  }
+                });
+              }
+            }
+          }
+        } catch (e) {
+          // Falha de rede temporária: tolera e mantém estado local
+        }
+      })();
     }
 
     // Parse developer contact se houver
