@@ -153,6 +153,44 @@ export const PendingInvoicesView: React.FC<PendingInvoicesViewProps> = ({
     }
   };
 
+  const handleFinalizarNota = async (chave: string) => {
+    if (!confirm('Deseja marcar esta nota fiscal como FINALIZADA?\n\nFaça isso se você já deu entrada física ou anterior nas mercadorias desta nota no estoque.')) {
+      return;
+    }
+    setActionLoadingChave(chave);
+    try {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/notas-pendentes/${chave}/finalizar`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao finalizar nota.');
+      await loadNotas();
+    } catch (err: any) {
+      alert('Falha ao finalizar nota: ' + (err.message || err));
+    } finally {
+      setActionLoadingChave(null);
+    }
+  };
+
+  const handleReabrirNota = async (chave: string) => {
+    if (!confirm('Deseja reabrir esta nota para conferência (2º Bip)?')) {
+      return;
+    }
+    setActionLoadingChave(chave);
+    try {
+      const res = await fetch(`${api.getApiUrl()}/fiscal/notas-pendentes/${chave}/reabrir`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao reabrir nota.');
+      await loadNotas();
+    } catch (err: any) {
+      alert('Falha ao reabrir nota: ' + (err.message || err));
+    } finally {
+      setActionLoadingChave(null);
+    }
+  };
+
   const handleSyncSingleNota = async (chave: string) => {
     setActionLoadingChave(chave);
     try {
@@ -720,14 +758,40 @@ export const PendingInvoicesView: React.FC<PendingInvoicesViewProps> = ({
                       )}
 
                       {/* Se Recebida ou Com XML: Botão para 2º Bip (Conferir e Dar Entrada) */}
-                      {(isRecebida || (isPendente && nota.hasXml)) && (
+                      {(isRecebida || (isPendente && nota.hasXml)) && !isFinalizada && (
                         <button
                           onClick={() => onIrParaSegundoBip(nota.chave)}
                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95"
                           title="Conferir itens e dar entrada definitiva no estoque"
                         >
                           <FileText className="w-3.5 h-3.5" />
-                          {isFinalizada ? 'Ver Conferência' : '2º Bip (Entrada Estoque) →'}
+                          2º Bip (Entrada Estoque) →
+                        </button>
+                      )}
+
+                      {/* Se Pendente ou Recebida: Opção rápida caso a entrada já tenha sido realizada antes */}
+                      {!isFinalizada && (
+                        <button
+                          onClick={() => handleFinalizarNota(nota.chave)}
+                          disabled={actionLoadingChave === nota.chave}
+                          className="px-3 py-2 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/40 text-slate-600 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                          title="Marcar como Finalizada se a entrada no estoque já foi efetuada"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Já dei entrada</span>
+                        </button>
+                      )}
+
+                      {/* Se Finalizada: Opção de Reabrir caso precise reconferir */}
+                      {isFinalizada && (
+                        <button
+                          onClick={() => handleReabrirNota(nota.chave)}
+                          disabled={actionLoadingChave === nota.chave}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                          title="Reabrir nota para nova conferência no estoque"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Reabrir</span>
                         </button>
                       )}
 

@@ -311,23 +311,27 @@ export function createFiscalRouter() {
 
       // Persistir na tabela NotaRecebida para o fechamento fiscal mensal e SPED
       if (chaveAcesso) {
+        const cleanChave = chaveAcesso.replace(/\D/g, '');
         try {
           await prisma.$executeRawUnsafe(`
             INSERT OR REPLACE INTO "NotaRecebida"
               ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT "createdAt" FROM "NotaRecebida" WHERE "chave" = ?), ?))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 
+              CASE WHEN (SELECT "status" FROM "NotaRecebida" WHERE "chave" = ?) = 'finalizada' THEN 'finalizada' ELSE 'recebida' END,
+              ?, ?, COALESCE((SELECT "createdAt" FROM "NotaRecebida" WHERE "chave" = ?), ?)
+            )
           `,
-            chaveAcesso,
-            chaveAcesso,
+            cleanChave,
+            cleanChave,
             emitNome,
             emitCnpj,
             numeroNf,
             serieNf,
             dataEmissao,
             valorTotal,
-            'recebida',
+            cleanChave,
             xmlData,
-            chaveAcesso,
+            cleanChave,
             now
           );
         } catch (dbErr) {
@@ -606,7 +610,7 @@ export function createFiscalRouter() {
                   pricePercent,
                   changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
                   reason: 'IMPORT_XML',
-                  nfeChave: chaveAcesso || null
+                  nfeChave: (chaveAcesso || '').replace(/\D/g, '') || null
                 }
               });
             } catch (hErr) {
@@ -664,7 +668,7 @@ export function createFiscalRouter() {
                 pricePercent: 0,
                 changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
                 reason: 'IMPORT_XML',
-                nfeChave: chaveAcesso || null
+                nfeChave: (chaveAcesso || '').replace(/\D/g, '') || null
               }
             });
           } catch (_) {}
@@ -675,6 +679,7 @@ export function createFiscalRouter() {
 
       // Se foi importada a partir de uma chave de acesso (2º bip ou upload direto), atualiza/cria na tabela NotaRecebida
       if (chaveAcesso) {
+        const cleanChave = (chaveAcesso || '').replace(/\D/g, '');
         const rawValor = req.body?.valorTotal;
         const valorNum = typeof rawValor === 'number' ? rawValor : parseFloat(rawValor || '0');
         const numeroNf = req.body?.numero ? String(req.body.numero) : null;
@@ -692,8 +697,8 @@ export function createFiscalRouter() {
                  "numero" = COALESCE(?, "numero"),
                  "serie" = COALESCE(?, "serie"),
                  "dataEmissao" = COALESCE(?, "dataEmissao")
-             WHERE "chave" = ?`,
-            valorNum, valorNum, vendorName || null, numeroNf, serieNf, dataEmissao, chaveAcesso
+             WHERE "chave" = ? OR "chave" = ? OR REPLACE("chave", ' ', '') = ?`,
+            valorNum, valorNum, vendorName || null, numeroNf, serieNf, dataEmissao, cleanChave, chaveAcesso, cleanChave
           );
 
           // Se a nota não existia ainda em NotaRecebida, insere como finalizada
@@ -702,8 +707,8 @@ export function createFiscalRouter() {
               `INSERT INTO "NotaRecebida"
                 ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'finalizada', NULL, ?)`,
-              chaveAcesso,
-              chaveAcesso,
+              cleanChave,
+              cleanChave,
               vendorName || 'Fornecedor',
               null,
               numeroNf || '',
@@ -716,7 +721,7 @@ export function createFiscalRouter() {
         } catch (e) {
           try {
             await (prisma as any).notaRecebida.updateMany({
-              where: { chave: chaveAcesso },
+              where: { chave: cleanChave },
               data: { status: 'finalizada' }
             });
           } catch (e2) {
@@ -2762,6 +2767,39 @@ export function createFiscalRouter() {
         fornecedor?: string;
       };
 
+      // Auto-heal: se uma nota já possui histórico de importação no estoque (PriceHistory), garante status = 'finalizada'
+      await prisma.$executeRawUnsafe(`
+        UPDATE "NotaRecebida"
+        SET "status" = 'finalizada'
+        WHERE "status" != 'finalizada'
+          AND (
+            "chave" IN (
+              SELECT DISTINCT REPLACE(COALESCE("nfeChave", ''), ' ', '')
+              FROM "PriceHistory"
+              WHERE "nfeChave" IS NOT NULL AND TRIM("nfeChave") != ''
+            )
+            OR
+            REPLACE("chave", ' ', '') IN (
+              SELECT DISTINCT REPLACE(COALESCE("nfeChave", ''), ' ', '')
+              FROM "PriceHistory"
+              WHERE "nfeChave" IS NOT NULL AND TRIM("nfeChave") != ''
+            )
+          )
+      `).catch(() => {});
+
+      // Buscar conjunto de chaves importadas no estoque para validação instantânea em memória
+      const importedKeys = new Set<string>();
+      try {
+        const phRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT DISTINCT REPLACE(COALESCE("nfeChave", ''), ' ', '') as chave
+          FROM "PriceHistory"
+          WHERE "nfeChave" IS NOT NULL AND TRIM("nfeChave") != ''
+        `);
+        for (const r of phRows || []) {
+          if (r.chave) importedKeys.add(String(r.chave).replace(/\D/g, ''));
+        }
+      } catch (_) {}
+
       const allRows: any[] = await prisma.$queryRawUnsafe(`
         SELECT "id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt"
         FROM "NotaRecebida"
@@ -2770,6 +2808,10 @@ export function createFiscalRouter() {
 
       const normalizedAll = (allRows || []).map(row => {
         let normStatus = (row.status || 'pendente').toLowerCase();
+        const cleanKey = (row.chave || '').replace(/\D/g, '');
+        if (importedKeys.has(cleanKey)) {
+          normStatus = 'finalizada';
+        }
         if (normStatus === 'importada') normStatus = 'finalizada';
         if (normStatus === 'ciencia_registrada') normStatus = 'pendente';
         
@@ -2891,16 +2933,16 @@ export function createFiscalRouter() {
       if (xmlText) {
         await prisma.$executeRawUnsafe(`
           UPDATE "NotaRecebida"
-          SET "status" = 'recebida',
+          SET "status" = CASE WHEN "status" = 'finalizada' THEN 'finalizada' ELSE 'recebida' END,
               "xmlContent" = ?
-          WHERE "chave" = ?
-        `, xmlText, chaveClean);
+          WHERE "chave" = ? OR REPLACE("chave", ' ', '') = ?
+        `, xmlText, chaveClean, chaveClean);
       } else {
         await prisma.$executeRawUnsafe(`
           UPDATE "NotaRecebida"
-          SET "status" = 'recebida'
-          WHERE "chave" = ?
-        `, chaveClean);
+          SET "status" = CASE WHEN "status" = 'finalizada' THEN 'finalizada' ELSE 'recebida' END
+          WHERE "chave" = ? OR REPLACE("chave", ' ', '') = ?
+        `, chaveClean, chaveClean);
       }
 
       res.json({
@@ -2913,6 +2955,50 @@ export function createFiscalRouter() {
     } catch (err: any) {
       console.error('[Receber Nota Pendente] Erro:', err);
       res.status(500).json({ error: 'Erro ao receber nota: ' + (err.message || err) });
+    }
+  });
+
+  // Ação Rápida: Marcar Nota como Finalizada (Entrada já realizada)
+  router.post('/notas-pendentes/:chave/finalizar', async (req, res) => {
+    try {
+      const { chave } = req.params;
+      const chaveClean = (chave || '').replace(/\D/g, '');
+      if (!chaveClean) {
+        return res.status(400).json({ error: 'Chave de acesso inválida.' });
+      }
+
+      await prisma.$executeRawUnsafe(`
+        UPDATE "NotaRecebida"
+        SET "status" = 'finalizada'
+        WHERE "chave" = ? OR REPLACE("chave", ' ', '') = ?
+      `, chaveClean, chaveClean);
+
+      res.json({ success: true, message: '✓ Nota marcada como finalizada (Entrada no estoque confirmada).' });
+    } catch (err: any) {
+      console.error('[Finalizar Nota] Erro:', err);
+      res.status(500).json({ error: 'Erro ao finalizar nota: ' + (err.message || err) });
+    }
+  });
+
+  // Ação Rápida: Reabrir Nota para Conferência
+  router.post('/notas-pendentes/:chave/reabrir', async (req, res) => {
+    try {
+      const { chave } = req.params;
+      const chaveClean = (chave || '').replace(/\D/g, '');
+      if (!chaveClean) {
+        return res.status(400).json({ error: 'Chave de acesso inválida.' });
+      }
+
+      await prisma.$executeRawUnsafe(`
+        UPDATE "NotaRecebida"
+        SET "status" = 'recebida'
+        WHERE "chave" = ? OR REPLACE("chave", ' ', '') = ?
+      `, chaveClean, chaveClean);
+
+      res.json({ success: true, message: '✓ Nota reaberta para conferência (2º Bip).' });
+    } catch (err: any) {
+      console.error('[Reabrir Nota] Erro:', err);
+      res.status(500).json({ error: 'Erro ao reabrir nota: ' + (err.message || err) });
     }
   });
 
@@ -3134,8 +3220,12 @@ export function createFiscalRouter() {
           // Salvar em cache local no NotaRecebida para os próximos bips
           try {
             await prisma.$executeRawUnsafe(
-              `UPDATE "NotaRecebida" SET "xmlContent" = ?, "status" = 'recebida' WHERE "chave" = ?`,
+              `UPDATE "NotaRecebida"
+               SET "xmlContent" = ?,
+                   "status" = CASE WHEN "status" = 'finalizada' THEN 'finalizada' ELSE 'recebida' END
+               WHERE "chave" = ? OR REPLACE("chave", ' ', '') = ?`,
               xmlText,
+              chaveClean,
               chaveClean
             );
           } catch {}
@@ -3217,15 +3307,15 @@ export function createFiscalRouter() {
     try {
       const syncResult = await runNfeRecebidasSync();
       const added = syncResult?.added || 0;
-      const updatedXml = syncResult?.updatedWithXml || 0;
+      const updatedWithXml = syncResult?.updatedWithXml || 0;
 
       let message = 'Sincronização com a SEFAZ concluída.';
-      if (added > 0 && updatedXml > 0) {
-        message = `✓ ${added} nova(s) nota(s) detectada(s) e ${updatedXml} arquivo(s) XML baixado(s) com sucesso.`;
+      if (added > 0 && updatedWithXml > 0) {
+        message = `✓ ${added} nova(s) nota(s) detectada(s) e ${updatedWithXml} arquivo(s) XML baixado(s) com sucesso.`;
       } else if (added > 0) {
         message = `✓ ${added} nova(s) nota(s) detectada(s) contra o seu CNPJ.`;
-      } else if (updatedXml > 0) {
-        message = `✓ ${updatedXml} arquivo(s) XML baixado(s) da SEFAZ com sucesso.`;
+      } else if (updatedWithXml > 0) {
+        message = `✓ ${updatedWithXml} arquivo(s) XML baixado(s) da SEFAZ com sucesso.`;
       } else {
         message = 'Sincronização concluída. Nenhuma nova nota ou XML pendente na SEFAZ.';
       }

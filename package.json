@@ -1,6 +1,6 @@
 {
   "name": "bar-erp",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "Sistema completo para operação de bares com controle de mesa, KDS e PDV",
   "main": "electron/main.cjs",
   "author": "Pablo Franco",

@@ -192,7 +192,14 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
           updatedWithXml++;
         }
 
-        // Nova nota encontrada na SEFAZ: status inicial é 'pendente' aguardando o 1º Bip
+        // Verificar se os produtos desta nota já foram importados anteriormente no estoque
+        const alreadyImported: any[] = await prisma.$queryRawUnsafe(
+          'SELECT 1 FROM "PriceHistory" WHERE REPLACE(COALESCE("nfeChave", \'\'), \' \', \'\') = ? LIMIT 1',
+          chaveClean
+        ).catch(() => []);
+        const initialStatus = (alreadyImported && alreadyImported.length > 0) ? 'finalizada' : 'pendente';
+
+        // Nova nota encontrada na SEFAZ: status inicial é 'finalizada' se já importada, ou 'pendente' aguardando o 1º Bip
         await prisma.$executeRawUnsafe(`
           INSERT INTO "NotaRecebida"
             ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
@@ -206,7 +213,7 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
           initialSerie,
           initialDataEmissao,
           initialValor,
-          'pendente',
+          initialStatus,
           initialXml,
           new Date().toISOString()
         );
@@ -246,8 +253,8 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
               }
             } catch (_) {}
 
-            // Preserva o status atual da nota (se 'pendente', continua 'pendente'; se 'recebida' ou 'finalizada', preserva)
-            const currentStatus = cur.status || 'pendente';
+            // Preserva o status atual da nota (se 'finalizada', nunca retrocede; se 'recebida', preserva)
+            const currentStatus = cur.status === 'finalizada' ? 'finalizada' : (cur.status || 'pendente');
 
             await prisma.$executeRawUnsafe(`
               UPDATE "NotaRecebida"
