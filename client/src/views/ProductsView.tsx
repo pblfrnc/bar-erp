@@ -1838,61 +1838,74 @@ export const ProductsView: React.FC = () => {
       ) : (
         <div className="space-y-4 pb-20 max-w-6xl mx-auto">
       {/* Cabeçalho */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm dark:shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
-            <UtensilsCrossed className="w-6 h-6" />
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm dark:shadow-xl space-y-4">
+        {/* Linha Superior: Título & Botão Principal em Destaque */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <UtensilsCrossed className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white">Cardápio & Estoque</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Controle de preços, códigos internos, EAN de barras e tributação fiscal
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">Cardápio & Estoque</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Controle de preços, códigos internos, EAN de barras e tributação fiscal
-            </p>
-          </div>
+
+          {/* O ÚNICO BOTÃO EM DESTAQUE */}
+          <button
+            onClick={openCreateModal}
+            className="h-9 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Novo Produto</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        {/* Linha Inferior: Barra de Ações Secundárias Alinhadas, Menores e com Mesmo Tamanho */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800/70 flex items-center gap-2 flex-wrap">
           <button
             onClick={openStockReportModal}
-            className="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/60 cursor-pointer shadow-xs"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Ver valor do estoque a preço de custo e venda, e lucro previsto geral e por categoria"
           >
-            <BarChart2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <BarChart2 className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
             <span>Relatório de Estoque</span>
           </button>
 
           <button
             onClick={() => setShowImportXmlModal(true)}
-            className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 cursor-pointer"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Importar produtos, categorias e fornecedores de arquivo XML"
           >
-            <UploadCloud className="w-4 h-4 text-sky-500 dark:text-sky-400" />
+            <UploadCloud className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
             <span>Importar XML</span>
           </button>
 
           <button
             onClick={handleOrganizeBarKitchen}
             disabled={organizingLoading}
-            className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 disabled:opacity-50 cursor-pointer"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Classifica automaticamente produtos com volume em ml para o Bar e alimentos para a Cozinha"
           >
             {organizingLoading ? (
-              <Loader2 className="w-4 h-4 text-amber-500 dark:text-amber-400 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
             )}
-            <span>Organizar Bar (ml) / Cozinha</span>
+            <span>Organizar Bar/Cozinha</span>
           </button>
 
           <button
             onClick={() => setShowSuppliersModal(true)}
-            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/50 cursor-pointer"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Gerenciar Fornecedores Cadastrados"
           >
-            <Truck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            <Truck className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
             <span>Fornecedores</span>
             {suppliers.length > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-emerald-500/10 dark:bg-emerald-500/20 text-[10px] text-emerald-700 dark:text-emerald-300 font-mono font-bold">
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-emerald-500/10 dark:bg-emerald-500/20 text-[10px] text-emerald-700 dark:text-emerald-300 font-mono font-bold leading-none">
                 {suppliers.length}
               </span>
             )}
@@ -1900,9 +1913,10 @@ export const ProductsView: React.FC = () => {
 
           <button
             onClick={openCreateCategoryModal}
-            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Cadastrar nova categoria de produtos"
           >
-            <Tag className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+            <Tag className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
             <span>Nova Categoria</span>
           </button>
 
@@ -1910,45 +1924,38 @@ export const ProductsView: React.FC = () => {
             onClick={handleBackfillCodes}
             disabled={isBackfilling}
             title="Atribuir códigos internos sequenciais a todos os produtos sem código"
-            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isBackfilling
-              ? <><span className="animate-spin">⟳</span> <span>Gerando...</span></>
-              : <><span className="text-sky-500 dark:text-sky-400 font-mono text-sm">#</span> <span>Gerar Códigos</span></>
-            }
+            {isBackfilling ? (
+              <><Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin" /> <span>Gerando...</span></>
+            ) : (
+              <><span className="text-sky-500 dark:text-sky-400 font-mono text-xs font-bold">#</span> <span>Gerar Códigos</span></>
+            )}
           </button>
 
           <button
             onClick={() => handleFixDuplicateCodes('duplicates_only')}
             disabled={isFixingDuplicates}
             title="Detecta e corrige produtos com numeração interna duplicada ou em branco"
-            className={`py-2.5 px-3.5 border rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+            className={`h-8 px-3 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
               duplicateCodesCount > 0
-                ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 animate-pulse'
-                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/50'
+                ? 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                : 'bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60'
             }`}
           >
             {isFixingDuplicates ? (
-              <><span className="animate-spin">⟳</span> <span>Corrigindo...</span></>
+              <><Loader2 className="w-3.5 h-3.5 text-rose-500 animate-spin" /> <span>Corrigindo...</span></>
             ) : (
               <>
-                <AlertTriangle className={`w-4 h-4 ${duplicateCodesCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500'}`} />
+                <AlertTriangle className={`w-3.5 h-3.5 ${duplicateCodesCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-amber-500'}`} />
                 <span>Corrigir Duplicados</span>
                 {duplicateCodesCount > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-rose-600 text-white font-mono font-bold text-[10px]">
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-rose-600 text-white font-mono font-bold text-[10px] leading-none">
                     {duplicateCodesCount}
                   </span>
                 )}
               </>
             )}
-          </button>
-
-          <button
-            onClick={openCreateModal}
-            className="py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/10 active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Novo Produto</span>
           </button>
         </div>
       </div>
