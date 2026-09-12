@@ -1808,7 +1808,20 @@ export function createFiscalRouter() {
   // ============================================================
   router.post('/emit-nfe', async (req, res) => {
     try {
-      const { items, customerCpf, customerName, paymentMethod, orderId } = req.body;
+      const {
+        items,
+        customerCpf,
+        customerName,
+        paymentMethod,
+        orderId,
+        customerCep,
+        customerLogradouro,
+        customerNumero,
+        customerComplemento,
+        customerBairro,
+        customerMunicipio,
+        customerUf
+      } = req.body;
 
       if (!items || items.length === 0) {
         return res.status(400).json({ error: 'Nenhum item adicionado para a nota.' });
@@ -1824,12 +1837,16 @@ export function createFiscalRouter() {
         customerDoc: customerCpf,
         orderId,
         settings,
-        paymentMethod
+        paymentMethod,
+        customerName,
+        customerCep,
+        customerLogradouro,
+        customerNumero,
+        customerComplemento,
+        customerBairro,
+        customerMunicipio,
+        customerUf
       });
-
-      if (customerName && String(customerName).trim()) {
-        (payload as any).nome_destinatario = String(customerName).trim().slice(0, 60);
-      }
 
       const isProducao = settings.environment === 'producao';
       const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';

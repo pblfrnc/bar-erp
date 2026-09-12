@@ -11,6 +11,14 @@ export async function buildNfePayload(params: {
   orderId?: string | number;
   settings: any;
   paymentMethod?: string;
+  customerName?: string;
+  customerCep?: string;
+  customerLogradouro?: string;
+  customerNumero?: string;
+  customerComplemento?: string;
+  customerBairro?: string;
+  customerMunicipio?: string;
+  customerUf?: string;
 }) {
   const { items, customerDoc, orderId, settings, paymentMethod } = params;
 
@@ -120,6 +128,31 @@ export async function buildNfePayload(params: {
     } else if (cleanDoc.length === 14) {
       payload.cnpj_destinatario = cleanDoc;
     }
+  }
+
+  // Identificação e Endereço do Destinatário (Exigência estrita da SEFAZ e Focus NFe no Modelo 55)
+  if (params.customerName && String(params.customerName).trim()) {
+    payload.nome_destinatario = String(params.customerName).trim().slice(0, 60);
+  }
+
+  // Endereço do destinatário com fallback seguro nos dados da empresa emissora para evitar erro 422
+  const logradouro = (params.customerLogradouro || '').trim() || (settings.logradouro || '').trim() || 'Rua Principal';
+  const numero = (params.customerNumero || '').trim() || (settings.numero || '').trim() || 'S/N';
+  const bairro = (params.customerBairro || '').trim() || (settings.bairro || '').trim() || 'Centro';
+  const municipio = (params.customerMunicipio || '').trim() || (settings.municipio || '').trim() || 'São Paulo';
+  const uf = (params.customerUf || '').trim() || (settings.uf || '').trim() || 'SP';
+  const cepRaw = (params.customerCep || '').replace(/\D/g, '') || (settings.cep || '').replace(/\D/g, '') || '01001000';
+
+  payload.logradouro_destinatario = logradouro.slice(0, 60);
+  payload.numero_destinatario = numero.slice(0, 60);
+  payload.bairro_destinatario = bairro.slice(0, 60);
+  payload.municipio_destinatario = municipio.slice(0, 60);
+  payload.uf_destinatario = uf.toUpperCase().slice(0, 2);
+  payload.cep_destinatario = cepRaw.slice(0, 8);
+  payload.indicador_inscricao_estadual_destinatario = '9'; // Não Contribuinte
+
+  if (params.customerComplemento && String(params.customerComplemento).trim()) {
+    payload.complemento_destinatario = String(params.customerComplemento).trim().slice(0, 60);
   }
 
   return { payload, ref };

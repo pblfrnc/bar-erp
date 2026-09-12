@@ -21,7 +21,8 @@ import {
   SlidersHorizontal,
   AlertCircle,
   Building2,
-  UserCheck
+  UserCheck,
+  MapPin
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product } from '../types';
@@ -128,6 +129,15 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   // Destinatário (Obrigatório na NF-e Modelo 55)
   const [customerCpf, setCustomerCpf] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
+  const [customerCep, setCustomerCep] = useState<string>('');
+  const [customerLogradouro, setCustomerLogradouro] = useState<string>('');
+  const [customerNumero, setCustomerNumero] = useState<string>('');
+  const [customerComplemento, setCustomerComplemento] = useState<string>('');
+  const [customerBairro, setCustomerBairro] = useState<string>('');
+  const [customerMunicipio, setCustomerMunicipio] = useState<string>('');
+  const [customerUf, setCustomerUf] = useState<string>('');
+  const [isSearchingCep, setIsSearchingCep] = useState<boolean>(false);
+
   const [isSearchingDocument, setIsSearchingDocument] = useState<boolean>(false);
   const [docFeedback, setDocFeedback] = useState<{
     isValid: boolean | null;
@@ -251,7 +261,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
 
   const total = items.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0);
 
-  // Consulta cadastral na Receita Federal via endpoint do backend
+  // Consulta cadastral na Receita Federal via endpoint do backend com preenchimento completo do endereço
   const consultarCnpjReceita = async (cleanCnpj: string) => {
     setIsSearchingDocument(true);
     try {
@@ -260,11 +270,19 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
       if (res.ok && (data.razaoSocial || data.nomeFantasia)) {
         const nomeFinal = data.razaoSocial || data.nomeFantasia;
         setCustomerName(nomeFinal);
+        if (data.cep) setCustomerCep(data.cep.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2'));
+        if (data.logradouro) setCustomerLogradouro(data.logradouro);
+        if (data.numero) setCustomerNumero(data.numero || 'S/N');
+        if (data.complemento) setCustomerComplemento(data.complemento || '');
+        if (data.bairro) setCustomerBairro(data.bairro);
+        if (data.municipio) setCustomerMunicipio(data.municipio);
+        if (data.uf) setCustomerUf(data.uf);
+
         const local = [data.municipio, data.uf].filter(Boolean).join('/');
         setDocFeedback({
           isValid: true,
           type: 'CNPJ',
-          message: 'CNPJ Localizado na Receita Federal',
+          message: 'CNPJ e Endereço Localizados na Receita Federal',
           details: `${nomeFinal}${local ? ' • ' + local : ''}`
         });
       } else {
@@ -272,7 +290,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
           isValid: true,
           type: 'CNPJ',
           message: 'CNPJ Válido',
-          details: data.error || 'Dados da empresa não localizados automaticamente. Preencha o nome abaixo.'
+          details: data.error || 'Dados da empresa não localizados automaticamente. Preencha abaixo.'
         });
       }
     } catch (err: any) {
@@ -280,10 +298,45 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
         isValid: true,
         type: 'CNPJ',
         message: 'CNPJ Válido',
-        details: 'Não foi possível consultar a Receita Federal agora. Digite a Razão Social manualmente.'
+        details: 'Não foi possível consultar a Receita Federal agora. Digite a Razão Social e Endereço manualmente.'
       });
     } finally {
       setIsSearchingDocument(false);
+    }
+  };
+
+  // Auto-completar endereço via CEP digitado (útil para pessoas físicas ou preenchimento manual)
+  const handleCepChange = async (raw: string) => {
+    const clean = raw.replace(/\D/g, '').slice(0, 8);
+    const formatted = clean.replace(/(\d{5})(\d)/, '$1-$2');
+    setCustomerCep(formatted);
+
+    if (clean.length === 8) {
+      setIsSearchingCep(true);
+      try {
+        const res = await fetch(`https://brasilapi.com.br/api/cep/v1/${clean}`);
+        const data = await res.json();
+        if (res.ok && data.city) {
+          if (data.street) setCustomerLogradouro(data.street);
+          if (data.neighborhood) setCustomerBairro(data.neighborhood);
+          if (data.city) setCustomerMunicipio(data.city);
+          if (data.state) setCustomerUf(data.state);
+        } else {
+          // Fallback ViaCEP
+          const vRes = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+          const vData = await vRes.json();
+          if (!vData.erro) {
+            if (vData.logradouro) setCustomerLogradouro(vData.logradouro);
+            if (vData.bairro) setCustomerBairro(vData.bairro);
+            if (vData.localidade) setCustomerMunicipio(vData.localidade);
+            if (vData.uf) setCustomerUf(vData.uf);
+          }
+        }
+      } catch {
+        // Silencioso
+      } finally {
+        setIsSearchingCep(false);
+      }
     }
   };
 
@@ -316,7 +369,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
     } else if (clean.length === 14) {
       const valid = validateCnpj(clean);
       if (valid) {
-        setDocFeedback({ isValid: true, type: 'CNPJ', message: 'CNPJ Válido. Consultando Receita...' });
+        setDocFeedback({ isValid: true, type: 'CNPJ', message: 'CNPJ Válido. Buscando dados e endereço na Receita...' });
         consultarCnpjReceita(clean);
       } else {
         setDocFeedback({ isValid: false, type: 'CNPJ', message: 'CNPJ Inválido (dígitos verificadores incorretos)' });
@@ -338,6 +391,13 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
     setSearchTerm('');
     setCustomerCpf('');
     setCustomerName('');
+    setCustomerCep('');
+    setCustomerLogradouro('');
+    setCustomerNumero('');
+    setCustomerComplemento('');
+    setCustomerBairro('');
+    setCustomerMunicipio('');
+    setCustomerUf('');
     setDocFeedback({ isValid: null, type: null, message: '' });
     setEmailInput('');
     setEmailSentSuccess(false);
@@ -477,6 +537,13 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
         customerCpf: cleanDoc || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,
+        customerCep: customerCep ? customerCep.replace(/\D/g, '') : undefined,
+        customerLogradouro: customerLogradouro.trim() || undefined,
+        customerNumero: customerNumero.trim() || undefined,
+        customerComplemento: customerComplemento.trim() || undefined,
+        customerBairro: customerBairro.trim() || undefined,
+        customerMunicipio: customerMunicipio.trim() || undefined,
+        customerUf: customerUf.trim() || undefined,
         items: items.map((i) => ({
           productId: i.product.id,
           ean: i.product.ean,
@@ -769,7 +836,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* COLUNA DIREITA (5 colunas): Destinatário, Forma de Pagamento & Emissão */}
+        {/* COLUNA DIREITA (5 colunas): Destinatário, Endereço, Forma de Pagamento & Emissão */}
         <div className="lg:col-span-5 space-y-5">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -867,6 +934,130 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
               <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
                 Nome completo exigido pela SEFAZ para autorização da NF-e Modelo 55.
               </span>
+            </div>
+
+            {/* Endereço do Destinatário (Exigência SEFAZ / Focus NFe Modelo 55) */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Endereço do Destinatário *</span>
+                </label>
+                <span className="text-[10px] text-slate-400">
+                  {cleanDoc.length === 14 ? 'Preenchido pela Receita' : 'Preencha o CEP para auto-completar'}
+                </span>
+              </div>
+
+              {/* CEP & Logradouro */}
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-5 sm:col-span-5 relative">
+                  <label htmlFor="nfe-customer-cep" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    CEP *
+                  </label>
+                  <input
+                    id="nfe-customer-cep"
+                    type="text"
+                    placeholder="00000-000"
+                    value={customerCep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                  {isSearchingCep && (
+                    <Loader2 className="w-3 h-3 text-amber-500 animate-spin absolute right-2.5 top-6" />
+                  )}
+                </div>
+
+                <div className="col-span-7 sm:col-span-7">
+                  <label htmlFor="nfe-customer-logradouro" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Logradouro (Rua / Av.) *
+                  </label>
+                  <input
+                    id="nfe-customer-logradouro"
+                    type="text"
+                    placeholder="Rua, Avenida..."
+                    value={customerLogradouro}
+                    onChange={(e) => setCustomerLogradouro(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Número & Bairro & Complemento */}
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-4 sm:col-span-3">
+                  <label htmlFor="nfe-customer-numero" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Número *
+                  </label>
+                  <input
+                    id="nfe-customer-numero"
+                    type="text"
+                    placeholder="123 ou S/N"
+                    value={customerNumero}
+                    onChange={(e) => setCustomerNumero(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="col-span-8 sm:col-span-5">
+                  <label htmlFor="nfe-customer-bairro" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Bairro *
+                  </label>
+                  <input
+                    id="nfe-customer-bairro"
+                    type="text"
+                    placeholder="Bairro"
+                    value={customerBairro}
+                    onChange={(e) => setCustomerBairro(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="col-span-12 sm:col-span-4">
+                  <label htmlFor="nfe-customer-complemento" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Complemento
+                  </label>
+                  <input
+                    id="nfe-customer-complemento"
+                    type="text"
+                    placeholder="Apto, Sala..."
+                    value={customerComplemento}
+                    onChange={(e) => setCustomerComplemento(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Município & UF */}
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-8 sm:col-span-9">
+                  <label htmlFor="nfe-customer-municipio" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Município (Cidade) *
+                  </label>
+                  <input
+                    id="nfe-customer-municipio"
+                    type="text"
+                    placeholder="Cidade"
+                    value={customerMunicipio}
+                    onChange={(e) => setCustomerMunicipio(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="col-span-4 sm:col-span-3">
+                  <label htmlFor="nfe-customer-uf" className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    UF *
+                  </label>
+                  <input
+                    id="nfe-customer-uf"
+                    type="text"
+                    maxLength={2}
+                    placeholder="SP"
+                    value={customerUf}
+                    onChange={(e) => setCustomerUf(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none font-bold text-center uppercase"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Forma de Pagamento SEFAZ */}
