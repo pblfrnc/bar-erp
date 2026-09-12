@@ -1082,27 +1082,109 @@ export function createFiscalRouter() {
   });
 
     // ============================================================
-    // Reimprimir NF-e por número (GET - Modelo 55)
+    // Reimprimir NF-e por número, chave ou referência (GET - Modelo 55)
     // ============================================================
     router.get('/nfe/reprint/:numero', async (req, res) => {
       try {
         const { numero } = req.params;
         const cleanNum = String(numero || '').trim();
-        if (!cleanNum) return res.status(400).json({ error: 'Número da NF-e não informado.' });
+        if (!cleanNum) return res.status(400).json({ error: 'Número ou Referência da NF-e não informado.' });
 
+        const numAsInt = parseInt(cleanNum, 10);
         const candidatas = await (prisma as any).notaEmitida.findMany({
-          where: { numero: cleanNum },
+          where: {
+            OR: [
+              { numero: cleanNum },
+              ...(isNaN(numAsInt) ? [] : [{ numero: String(numAsInt) }]),
+              { referencia: cleanNum },
+              { chave: cleanNum },
+              { id: cleanNum },
+              { id: `nfe_${cleanNum}` }
+            ]
+          },
           orderBy: { createdAt: 'desc' }
         });
 
-        const nota = candidatas.find((n: any) => isNfe(n));
+        let nota = candidatas.find((n: any) => isNfe(n));
+
+        const settings = await getFiscalSettingsSafe();
+        const isProducao = settings?.environment === 'producao';
+        const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+        const authHeader = settings?.apiToken ? ('Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64')) : null;
+
+        // Se a nota foi encontrada localmente mas estava processando ou sem número/chave, sincroniza com a Focus NFe
+        if (nota && authHeader && (nota.status === 'processando' || !nota.numero || !nota.chave)) {
+          try {
+            const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(nota.referencia)}?completa=1`, {
+              headers: { 'Authorization': authHeader }
+            });
+            const checkData: any = await checkRes.json().catch(() => ({}));
+            if (checkData.status === 'autorizado') {
+              nota.status = 'autorizado';
+              nota.chave = checkData.chave_nfe || checkData.chave || nota.chave;
+              nota.numero = checkData.numero ? String(checkData.numero) : nota.numero;
+              nota.serie = checkData.serie ? String(checkData.serie) : nota.serie;
+              await (prisma as any).notaEmitida.updateMany({
+                where: { referencia: nota.referencia },
+                data: {
+                  status: 'autorizado',
+                  chave: nota.chave,
+                  numero: nota.numero,
+                  serie: nota.serie
+                }
+              });
+            }
+          } catch {}
+        }
+
+        // Se não encontrou no banco local, tenta consultar diretamente na Focus NFe caso seja uma referência ou chave
+        if (!nota && authHeader && (cleanNum.startsWith('nfe_') || cleanNum.length === 44)) {
+          try {
+            const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(cleanNum)}?completa=1`, {
+              headers: { 'Authorization': authHeader }
+            });
+            const checkData: any = await checkRes.json().catch(() => ({}));
+            if (checkRes.ok && (checkData.status === 'autorizado' || checkData.status === 'processando')) {
+              const host = req.get('host');
+              const protocol = req.protocol;
+              const ref = checkData.ref || cleanNum;
+              const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
+              const xmlUrl = checkData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
+              
+              await persistNfeRecord({
+                referencia: ref,
+                chave: checkData.chave_nfe || checkData.chave,
+                numero: checkData.numero ? String(checkData.numero) : undefined,
+                serie: checkData.serie ? String(checkData.serie) : String(settings?.serieNfe || '1'),
+                pdfUrl: danfeUrl,
+                xmlUrl: xmlUrl,
+                status: checkData.status
+              });
+
+              return res.json({
+                nota: {
+                  referencia: ref,
+                  chave: checkData.chave_nfe || checkData.chave,
+                  numero: checkData.numero ? String(checkData.numero) : undefined,
+                  serie: checkData.serie || '1',
+                  status: checkData.status,
+                  createdAt: new Date().toISOString()
+                },
+                status: checkData.status,
+                caminhoDanfe: danfeUrl,
+                chaveAcesso: checkData.chave_nfe || checkData.chave,
+                success: true
+              });
+            }
+          } catch {}
+        }
 
         if (!nota) {
           const apenasNfce = candidatas.some((n: any) => isNfce(n));
           if (apenasNfce) {
             return res.status(404).json({ error: `A nota Nº ${cleanNum} foi emitida como NFC-e (Cupom Fiscal Modelo 65) e não NF-e. Consulte na tela de Reimprimir NFC-e.` });
           }
-          return res.status(404).json({ error: `Nenhuma NF-e (Modelo 55) encontrada com o número ${cleanNum}.` });
+          return res.status(404).json({ error: `Nenhuma NF-e (Modelo 55) encontrada com o termo informado: ${cleanNum}.` });
         }
 
         const host = req.get('host');
@@ -1138,6 +1220,42 @@ export function createFiscalRouter() {
           filtradas = notas.filter((n: any) => isNfce(n));
         } else if (tipo === 'nfe') {
           filtradas = notas.filter((n: any) => isNfe(n));
+        }
+
+        // Se for NF-e e houver notas recentes com status 'processando' ou sem número, sincroniza com a Focus NFe
+        if (tipo === 'nfe') {
+          const settings = await getFiscalSettingsSafe();
+          if (settings?.apiToken) {
+            const isProducao = settings.environment === 'producao';
+            const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+            const authHeader = 'Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64');
+
+            for (const n of filtradas) {
+              if ((n.status === 'processando' || !n.numero) && n.referencia) {
+                try {
+                  const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(n.referencia)}?completa=1`, {
+                    headers: { 'Authorization': authHeader }
+                  });
+                  const checkData: any = await checkRes.json().catch(() => ({}));
+                  if (checkData.status === 'autorizado') {
+                    n.status = 'autorizado';
+                    n.chave = checkData.chave_nfe || checkData.chave || n.chave;
+                    n.numero = checkData.numero ? String(checkData.numero) : n.numero;
+                    n.serie = checkData.serie ? String(checkData.serie) : n.serie;
+                    await (prisma as any).notaEmitida.updateMany({
+                      where: { referencia: n.referencia },
+                      data: {
+                        status: 'autorizado',
+                        chave: n.chave,
+                        numero: n.numero,
+                        serie: n.serie
+                      }
+                    });
+                  }
+                } catch {}
+              }
+            }
+          }
         }
 
         res.json(filtradas.slice(0, 50));
@@ -1472,18 +1590,52 @@ export function createFiscalRouter() {
     router.get('/nfe/cancelable-notes', async (req, res) => {
       try {
         const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const notas = await (prisma as any).notaEmitida.findMany({
+        let notas = await (prisma as any).notaEmitida.findMany({
           where: {
-            status: 'autorizado',
+            status: { in: ['autorizado', 'processando'] },
             createdAt: { gte: since24h }
           },
           orderBy: { createdAt: 'desc' },
           take: 100
         });
 
+        // Sincroniza qualquer nota que esteja como 'processando' com a Focus NFe
+        const settings = await getFiscalSettingsSafe();
+        if (settings?.apiToken) {
+          const isProducao = settings.environment === 'producao';
+          const baseURL = isProducao ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+          const authHeader = 'Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64');
+
+          for (const n of notas) {
+            if (n.status === 'processando' && n.referencia) {
+              try {
+                const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(n.referencia)}?completa=1`, {
+                  headers: { 'Authorization': authHeader }
+                });
+                const checkData: any = await checkRes.json().catch(() => ({}));
+                if (checkData.status === 'autorizado') {
+                  n.status = 'autorizado';
+                  n.chave = checkData.chave_nfe || checkData.chave || n.chave;
+                  n.numero = checkData.numero ? String(checkData.numero) : n.numero;
+                  n.serie = checkData.serie ? String(checkData.serie) : n.serie;
+                  await (prisma as any).notaEmitida.updateMany({
+                    where: { referencia: n.referencia },
+                    data: {
+                      status: 'autorizado',
+                      chave: n.chave,
+                      numero: n.numero,
+                      serie: n.serie
+                    }
+                  });
+                }
+              } catch {}
+            }
+          }
+        }
+
         const now = Date.now();
         const cancelable = notas
-          .filter((n: any) => isNfe(n))
+          .filter((n: any) => isNfe(n) && n.status === 'autorizado')
           .map((n: any) => {
             const createdAtMs = new Date(n.createdAt).getTime();
             const diffMinutes = Math.floor((now - createdAtMs) / 60000);
@@ -1874,82 +2026,86 @@ export function createFiscalRouter() {
       }
 
       const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
+      const authHeader = 'Basic ' + Buffer.from(cleanToken + ':').toString('base64');
 
-      if (data.status === 'autorizado') {
-        const host = req.get('host');
-        const protocol = req.protocol;
-        const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
-        const xmlUrl = data.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
+      let currentData = data;
+      const startTime = Date.now();
+
+      // Se a nota estiver em processamento assíncrono na SEFAZ, aguarda e consulta até 16s com ?completa=1
+      if (currentData.status === 'processando') {
+        while (currentData.status === 'processando' && (Date.now() - startTime) < 16000) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(ref)}?completa=1`, {
+            headers: { 'Authorization': authHeader }
+          });
+          const checkData: any = await checkRes.json().catch(() => ({}));
+          if (checkData.status) {
+            currentData = checkData;
+          }
+        }
+      }
+
+      if (currentData.status === 'autorizado') {
+        const xmlUrl = currentData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
         await persistNfeRecord({
           referencia: ref,
-          chave: data.chave_nfe,
-          numero: data.numero,
-          serie: data.serie || String(settings.serieNfe || '1'),
+          chave: currentData.chave_nfe || currentData.chave,
+          numero: currentData.numero ? String(currentData.numero) : undefined,
+          serie: currentData.serie ? String(currentData.serie) : String(settings.serieNfe || '1'),
           pdfUrl: danfeUrl,
           xmlUrl: xmlUrl,
-          valorTotal: totalItemsValue
+          valorTotal: totalItemsValue,
+          status: 'autorizado'
         });
 
         return res.json({
           success: true,
-          status: data.status,
+          status: 'autorizado',
           referencia: ref,
-          chaveAcesso: data.chave_nfe,
+          chaveAcesso: currentData.chave_nfe || currentData.chave,
           caminhoDanfe: danfeUrl,
-          numero: data.numero,
-          serie: data.serie
+          numero: currentData.numero,
+          serie: currentData.serie || String(settings.serieNfe || '1')
         });
       }
 
-      if (data.status === 'processando') {
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(ref)}`, {
-          headers: { 'Authorization': 'Basic ' + Buffer.from(cleanToken + ':').toString('base64') }
+      if (currentData.status === 'erro_autorizacao') {
+        await persistNfeRecord({
+          referencia: ref,
+          valorTotal: totalItemsValue,
+          status: 'erro_autorizacao'
         });
-        const checkData: any = await checkRes.json().catch(() => ({}));
-
-        if (checkData.status === 'autorizado') {
-          const host = req.get('host');
-          const protocol = req.protocol;
-          const danfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(ref)}`;
-          const xmlUrl = checkData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
-          await persistNfeRecord({
-            referencia: ref,
-            chave: checkData.chave_nfe,
-            numero: checkData.numero,
-            serie: checkData.serie || String(settings.serieNfe || '1'),
-            pdfUrl: danfeUrl,
-            xmlUrl: xmlUrl,
-            valorTotal: totalItemsValue
-          });
-
-          return res.json({
-            success: true,
-            status: checkData.status,
-            referencia: ref,
-            chaveAcesso: checkData.chave_nfe,
-            caminhoDanfe: danfeUrl,
-            numero: checkData.numero,
-            serie: checkData.serie
-          });
-        }
-
-        if (checkData.status === 'erro_autorizacao') {
-          const errMsg = Array.isArray(checkData.erros)
-            ? checkData.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join('\n')
-            : checkData.mensagem || JSON.stringify(checkData);
-          return res.status(400).json({ error: `SEFAZ recusou a NF-e: ${errMsg}` });
-        }
-
-        return res.json({
-          success: true,
-          status: checkData.status || 'processando',
-          mensagem: 'A NF-e está na fila de processamento da SEFAZ.',
-          referencia: ref
-        });
+        const errMsg = Array.isArray(currentData.erros)
+          ? currentData.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join('\n')
+          : currentData.mensagem || JSON.stringify(currentData);
+        return res.status(400).json({ error: `SEFAZ recusou a NF-e: ${errMsg}` });
       }
 
-      return res.json(data);
+      // Se ainda estiver processando após timeout, persiste para que apareça no histórico e telas de consulta/cancelamento
+      await persistNfeRecord({
+        referencia: ref,
+        chave: currentData.chave_nfe || currentData.chave,
+        numero: currentData.numero ? String(currentData.numero) : undefined,
+        serie: currentData.serie ? String(currentData.serie) : String(settings.serieNfe || '1'),
+        pdfUrl: danfeUrl,
+        xmlUrl: currentData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`,
+        valorTotal: totalItemsValue,
+        status: currentData.status || 'processando'
+      });
+
+      return res.json({
+        success: true,
+        status: currentData.status || 'processando',
+        mensagem: 'A NF-e está na fila de processamento da SEFAZ. O status será atualizado automaticamente.',
+        referencia: ref,
+        caminhoDanfe: danfeUrl,
+        chaveAcesso: currentData.chave_nfe || currentData.chave,
+        numero: currentData.numero,
+        serie: currentData.serie || String(settings.serieNfe || '1')
+      });
     } catch (err: any) {
       console.error('[emit-nfe] Exceção:', err);
       res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal para emitir NF-e.' });

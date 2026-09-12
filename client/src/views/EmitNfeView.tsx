@@ -423,34 +423,81 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
     return () => window.removeEventListener('keydown', handleKey);
   }, [saleSuccessData]);
 
+  // Auto-polling no modal enquanto a nota estiver em processamento assíncrono
+  useEffect(() => {
+    const ref = saleSuccessData?.referencia;
+    if (!ref || saleSuccessData?.chaveAcesso) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`${api.getApiUrl()}/fiscal/nfe/reprint/${encodeURIComponent(ref)}`);
+        const data = await res.json();
+        if (data.success && (data.chaveAcesso || data.nota?.chave)) {
+          setSaleSuccessData(prev => prev ? {
+            ...prev,
+            chaveAcesso: data.chaveAcesso || data.nota?.chave,
+            danfeUrl: data.caminhoDanfe || prev.danfeUrl
+          } : null);
+          clearInterval(timer);
+        }
+      } catch {}
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [saleSuccessData?.referencia, saleSuccessData?.chaveAcesso]);
+
   // Impressão A4 direta via caixa de diálogo do sistema operacional
   const handlePrintDanfeA4 = () => {
-    const url = saleSuccessData?.danfeUrl;
-    if (!url) return;
+    const ref = saleSuccessData?.referencia;
+    const url = saleSuccessData?.danfeUrl || (ref ? `${api.getApiUrl()}/fiscal/danfe/${encodeURIComponent(ref)}` : null);
+    if (!url) {
+      alert('Link do DANFE não disponível para impressão.');
+      return;
+    }
     if ((window as any).electronAPI?.printPdfDialog) {
       (window as any).electronAPI.printPdfDialog(url);
       setPrintSuccessFeedback(true);
       setTimeout(() => setPrintSuccessFeedback(false), 3000);
     } else {
-      window.open(url, '_blank');
+      const printIframe = document.createElement('iframe');
+      printIframe.style.position = 'fixed';
+      printIframe.style.right = '0';
+      printIframe.style.bottom = '0';
+      printIframe.style.width = '0';
+      printIframe.style.height = '0';
+      printIframe.style.border = '0';
+      printIframe.src = url;
+      printIframe.onload = () => {
+        setTimeout(() => {
+          try {
+            printIframe.contentWindow?.focus();
+            printIframe.contentWindow?.print();
+          } catch {
+            window.open(url, '_blank');
+          }
+        }, 500);
+      };
+      document.body.appendChild(printIframe);
+      setPrintSuccessFeedback(true);
+      setTimeout(() => setPrintSuccessFeedback(false), 3000);
     }
   };
 
   // Impressão via modal de seleção de impressora
   const handlePrintViaModal = () => {
-    if (saleSuccessData?.danfeUrl) {
+    const ref = saleSuccessData?.referencia;
+    const url = saleSuccessData?.danfeUrl || (ref ? `${api.getApiUrl()}/fiscal/danfe/${encodeURIComponent(ref)}` : null);
+    if (url) {
       if (selectedPrinter) {
         const printFn = (window as any).electronAPI?.printPdf;
         if (printFn) {
-          printFn(saleSuccessData.danfeUrl, selectedPrinter);
+          printFn(url, selectedPrinter);
         } else {
-          window.open(saleSuccessData.danfeUrl, '_blank');
+          window.open(url, '_blank');
         }
       } else {
         if ((window as any).electronAPI?.printPdfDialog) {
-          (window as any).electronAPI.printPdfDialog(saleSuccessData.danfeUrl);
+          (window as any).electronAPI.printPdfDialog(url);
         } else {
-          window.open(saleSuccessData.danfeUrl, '_blank');
+          window.open(url, '_blank');
         }
       }
     }
@@ -571,8 +618,8 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
 
-      const danfeUrl = data.caminhoDanfe || data.pdfUrl;
       const refNota = data.referencia || data.ref;
+      const danfeUrl = data.caminhoDanfe || data.pdfUrl || (refNota ? `${api.getApiUrl()}/fiscal/danfe/${encodeURIComponent(refNota)}` : undefined);
       const chaveNota = data.chaveAcesso || data.chave;
 
       setSaleSuccessData({
@@ -1204,7 +1251,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
                   title="Selecionar impressora específica para emissão"
                 >
                   <SlidersHorizontal className="w-4 h-4 text-amber-500" />
-                  <span>Emitir Nota</span>
+                  <span>Selecionar Impressora</span>
                 </button>
 
                 {saleSuccessData.danfeUrl && (

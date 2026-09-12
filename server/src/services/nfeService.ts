@@ -182,14 +182,16 @@ export async function persistNfeRecord(data: {
   pdfUrl?: string;
   xmlUrl?: string;
   valorTotal?: number;
+  status?: string;
 }) {
-  const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal } = data;
+  const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal, status } = data;
   const id = `nfe_${referencia}`;
+  const finalStatus = status || 'autorizado';
   await prisma.$executeRawUnsafe(`
     INSERT OR REPLACE INTO "NotaEmitida" (
       "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
     ) VALUES (
-      ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'autorizado', ?, ?, CURRENT_TIMESTAMP
+      ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, CURRENT_TIMESTAMP
     )
-  `, [id, referencia, chave ?? null, numero ?? null, serie ?? null, valorTotal ?? 0, xmlUrl ?? null, pdfUrl ?? null]);
+  `, [id, referencia, chave ?? null, numero ?? null, serie ?? null, valorTotal ?? 0, finalStatus, xmlUrl ?? null, pdfUrl ?? null]);
 }

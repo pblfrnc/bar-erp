@@ -409,31 +409,101 @@ function createWindow() {
 
     try {
       const a4Win = new BrowserWindow({
-        width: 1000,
-        height: 800,
+        width: 1050,
+        height: 850,
         show: true,
         title: 'DANFE NF-e (Modelo 55 - Folha A4)',
         autoHideMenuBar: true,
         webPreferences: {
-          plugins: true
+          plugins: true,
+          webSecurity: false
         }
       });
 
-      a4Win.loadURL(pdfUrl);
+      const viewerHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DANFE NF-e (Modelo 55 - Folha A4)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; background: #0f172a; }
+    #header {
+      height: 52px;
+      background: #1e293b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid #334155;
+    }
+    #title { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; color: #f8fafc; }
+    .btn-group { display: flex; align-items: center; gap: 10px; }
+    .btn {
+      padding: 9px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-print { background: #2563eb; color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .btn-print:hover { background: #1d4ed8; }
+    .btn-close { background: #334155; color: #cbd5e1; }
+    .btn-close:hover { background: #475569; color: #fff; }
+    #container { width: 100%; height: calc(100% - 52px); background: #334155; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div id="title">📄 DANFE NF-e (Modelo 55 - Folha A4)</div>
+    <div class="btn-group">
+      <button class="btn btn-print" id="btnPrint" onclick="triggerPrint()">🖨️ Abrir Diálogo de Impressão (Windows)</button>
+      <button class="btn btn-close" onclick="window.close()">✕ Fechar</button>
+    </div>
+  </div>
+  <div id="container">
+    <iframe id="pdfFrame" src="${pdfUrl}"></iframe>
+  </div>
+  <script>
+    function triggerPrint() {
+      try {
+        const frame = document.getElementById('pdfFrame');
+        if (frame && frame.contentWindow) {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          return;
+        }
+      } catch (e) {}
+      window.print();
+    }
+
+    const frame = document.getElementById('pdfFrame');
+    if (frame) {
+      frame.addEventListener('load', () => {
+        setTimeout(triggerPrint, 600);
+      });
+    }
+    setTimeout(triggerPrint, 1400);
+  </script>
+</body>
+</html>
+      `;
+
+      a4Win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(viewerHtml)}`);
       a4Win.webContents.on('did-finish-load', () => {
-        // Dispara a janela de diálogo nativa do sistema operacional (Windows / macOS) para selecionar a impressora A4
         setTimeout(() => {
           if (!a4Win.isDestroyed()) {
-            a4Win.webContents.print({
-              silent: false, // ABRE A JANELA DO SISTEMA
-              printBackground: true
-            }, (success, failureReason) => {
-              if (!success && failureReason !== 'cancelled') {
-                console.error('Falha no diálogo de impressão de NF-e:', failureReason);
-              }
-            });
+            a4Win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'P', modifiers: ['control'] });
           }
-        }, 500);
+        }, 1200);
       });
     } catch (err) {
       console.error('Erro ao abrir diálogo de impressão da NF-e:', err);
@@ -445,13 +515,14 @@ function createWindow() {
     if (!url) return;
     try {
       const a4Win = new BrowserWindow({
-        width: 1000,
-        height: 800,
-        show: true,
+        width: 1050,
+        height: 850,
+        show: !printerName,
         title: 'DANFE NF-e (Modelo 55)',
         autoHideMenuBar: true,
         webPreferences: {
-          plugins: true
+          plugins: true,
+          webSecurity: false
         }
       });
       a4Win.loadURL(url);
@@ -469,9 +540,12 @@ function createWindow() {
               if (!success && failureReason !== 'cancelled') {
                 console.error('Falha ao imprimir PDF:', failureReason);
               }
+              if (printerName) {
+                try { a4Win.destroy(); } catch {}
+              }
             });
           }
-        }, 500);
+        }, 600);
       });
     } catch (err) {
       console.error('Erro no print-pdf:', err);

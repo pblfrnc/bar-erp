@@ -23,10 +23,6 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
   const [recentNotas, setRecentNotas] = useState<NotaEmitida[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
 
-  useEffect(() => {
-    loadRecentNotas();
-  }, []);
-
   const loadRecentNotas = async () => {
     try {
       setLoadingRecent(true);
@@ -39,6 +35,10 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
       setLoadingRecent(false);
     }
   };
+
+  useEffect(() => {
+    loadRecentNotas();
+  }, []);
 
   const handleConsultByNumber = async (numToSearch?: string) => {
     const num = (numToSearch || numeroNota).trim();
@@ -79,7 +79,7 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white">Reimprimir NF‑e</h2>
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-              Busca direta pelo <strong>Número da Nota Fiscal</strong> (independente de comanda ou mesa).
+              Busca direta pelo <strong>Número da Nota Fiscal, Referência ou Chave</strong> (independente de comanda ou mesa).
             </p>
           </div>
         </div>
@@ -87,11 +87,11 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
         {/* Campo de Busca por Número da Nota */}
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">Número da NF‑e</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">Número, Referência ou Chave da NF‑e</label>
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Ex: 1543 ou 12"
+                placeholder="Ex: 1543 ou nfe_... ou chave de 44 dígitos"
                 value={numeroNota}
                 onChange={e => setNumeroNota(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleConsultByNumber(); }}
@@ -135,7 +135,25 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                       if ((window as any).electronAPI?.printPdfDialog) {
                         (window as any).electronAPI.printPdfDialog(result.caminhoDanfe);
                       } else {
-                        window.open(result.caminhoDanfe, '_blank');
+                        const printIframe = document.createElement('iframe');
+                        printIframe.style.position = 'fixed';
+                        printIframe.style.right = '0';
+                        printIframe.style.bottom = '0';
+                        printIframe.style.width = '0';
+                        printIframe.style.height = '0';
+                        printIframe.style.border = '0';
+                        printIframe.src = result.caminhoDanfe;
+                        printIframe.onload = () => {
+                          setTimeout(() => {
+                            try {
+                              printIframe.contentWindow?.focus();
+                              printIframe.contentWindow?.print();
+                            } catch {
+                              window.open(result.caminhoDanfe, '_blank');
+                            }
+                          }, 500);
+                        };
+                        document.body.appendChild(printIframe);
                       }
                     }}
                     className="bg-blue-600 hover:bg-blue-500 text-white py-3 px-5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 cursor-pointer"
