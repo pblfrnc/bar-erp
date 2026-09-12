@@ -48,6 +48,7 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [includeStock, setIncludeStock] = useState(false);
   const [summary, setSummary] = useState<MonthSummary | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
@@ -76,7 +77,7 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const res = await fetch(`${api.getApiUrl()}/fiscal/export-month?month=${month}`);
+      const res = await fetch(`${api.getApiUrl()}/fiscal/export-month?month=${month}&includeStock=${includeStock}`);
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -209,12 +210,38 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
                   <Boxes className="w-4 h-4 text-indigo-500" />
                   Posição de Estoque & Lucro Previsto (SPED)
                 </span>
-                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-500/30">
-                  Inventário Contábil
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  includeStock 
+                    ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                }`}>
+                  {includeStock ? 'Será incluído no SPED' : 'Oculto no SPED'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Caixa de Seleção / Checkbox de envio do estoque */}
+              <label className={`flex items-start gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${
+                includeStock
+                  ? 'bg-indigo-50/70 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-950 dark:text-indigo-200'
+                  : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={includeStock}
+                  onChange={(e) => setIncludeStock(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 dark:text-white block">
+                    Enviar posição do estoque no SPED / Fechamento
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-relaxed">
+                    Marque esta opção somente se o inventário físico estiver conferido e corrigido. Se desmarcado, o SPED/fechamento será gerado exclusivamente com as notas fiscais emitidas e recebidas.
+                  </span>
+                </div>
+              </label>
+
+              <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2.5 transition-opacity ${includeStock ? 'opacity-100' : 'opacity-60'}`}>
                 <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-xs">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">
                     Estoque a Custo
@@ -246,12 +273,14 @@ export const AccountantPanelView: React.FC<{ onBack: () => void }> = ({ onBack }
 
               {/* Categorias */}
               {summary.categoriesStock && summary.categoriesStock.length > 0 && (
-                <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+                <div className={`bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-2 mt-2 transition-opacity ${includeStock ? 'opacity-100' : 'opacity-60'}`}>
                   <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <Tag className="w-3.5 h-3.5 text-amber-500" /> Lucro Previsto por Categoria
                     </span>
-                    <span className="text-[10px] text-slate-400">Incluído no fechamento CSV</span>
+                    <span className="text-[10px] text-slate-400">
+                      {includeStock ? 'Incluído no fechamento CSV' : 'Oculto no fechamento CSV'}
+                    </span>
                   </div>
                   <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                     {summary.categoriesStock.map((cat, idx) => (

@@ -17,6 +17,7 @@ interface NotaEmitida {
 
 export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [numeroNota, setNumeroNota] = useState('');
+  const [serieNota, setSerieNota] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
@@ -40,15 +41,17 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
     loadRecentNotas();
   }, []);
 
-  const handleConsultByNumber = async (numToSearch?: string) => {
+  const handleConsultByNumber = async (numToSearch?: string, serieToSearch?: string) => {
     const num = (numToSearch || numeroNota).trim();
-    if (!num) return alert('Digite o número da nota fiscal a ser reimpressa.');
+    const ser = (serieToSearch !== undefined ? serieToSearch : serieNota).trim();
+    if (!num) return alert('Digite o número, referência ou chave da NF-e a ser reimpressa.');
 
     setIsLoading(true);
     setResult(null);
 
     try {
-      const res = await fetch(`${api.getApiUrl()}/fiscal/nfe/reprint/${encodeURIComponent(num)}`);
+      const url = `${api.getApiUrl()}/fiscal/nfe/reprint/${encodeURIComponent(num)}${ser ? `?serie=${encodeURIComponent(ser)}` : ''}`;
+      const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Nota fiscal não localizada.');
       setResult(data);
@@ -79,33 +82,47 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white">Reimprimir NF‑e</h2>
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-              Busca direta pelo <strong>Número da Nota Fiscal, Referência ou Chave</strong> (independente de comanda ou mesa).
+              Busca direta por <strong>Número e Série</strong>, Referência ou Chave SEFAZ.
             </p>
           </div>
         </div>
 
-        {/* Campo de Busca por Número da Nota */}
+        {/* Campo de Busca por Número e Série da Nota */}
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">Número, Referência ou Chave da NF‑e</label>
-            <div className="flex gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">Número, Referência ou Chave da NF‑e</label>
               <input
                 type="text"
-                placeholder="Ex: 1543 ou nfe_... ou chave de 44 dígitos"
+                placeholder="Ex: 1 ou nfe_... ou chave de 44 dígitos"
                 value={numeroNota}
                 onChange={e => setNumeroNota(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleConsultByNumber(); }}
-                className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-sky-500 outline-none transition font-mono text-sm shadow-xs"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-sky-500 outline-none transition font-mono text-sm shadow-xs"
               />
-              <button
-                onClick={() => handleConsultByNumber()}
-                disabled={isLoading || !numeroNota.trim()}
-                className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-lg shadow-sky-600/20 active:scale-95"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                Buscar Nota
-              </button>
             </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">Série (Opcional)</label>
+              <input
+                type="text"
+                placeholder="Ex: 2"
+                value={serieNota}
+                onChange={e => setSerieNota(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleConsultByNumber(); }}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-sky-500 outline-none transition font-mono text-sm shadow-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => handleConsultByNumber()}
+              disabled={isLoading || !numeroNota.trim()}
+              className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-lg shadow-sky-600/20 active:scale-95"
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              Buscar NF-e
+            </button>
           </div>
 
           {/* Resultado da Busca */}
@@ -227,9 +244,11 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      if (nota.numero) {
-                        setNumeroNota(nota.numero);
-                        handleConsultByNumber(nota.numero);
+                      const target = nota.numero || nota.referencia;
+                      if (target) {
+                        setNumeroNota(target);
+                        if (nota.serie) setSerieNota(nota.serie);
+                        handleConsultByNumber(target, nota.serie || undefined);
                       }
                     }}
                     className="px-3.5 py-2 bg-sky-50 hover:bg-sky-500 dark:bg-sky-500/15 dark:hover:bg-sky-500 text-sky-700 hover:text-white dark:text-sky-300 dark:hover:text-white border border-sky-200 dark:border-sky-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"

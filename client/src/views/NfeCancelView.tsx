@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, XCircle, FileText, Loader2, CheckCircle, Clock, RefreshCw, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, XCircle, FileText, Loader2, CheckCircle, Clock, RefreshCw, ShieldAlert, AlertTriangle, Search } from 'lucide-react';
 import { api } from '../services/api';
 
 interface CancelableNfe {
@@ -25,6 +25,10 @@ export const NfeCancelView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [isCanceling, setIsCanceling] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const [searchNum, setSearchNum] = useState('');
+  const [searchSerie, setSearchSerie] = useState('');
+  const [isSearchingManual, setIsSearchingManual] = useState(false);
+
   useEffect(() => {
     loadCancelableNotes();
   }, []);
@@ -40,6 +44,47 @@ export const NfeCancelView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       setNotas([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSearchManual = async () => {
+    const num = searchNum.trim();
+    if (!num) return alert('Digite o número, chave ou referência da NF-e a ser cancelada.');
+
+    setIsSearchingManual(true);
+    try {
+      const url = `${api.getApiUrl()}/fiscal/nfe/reprint/${encodeURIComponent(num)}${searchSerie.trim() ? `?serie=${encodeURIComponent(searchSerie.trim())}` : ''}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Nota fiscal não localizada.');
+
+      if (data.status === 'cancelado' || data.nota?.status === 'cancelado') {
+        alert('Esta NF-e já consta como CANCELADA na SEFAZ.');
+        return;
+      }
+
+      const manualNota: CancelableNfe = {
+        id: data.nota?.id || data.nota?.referencia || num,
+        referencia: data.nota?.referencia || num,
+        chave: data.chaveAcesso || data.nota?.chave || '',
+        numero: data.nota?.numero || num,
+        serie: data.nota?.serie || searchSerie.trim() || '1',
+        dataEmissao: data.nota?.dataEmissao || data.nota?.createdAt || new Date().toISOString(),
+        valorTotal: data.nota?.valorTotal || 0,
+        status: data.status || data.nota?.status || 'autorizado',
+        createdAt: data.nota?.createdAt || new Date().toISOString(),
+        hoursRemaining: 24,
+        minutesInHour: 0,
+        diffMinutes: 0
+      };
+
+      setSelectedNota(manualNota);
+      setJustificativa('');
+      setResult(null);
+    } catch (err: any) {
+      alert(err.message || 'Nota não encontrada.');
+    } finally {
+      setIsSearchingManual(false);
     }
   };
 
@@ -151,6 +196,53 @@ export const NfeCancelView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <strong className="text-slate-800 dark:text-slate-200">NFC-e (outra tela):</strong> Prazo de apenas <strong>30 minutos</strong>. Use "Cancelar NFC-e" para cupons fiscais.
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Busca Direta para Cancelamento */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-2xl space-y-4">
+        <div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <Search className="w-4 h-4 text-rose-500" />
+            Localizar NF-e por Número ou Chave para Cancelar
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Caso a nota não apareça na listagem automática abaixo, informe o número e série para buscá-la e abrir o cancelamento:
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="sm:col-span-3">
+            <input
+              type="text"
+              placeholder="Número da nota (ex: 1), referência ou chave de 44 dígitos"
+              value={searchNum}
+              onChange={e => setSearchNum(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSearchManual(); }}
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-rose-500 outline-none transition font-mono text-sm"
+            />
+          </div>
+          <div>
+            <input
+              type="text"
+              placeholder="Série (ex: 2)"
+              value={searchSerie}
+              onChange={e => setSearchSerie(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSearchManual(); }}
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-rose-500 outline-none transition font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSearchManual}
+            disabled={isSearchingManual || !searchNum.trim()}
+            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center gap-2 text-xs uppercase tracking-wider cursor-pointer shadow-md shadow-rose-600/20 active:scale-95"
+          >
+            {isSearchingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            Localizar e Abrir Cancelamento
+          </button>
         </div>
       </div>
 
