@@ -185,13 +185,53 @@ export async function persistNfeRecord(data: {
   status?: string;
 }) {
   const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal, status } = data;
-  const id = `nfe_${referencia}`;
   const finalStatus = status || 'autorizado';
-  await prisma.$executeRawUnsafe(`
-    INSERT OR REPLACE INTO "NotaEmitida" (
-      "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
-    ) VALUES (
-      ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, CURRENT_TIMESTAMP
-    )
-  `, [id, referencia, chave ?? null, numero ?? null, serie ?? null, valorTotal ?? 0, finalStatus, xmlUrl ?? null, pdfUrl ?? null]);
+
+  try {
+    const NotaEmitida = (prisma as any).notaEmitida;
+    if (NotaEmitida) {
+      await NotaEmitida.upsert({
+        where: { referencia },
+        create: {
+          referencia,
+          chave: chave ?? null,
+          numero: numero ? String(numero) : null,
+          serie: serie ? String(serie) : null,
+          dataEmissao: new Date().toISOString(),
+          valorTotal: valorTotal ?? 0,
+          status: finalStatus,
+          xmlUrl: xmlUrl ?? null,
+          pdfUrl: pdfUrl ?? null
+        },
+        update: {
+          ...(chave ? { chave } : {}),
+          ...(numero ? { numero: String(numero) } : {}),
+          ...(serie ? { serie: String(serie) } : {}),
+          ...(valorTotal !== undefined ? { valorTotal } : {}),
+          status: finalStatus,
+          ...(xmlUrl ? { xmlUrl } : {}),
+          ...(pdfUrl ? { pdfUrl } : {})
+        }
+      });
+      console.log(`[persistNfeRecord] Nota ${referencia} gravada com sucesso (status: ${finalStatus}, número: ${numero || 'S/N'}).`);
+      return;
+    }
+  } catch (err: any) {
+    console.warn(`[persistNfeRecord] Upsert ORM falhou, tentando fallback SQL:`, err.message);
+  }
+
+  // Fallback seguro usando parâmetros individuais (spread) sem encapsulamento em array
+  try {
+    const id = `nfe_${referencia}`;
+    await prisma.$executeRawUnsafe(`
+      INSERT OR REPLACE INTO "NotaEmitida" (
+        "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
+      ) VALUES (
+        ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, CURRENT_TIMESTAMP
+      )
+    `, id, referencia, chave ?? null, numero ? String(numero) : null, serie ?? null, valorTotal ?? 0, finalStatus, xmlUrl ?? null, pdfUrl ?? null);
+    console.log(`[persistNfeRecord] Nota ${referencia} gravada via fallback SQL.`);
+  } catch (sqlErr: any) {
+    console.error(`[persistNfeRecord] Erro ao persistir NotaEmitida:`, sqlErr);
+  }
 }

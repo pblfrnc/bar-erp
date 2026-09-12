@@ -2899,6 +2899,8 @@ export function createFiscalRouter() {
         return res.status(400).json({ error: 'Mês de referência inválido. Use o formato AAAA-MM.' });
       }
 
+      const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
+      const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
       const monthPrefix = `${yearStr}-${monthStr.padStart(2, '0')}`;
       const startIso = startDate.toISOString();
       const endIso = endDate.toISOString();
@@ -2946,7 +2948,7 @@ export function createFiscalRouter() {
       // Calcular Posição de Estoque e Lucro Previsto para o SPED / Contador
       let stockCostTotal = 0;
       let stockSaleTotal = 0;
-      const categoriesStockMap = new Map<string, { name: string; cost: number; sale: number; profit: number }>();
+      const categoriesStockMap = new Map<string, { name: string; itemsCount: number; cost: number; sale: number; profit: number }>();
 
       try {
         const allProds = await prisma.product.findMany({
@@ -2962,9 +2964,10 @@ export function createFiscalRouter() {
 
           const catName = p.category?.name || 'Geral';
           if (!categoriesStockMap.has(catName)) {
-            categoriesStockMap.set(catName, { name: catName, cost: 0, sale: 0, profit: 0 });
+            categoriesStockMap.set(catName, { name: catName, itemsCount: 0, cost: 0, sale: 0, profit: 0 });
           }
           const c = categoriesStockMap.get(catName)!;
+          c.itemsCount += 1;
           c.cost += cst;
           c.sale += sl;
           c.profit += (sl - cst);
@@ -2974,10 +2977,16 @@ export function createFiscalRouter() {
       const stockProfitTotal = Number((stockSaleTotal - stockCostTotal).toFixed(2));
       const categoriesStock = Array.from(categoriesStockMap.values()).map(c => ({
         name: c.name,
+        category: c.name,
+        itemsCount: c.itemsCount,
         cost: Number(c.cost.toFixed(2)),
+        totalCost: Number(c.cost.toFixed(2)),
         sale: Number(c.sale.toFixed(2)),
+        totalSale: Number(c.sale.toFixed(2)),
         profit: Number(c.profit.toFixed(2)),
-        margin: c.sale > 0 ? Number((((c.sale - c.cost) / c.sale) * 100).toFixed(1)) : 0
+        expectedProfit: Number(c.profit.toFixed(2)),
+        margin: c.sale > 0 ? Number((((c.sale - c.cost) / c.sale) * 100).toFixed(1)) : 0,
+        marginPercent: c.sale > 0 ? Number((((c.sale - c.cost) / c.sale) * 100).toFixed(1)) : 0
       }));
 
       res.json({
