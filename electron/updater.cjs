@@ -39,11 +39,11 @@ function getLocalBuildInfo() {
 
   // Fallback para o package.json
   const pkgPath = path.join(__dirname, '..', 'package.json');
-  let version = '1.6.9';
+  let version = '1.7.0';
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      version = pkg.version || '1.6.9';
+      version = pkg.version || '1.7.0';
     } catch (e) {}
   }
 
@@ -175,7 +175,7 @@ async function checkForUpdates() {
         hasUpdate: true,
         latestVersion: remote.version ? `v${remote.version}` : 'Nova Versão',
         currentVersion: local.version,
-        releaseName: `BarERP Pro v${remote.version || '1.6.9'} (${remote.commit ? remote.commit.substring(0, 7) : 'Atualização'})`,
+        releaseName: `BarERP Pro v${remote.version || '1.7.0'} (${remote.commit ? remote.commit.substring(0, 7) : 'Atualização'})`,
         releaseNotes: 'Nova compilação do BarERP com melhorias de sistema e atualizações.',
         releaseDate: remote.buildTime || assetDate,
         assetDate,

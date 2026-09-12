@@ -6,8 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  version:
+    name: Determinar Versão e Bump Automático
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Calcular Próxima Versão
+        id: get_version
+        run: node scripts/get-next-version.cjs
+
   build-windows:
     name: Compilar Executável Windows (.EXE)
+    needs: version
     runs-on: windows-latest
 
     steps:
@@ -19,6 +36,12 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+
+      - name: Atualizar Versão nos pacotes para ${{ needs.version.outputs.version }}
+        run: |
+          npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+          npm --prefix server version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+          npm --prefix client version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Instalar Dependências Gerais
         run: |
@@ -49,9 +72,9 @@ jobs:
         shell: pwsh
         run: |
           $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-          $pkg = Get-Content "package.json" | ConvertFrom-Json
+          $ver = "${{ needs.version.outputs.version }}"
           $info = @{
-            version = $pkg.version
+            version = $ver
             buildTime = $date
             commit = "${{ github.sha }}"
           } | ConvertTo-Json -Compress
@@ -73,6 +96,7 @@ jobs:
 
   build-android:
     name: Compilar APK Android
+    needs: version
     runs-on: ubuntu-latest
 
     steps:
@@ -85,12 +109,16 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
+
+      - name: Atualizar Versão nos pacotes para ${{ needs.version.outputs.version }}
+        run: |
+          npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+          npm --prefix client version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Instalar Dependências
         run: |
@@ -164,7 +192,7 @@ jobs:
 
   publish-release:
     name: Publicar Release Automática (latest)
-    needs: [build-windows, build-android]
+    needs: [version, build-windows, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -195,7 +223,7 @@ jobs:
           for f in *\ *; do
             [ -f "$f" ] && mv "$f" "${f// /-}"
           done
-          VERSION=$(node -p "require('../package.json').version")
+          VERSION="${{ needs.version.outputs.version }}"
           echo "{\"version\": \"$VERSION\", \"commit\": \"${{ github.sha }}\", \"buildTime\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > version.json
           echo "Arquivos para publicação na release (Versão: $VERSION):"
           ls -la
@@ -204,12 +232,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ needs.version.outputs.version }}"
           TAG="latest"
+          VERSION_TAG="v$VERSION"
           TITLE="BarERP Pro v$VERSION - Versão de Produção"
-          BODY="Baixe aqui os instaladores atualizados da última versão do BarERP:\n\n- **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa\n- **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas\n- **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
+          BODY="Baixe aqui os instaladores atualizados da versão v$VERSION do BarERP:\n\n- **Windows**: Instalador (.exe) e Versão Portátil (.exe) para Computador/Caixa\n- **BarERP-Garcom.apk**: App Android para os garçons tirarem pedidos nas mesas\n- **BarERP-Cozinha.apk**: App Android para a cozinha exibir a fila de pedidos (KDS)"
 
-          # Ensure GitHub CLI is available (ubuntu-latest includes it, but we double‑check)
+          # Ensure GitHub CLI is available
           if ! command -v gh > /dev/null; then
             echo "Instalando GitHub CLI..."
             sudo apt-get update && sudo apt-get install -y gh
@@ -231,4 +260,11 @@ jobs:
               --notes "$BODY" \
               --latest
           fi
-          echo "Release publicada com sucesso!"
+
+          # Registrar tag correspondente no git para histórico
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$VERSION_TAG" "${{ github.sha }}" || true
+          git push origin "$VERSION_TAG" --force || true
+
+          echo "Release v$VERSION publicada com sucesso!"

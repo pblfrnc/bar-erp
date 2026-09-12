@@ -1,6 +1,6 @@
 {
   "name": "bar-erp",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "description": "Sistema completo para operação de bares com controle de mesa, KDS e PDV",
   "main": "electron/main.cjs",
   "author": "Pablo Franco",
@@ -17,7 +17,10 @@
     "build:exe": "npm run build && electron-builder --win",
     "build:portable": "npm run build && electron-builder --win portable",
     "build:apk": "npm --prefix client run cap:build",
-    "cap:open": "npm --prefix client run cap:open"
+    "cap:open": "npm --prefix client run cap:open",
+    "bump": "node scripts/bump-version.cjs patch",
+    "bump:minor": "node scripts/bump-version.cjs minor",
+    "bump:major": "node scripts/bump-version.cjs major"
   },
   "build": {
     "appId": "com.barerp.desktop",
@@ -35,15 +38,18 @@
       "build-info.json"
     ],
     "win": {
-
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },

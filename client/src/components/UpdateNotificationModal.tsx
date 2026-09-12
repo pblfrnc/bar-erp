@@ -241,7 +241,7 @@ export const UpdateNotificationModal: React.FC<Props> = ({
                 <div>
                   <span className="text-slate-500 block text-[10px] uppercase font-bold">Versão Atual:</span>
                   <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                    {updateInfo.currentVersion || '1.6.9'}
+                    {updateInfo.currentVersion || '1.7.0'}
                   </span>
                 </div>
                 <div>
