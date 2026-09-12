@@ -116,7 +116,7 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
     // Auto-recuperação garantida da NF-e emitida chave 15260936275163000124550020000000011794431341 (Série 2, Número 1)
     try {
       const existingNota: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id FROM "NotaEmitida" WHERE "chave" = '15260936275163000124550020000000011794431341' OR ("numero" = '1' AND "serie" = '2') LIMIT 1`
+        `SELECT id, valorTotal FROM "NotaEmitida" WHERE "chave" = '15260936275163000124550020000000011794431341' OR ("numero" = '1' AND "serie" = '2') LIMIT 1`
       );
       if (!existingNota || existingNota.length === 0) {
         const chaveRec = '15260936275163000124550020000000011794431341';
@@ -127,10 +127,15 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
           INSERT INTO "NotaEmitida" (
             "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
           ) VALUES (
-            ?, ?, ?, '1', '2', '2026-09-11T12:00:00-03:00', 0.0, 'autorizado', ?, ?, CURRENT_TIMESTAMP
+            ?, ?, ?, '1', '2', '2026-09-11T22:52:29-03:00', 50.00, 'autorizado', ?, ?, CURRENT_TIMESTAMP
           )
         `, `nfe_${chaveRec}`, refRec, chaveRec, xmlRec, danfeRec);
-        console.log('[Auto-Repair] NF-e Chave 15260936275163000124550020000000011794431341 (Série 2, Nº 1) restaurada no banco local com sucesso.');
+        console.log('[Auto-Repair] NF-e Chave 15260936275163000124550020000000011794431341 (Série 2, Nº 1) restaurada no banco local com sucesso (R$ 50,00).');
+      } else {
+        // Atualiza valorTotal para 50.00 caso esteja zerado ou nulo
+        await prisma.$executeRawUnsafe(
+          `UPDATE "NotaEmitida" SET "valorTotal" = 50.00 WHERE ("chave" = '15260936275163000124550020000000011794431341' OR ("numero" = '1' AND "serie" = '2')) AND ("valorTotal" IS NULL OR "valorTotal" = 0.0)`
+        );
       }
     } catch (autoErr) {
       console.warn('[Auto-Repair] Verificação de nota emitida prévia:', autoErr);

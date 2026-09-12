@@ -135,9 +135,16 @@ export const NfeReprintView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                     <h3 className="text-base font-black text-emerald-700 dark:text-emerald-400">
                       NF‑e Nº {result.nota?.numero || numeroNota} Encontrada!
                     </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                      Série: {result.nota?.serie || '1'} • Status: <strong className="uppercase text-emerald-600 dark:text-emerald-400">{result.status || 'Autorizado'}</strong>
-                    </p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap text-xs">
+                      <span className="text-slate-600 dark:text-slate-300">
+                        Série: <strong className="text-slate-800 dark:text-white">{result.nota?.serie || '1'}</strong> • Status: <strong className="uppercase text-emerald-600 dark:text-emerald-400">{result.status || 'Autorizado'}</strong>
+                      </span>
+                      {result.nota?.valorTotal !== undefined && result.nota?.valorTotal !== null && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 font-mono font-bold">
+                          Valor: R$ {Number(result.nota.valorTotal).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     {result.chaveAcesso && (
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 break-all font-mono">
                         Chave: {result.chaveAcesso}
