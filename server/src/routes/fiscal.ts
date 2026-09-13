@@ -530,9 +530,20 @@ export function createFiscalRouter() {
       const results = { updated: 0, created: 0 };
 
       for (const item of items) {
-        // item: { xmlItem: { name, quantity, unitCost, ncm, cfop, ean, code, unit }, action: 'LINK' | 'NEW', productId?: string, categoryId?: string, supplierId?: string }
+        // item: { xmlItem: { name, quantity, unitCost, ncm, cfop, ean, code, unit }, action: 'LINK' | 'NEW', productId?: string, categoryId?: string, supplierId?: string, conversionFactor?: number }
         const effectiveSupplierId = item.supplierId || supplierId || null;
         const effectiveSupplierName = item.supplierName || vendorName || null;
+
+        // Fator de conversão (ex: 12 un/caixa, 10 maços/box de cigarro, 12 porções/saco de 5kg)
+        const factor = (typeof item.conversionFactor === 'number' && item.conversionFactor > 0)
+          ? item.conversionFactor
+          : parseFloat(String(item.conversionFactor || '1')) || 1;
+
+        const rawQty = Number(item.xmlItem.quantity) || 0;
+        const rawCost = Number(item.xmlItem.unitCost) || 0;
+
+        const effectiveQuantity = factor > 0 ? Math.round(rawQty * factor) : rawQty;
+        const effectiveCost = factor > 0 ? Number((rawCost / factor).toFixed(4)) : rawCost;
 
         if (item.action === 'LINK' && item.productId) {
           // Buscar produto atual para histórico de preços e cálculos de margem/caixa
@@ -540,7 +551,7 @@ export function createFiscalRouter() {
             where: { id: item.productId }
           });
 
-          const newCost = item.xmlItem.unitCost;
+          const newCost = effectiveCost;
           const oldCost = existingProd?.costPrice ?? null;
           const oldSale = existingProd?.price ?? 0;
 
@@ -555,14 +566,14 @@ export function createFiscalRouter() {
           }
 
           const updateData: any = {
-            stock: { increment: item.xmlItem.quantity },
+            stock: { increment: effectiveQuantity },
             costPrice: newCost,
             price: newSale
           };
 
-          // Atualizar preço e custo de caixa se solicitado
+          // Atualizar preço e custo de caixa se solicitado ou se houver conversão de caixa
           if (item.updateBoxPrice && existingProd?.hasBoxPrice && existingProd.boxQuantity) {
-            const bQty = existingProd.boxQuantity;
+            const bQty = factor > 1 ? factor : existingProd.boxQuantity;
             // Se veio preço de caixa explícito
             if (item.newBoxPrice !== undefined && item.newBoxPrice !== null) {
               updateData.boxPrice = Number(item.newBoxPrice);
@@ -573,7 +584,10 @@ export function createFiscalRouter() {
             } else {
               updateData.boxPrice = Number((newSale * bQty).toFixed(2));
             }
-            updateData.boxCostPrice = Number((newCost * bQty).toFixed(2));
+            updateData.boxCostPrice = rawCost > 0 ? rawCost : Number((newCost * bQty).toFixed(2));
+            if (factor > 1) {
+              updateData.boxQuantity = factor;
+            }
           }
 
           if (effectiveSupplierId) updateData.supplierId = effectiveSupplierId;
@@ -609,7 +623,7 @@ export function createFiscalRouter() {
                   priceDiff,
                   pricePercent,
                   changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
-                  reason: 'IMPORT_XML',
+                  reason: factor > 1 ? `IMPORT_XML (Fator x${factor})` : 'IMPORT_XML',
                   nfeChave: (chaveAcesso || '').replace(/\D/g, '') || null
                 }
               });
@@ -626,13 +640,18 @@ export function createFiscalRouter() {
           }
 
           // Preço de venda para produto novo: baseado na margem do item, padrão ou 50%
-          const newCost = item.xmlItem.unitCost;
+          const newCost = effectiveCost;
           let newSale = item.newSalePrice;
           let targetMargin = item.targetMargin ? Number(item.targetMargin) : 50.0;
 
           if (!newSale || isNaN(newSale)) {
             newSale = targetMargin < 100 ? Number((newCost / (1 - (targetMargin / 100))).toFixed(2)) : Number((newCost * 2).toFixed(2));
           }
+
+          const hasBox = factor > 1 || Boolean(item.updateBoxPrice);
+          const boxQty = factor > 1 ? factor : 24;
+          const boxCost = rawCost > 0 ? rawCost : Number((newCost * boxQty).toFixed(2));
+          const boxSale = item.newBoxPrice ? Number(item.newBoxPrice) : Number((newSale * boxQty).toFixed(2));
 
           // Cria novo produto com dados fiscais e fornecedor herdados da nota
           const newProd = await prisma.product.create({
@@ -648,8 +667,12 @@ export function createFiscalRouter() {
               price: newSale,
               costPrice: newCost,
               targetMargin: targetMargin,
-              stock: item.xmlItem.quantity,
-              categoryId: item.categoryId
+              stock: effectiveQuantity,
+              categoryId: item.categoryId,
+              hasBoxPrice: hasBox,
+              boxQuantity: hasBox ? boxQty : null,
+              boxCostPrice: hasBox ? boxCost : null,
+              boxPrice: hasBox ? boxSale : null
             }
           });
 
@@ -667,7 +690,7 @@ export function createFiscalRouter() {
                 priceDiff: 0,
                 pricePercent: 0,
                 changedBy: (req.headers['x-user-name'] as string) || req.body?.userName || 'Operador',
-                reason: 'IMPORT_XML',
+                reason: factor > 1 ? `IMPORT_XML (Fator x${factor})` : 'IMPORT_XML',
                 nfeChave: (chaveAcesso || '').replace(/\D/g, '') || null
               }
             });

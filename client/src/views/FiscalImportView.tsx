@@ -14,7 +14,10 @@ import {
   TrendingDown, 
   Package, 
   Percent, 
-  AlertTriangle 
+  AlertTriangle,
+  Scissors,
+  Scale,
+  Layers
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Category } from '../types';
@@ -40,6 +43,63 @@ interface MatchState {
   targetMargin?: number;
   updateBoxPrice?: boolean;
   newBoxPrice?: number;
+  // Fator de Conversão / Embalagem / Rendimento
+  conversionFactor?: number;
+  isConversionActive?: boolean;
+  conversionMode?: 'box' | 'portion';
+}
+
+function detectConversionSuggestion(name: string, unit?: string): { factor: number; mode: 'box' | 'portion'; detected: boolean; label?: string } {
+  const text = (name || '').toLowerCase();
+  const u = (unit || '').toLowerCase();
+
+  // 1. Cigarros (10 maços por pacote/box)
+  if (
+    /\b(?:10x20|box\s*10|10\s*mac|10\s*pct|10\s*cart)\b/i.test(text) ||
+    (/\b(?:cigarro|marlboro|malboro|rothmans|derby|hollywood|lucky\s*strike|camel|dunhill|winston|chesterfield|kent|parliament|san\s*marino|plaza|calton)\b/i.test(text) && /\b10\b/.test(text))
+  ) {
+    return { factor: 10, mode: 'box', detected: true, label: 'Pacote com 10 Maços de Cigarro' };
+  }
+
+  // 2. Caixas com quantidade explícita (ex: CX12, C/12, CX 12, 12UN)
+  const cx12Match = text.match(/\b(?:cx|c\/|caixa)\s*12\b|\b12\s*(?:un|latas|lts|garrafas|gfs)\b/i);
+  if (cx12Match) {
+    return { factor: 12, mode: 'box', detected: true, label: 'Caixa com 12 unidades' };
+  }
+
+  const cx24Match = text.match(/\b(?:cx|c\/|fd|fardo|caixa)\s*24\b|\b24\s*(?:un|latas|lts|garrafas|gfs)\b/i);
+  if (cx24Match) {
+    return { factor: 24, mode: 'box', detected: true, label: 'Caixa/Fardo com 24 unidades' };
+  }
+
+  const cx6Match = text.match(/\b(?:pack|pct|cx|c\/)\s*6\b|\b6\s*(?:un|latas|lts|garrafas|gfs)\b/i);
+  if (cx6Match) {
+    return { factor: 6, mode: 'box', detected: true, label: 'Pack com 6 unidades' };
+  }
+
+  // Genérico: cx 15, cx 20, cx 8, etc.
+  const genericCx = text.match(/\b(?:cx|c\/|caixa|fd|fardo|pack)\s*(\d{1,3})\b/i);
+  if (genericCx && parseInt(genericCx[1], 10) > 1) {
+    const num = parseInt(genericCx[1], 10);
+    return { factor: num, mode: 'box', detected: true, label: `Embalagem com ${num} unidades` };
+  }
+
+  // 3. Peso em KG (ex: 5kg, 2kg, 2.5kg) -> batata, carne, queijo (sugere rendimento em porções)
+  const kgMatch = text.match(/\b(\d+(?:[.,]\d+)?)\s*(?:kg|quilo|quilos)\b/i) || (u === 'kg' ? [null, 'kg'] : null);
+  if (kgMatch) {
+    const weightStr = kgMatch[1];
+    const weightNum = weightStr ? parseFloat(weightStr.replace(',', '.')) : 1;
+    // 5kg -> 12 porções de ~400g
+    const portions = weightNum >= 4 ? 12 : (weightNum >= 2 ? 6 : 4);
+    return {
+      factor: portions,
+      mode: 'portion',
+      detected: true,
+      label: weightStr ? `Item em peso (${weightStr}kg) -> Rendimento em Porções` : 'Item em peso -> Rendimento em Porções'
+    };
+  }
+
+  return { factor: 1, mode: 'box', detected: false };
 }
 
 interface FiscalImportViewProps {
@@ -94,6 +154,13 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
     return Number((((sale - cost) / sale) * 100).toFixed(1));
   };
 
+  const getEffectiveCost = (match: MatchState): number => {
+    if (match.isConversionActive && match.conversionFactor && match.conversionFactor > 0) {
+      return Number((match.xmlItem.unitCost / match.conversionFactor).toFixed(4));
+    }
+    return match.xmlItem.unitCost;
+  };
+
   const buildInitialMatches = (items: XmlItem[], prods: Product[], cats: Category[], sysMargin = 50.0): MatchState[] => {
     return items.map((item: XmlItem) => {
       const exactMatch = prods.find(p => p.name.toLowerCase().trim() === item.name.toLowerCase().trim());
@@ -101,8 +168,16 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       const margin = exactMatch?.targetMargin && exactMatch.targetMargin > 0 
         ? exactMatch.targetMargin 
         : sysMargin;
-      
-      const suggestedSale = calculateSalePriceFromMargin(item.unitCost, margin);
+
+      // Detectar sugestão de fator de conversão de embalagem ou peso
+      const detection = detectConversionSuggestion(item.name, item.unit);
+      const existingBoxQty = exactMatch?.hasBoxPrice && exactMatch.boxQuantity && exactMatch.boxQuantity > 1 ? exactMatch.boxQuantity : null;
+      const isConversionActive = Boolean(existingBoxQty || detection.detected);
+      const conversionFactor = existingBoxQty || (detection.detected ? detection.factor : 1);
+      const conversionMode = detection.mode;
+
+      const effectiveCost = (isConversionActive && conversionFactor > 0) ? (item.unitCost / conversionFactor) : item.unitCost;
+      const suggestedSale = calculateSalePriceFromMargin(effectiveCost, margin);
 
       let newBoxPrice: number | undefined = undefined;
       if (exactMatch?.hasBoxPrice && exactMatch.boxQuantity) {
@@ -113,6 +188,8 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         } else {
           newBoxPrice = Number((suggestedSale * exactMatch.boxQuantity).toFixed(2));
         }
+      } else if (isConversionActive && conversionFactor > 1) {
+        newBoxPrice = Number((suggestedSale * conversionFactor).toFixed(2));
       }
 
       return {
@@ -122,8 +199,11 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         categoryId: cats.length > 0 ? cats[0].id : undefined,
         targetMargin: margin,
         newSalePrice: suggestedSale,
-        updateBoxPrice: Boolean(exactMatch?.hasBoxPrice),
-        newBoxPrice: newBoxPrice
+        updateBoxPrice: Boolean(exactMatch?.hasBoxPrice || (isConversionActive && conversionFactor > 1)),
+        newBoxPrice: newBoxPrice,
+        conversionFactor,
+        isConversionActive,
+        conversionMode
       };
     });
   };
@@ -313,8 +393,12 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
     try {
       setIsUploading(true);
       const keyToSend = (confirmChave || chaveAcesso || xmlData?.accessKey || '').replace(/\D/g, '');
+      const itemsPayload = validMatches.map(m => ({
+        ...m,
+        conversionFactor: (m.isConversionActive && m.conversionFactor && m.conversionFactor > 0) ? m.conversionFactor : 1
+      }));
       const res = await api.applyXmlImport({
-        items: validMatches,
+        items: itemsPayload,
         chaveAcesso: keyToSend || undefined,
         supplierId: xmlData?.vendor?.id || undefined,
         vendorName: xmlData?.vendor?.name || undefined,
@@ -643,6 +727,128 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                   </button>
                 </div>
 
+                {/* FATOR DE CONVERSÃO / EMBALAGEM / RENDIMENTO (PORÇÕES / CIGARRO / CAIXA) */}
+                {match.action !== 'IGNORE' && (
+                  <div className="mb-3 p-3 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(match.isConversionActive)}
+                          onChange={(e) => {
+                            const active = e.target.checked;
+                            const factor = active ? (match.conversionFactor && match.conversionFactor > 1 ? match.conversionFactor : 12) : 1;
+                            const effectiveC = active ? Number((match.xmlItem.unitCost / factor).toFixed(4)) : match.xmlItem.unitCost;
+                            const margin = match.targetMargin ?? defaultMargin;
+                            const newSale = calculateSalePriceFromMargin(effectiveC, margin);
+                            updateMatch(i, {
+                              isConversionActive: active,
+                              conversionFactor: factor,
+                              newSalePrice: newSale
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                          Fator de Conversão / Rendimento (Fracionar Caixa / Porção)
+                        </span>
+                      </label>
+                      {match.isConversionActive && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                          {match.conversionMode === 'portion' ? 'Modo: Rendimento de Porções' : 'Modo: Caixa / Embalagem'}
+                        </span>
+                      )}
+                    </div>
+
+                    {match.isConversionActive && (
+                      <div className="space-y-2 pt-1">
+                        {/* Sugestões Rápidas */}
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mr-1">Atalhos rápidos:</span>
+                          {[
+                            { label: '10 un (Cigarro)', factor: 10, mode: 'box' as const },
+                            { label: '12 un (Caixa)', factor: 12, mode: 'box' as const },
+                            { label: '6 un (Pack)', factor: 6, mode: 'box' as const },
+                            { label: '24 un (Fardo)', factor: 24, mode: 'box' as const },
+                            { label: '12 porções (5kg)', factor: 12, mode: 'portion' as const },
+                            { label: '6 porções (2kg)', factor: 6, mode: 'portion' as const },
+                          ].map(preset => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => {
+                                const effectiveC = Number((match.xmlItem.unitCost / preset.factor).toFixed(4));
+                                const margin = match.targetMargin ?? defaultMargin;
+                                const newSale = calculateSalePriceFromMargin(effectiveC, margin);
+                                updateMatch(i, {
+                                  conversionFactor: preset.factor,
+                                  conversionMode: preset.mode,
+                                  newSalePrice: newSale
+                                });
+                              }}
+                              className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold transition cursor-pointer ${
+                                match.conversionFactor === preset.factor && match.conversionMode === preset.mode
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-indigo-400'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Input customizado de fator e resumo do cálculo */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-950">
+                          <div>
+                            <label className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400 block mb-1">
+                              {match.conversionMode === 'portion' ? 'Qtd. Porções por Embalagem / Peso:' : 'Unidades por Caixa / Pacote:'}
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={match.conversionFactor || 1}
+                                onChange={(e) => {
+                                  const factor = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                  const effectiveC = Number((match.xmlItem.unitCost / factor).toFixed(4));
+                                  const margin = match.targetMargin ?? defaultMargin;
+                                  const newSale = calculateSalePriceFromMargin(effectiveC, margin);
+                                  updateMatch(i, {
+                                    conversionFactor: factor,
+                                    newSalePrice: newSale
+                                  });
+                                }}
+                                className="w-24 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg p-1.5 focus:border-indigo-500 outline-none"
+                              />
+                              <span className="text-xs text-slate-600 dark:text-slate-400">
+                                {match.conversionMode === 'portion' ? 'porções' : 'unidades'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-col justify-center space-y-1">
+                            <div>
+                              <span>Custo Unitário Real: </span>
+                              <strong className="text-emerald-600 dark:text-emerald-400 font-mono">
+                                R$ {getEffectiveCost(match).toFixed(2)}
+                              </strong>
+                              <span className="text-[10px] text-slate-400"> (divisão da nota)</span>
+                            </div>
+                            <div>
+                              <span>Entrada no Estoque: </span>
+                              <strong className="text-indigo-600 dark:text-indigo-400 font-mono">
+                                +{Math.round(match.xmlItem.quantity * (match.conversionFactor || 1))} {match.conversionMode === 'portion' ? 'porções' : 'unidades'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {match.action === 'LINK' && (
                   <div className="space-y-3">
                     <div>
@@ -655,7 +861,17 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                           const pId = e.target.value;
                           const found = products.find(p => p.id === pId);
                           const margin = found?.targetMargin && found.targetMargin > 0 ? found.targetMargin : defaultMargin;
-                          const newSale = calculateSalePriceFromMargin(match.xmlItem.unitCost, margin);
+                          
+                          // Se o produto já possui caixa cadastrada, sugere o fator
+                          let convFactor = match.conversionFactor || 1;
+                          let convActive = match.isConversionActive;
+                          if (found?.hasBoxPrice && found.boxQuantity && found.boxQuantity > 1) {
+                            convFactor = found.boxQuantity;
+                            convActive = true;
+                          }
+
+                          const effCost = (convActive && convFactor > 0) ? Number((match.xmlItem.unitCost / convFactor).toFixed(4)) : match.xmlItem.unitCost;
+                          const newSale = calculateSalePriceFromMargin(effCost, margin);
                           let newBox = undefined;
                           if (found?.hasBoxPrice && found.boxQuantity) {
                             if (found.price > 0 && found.boxPrice) {
@@ -668,6 +884,8 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                             productId: pId,
                             targetMargin: margin,
                             newSalePrice: newSale,
+                            conversionFactor: convFactor,
+                            isConversionActive: convActive,
                             updateBoxPrice: Boolean(found?.hasBoxPrice),
                             newBoxPrice: newBox
                           });
@@ -686,7 +904,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                       const existingProd = products.find(p => p.id === match.productId);
                       const currentSale = existingProd?.price || 0;
                       const currentCost = existingProd?.costPrice || 0;
-                      const newCost = match.xmlItem.unitCost;
+                      const effectiveCost = getEffectiveCost(match);
                       const newSale = match.newSalePrice ?? currentSale;
                       const isDrop = existingProd && currentSale > 0 && newSale < currentSale;
                       const isRise = existingProd && currentSale > 0 && newSale > currentSale;
@@ -719,7 +937,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                                   value={match.targetMargin ?? defaultMargin}
                                   onChange={(e) => {
                                     const m = parseFloat(e.target.value) || 0;
-                                    const calculatedSale = calculateSalePriceFromMargin(newCost, m);
+                                    const calculatedSale = calculateSalePriceFromMargin(effectiveCost, m);
                                     let calculatedBox = match.newBoxPrice;
                                     if (existingProd?.hasBoxPrice && existingProd.boxQuantity) {
                                       if (existingProd.price > 0 && existingProd.boxPrice) {
@@ -752,7 +970,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                                   value={match.newSalePrice !== undefined ? match.newSalePrice : ''}
                                   onChange={(e) => {
                                     const s = parseFloat(e.target.value) || 0;
-                                    const m = calculateMarginFromSaleAndCost(newCost, s);
+                                    const m = calculateMarginFromSaleAndCost(effectiveCost, s);
                                     let calculatedBox = match.newBoxPrice;
                                     if (existingProd?.hasBoxPrice && existingProd.boxQuantity) {
                                       if (existingProd.price > 0 && existingProd.boxPrice) {
@@ -862,7 +1080,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                           Preço de Venda Sugerido (Novo Produto)
                         </span>
                         <span className="text-[10px] text-slate-500 font-mono">
-                          Custo NF: R$ {match.xmlItem.unitCost.toFixed(2)}
+                          Custo Real: R$ {getEffectiveCost(match).toFixed(2)}
+                          {match.isConversionActive && match.conversionFactor && match.conversionFactor > 1 && (
+                            <span className="text-slate-400 font-normal"> (NF: R$ {match.xmlItem.unitCost.toFixed(2)} / {match.conversionFactor})</span>
+                          )}
                         </span>
                       </div>
 
@@ -882,7 +1103,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                                 const m = parseFloat(e.target.value) || 0;
                                 updateMatch(i, {
                                   targetMargin: m,
-                                  newSalePrice: calculateSalePriceFromMargin(match.xmlItem.unitCost, m)
+                                  newSalePrice: calculateSalePriceFromMargin(getEffectiveCost(match), m)
                                 });
                               }}
                               className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs rounded-lg p-1.5 focus:border-amber-500 outline-none"
@@ -905,7 +1126,7 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                                 const s = parseFloat(e.target.value) || 0;
                                 updateMatch(i, {
                                   newSalePrice: s,
-                                  targetMargin: calculateMarginFromSaleAndCost(match.xmlItem.unitCost, s)
+                                  targetMargin: calculateMarginFromSaleAndCost(getEffectiveCost(match), s)
                                 });
                               }}
                               className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg outline-none focus:border-emerald-500"
