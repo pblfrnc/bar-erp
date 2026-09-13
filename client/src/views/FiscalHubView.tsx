@@ -92,7 +92,7 @@ export const FiscalHubView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pt-4 pb-20">
+    <div className="space-y-6 w-full mx-auto pt-4 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Módulo Fiscal Central</h2>

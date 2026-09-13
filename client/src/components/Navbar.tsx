@@ -110,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 select-none shadow-sm dark:shadow-none transition-colors">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6">
+      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo / Marca */}
           <div className="flex items-center gap-2.5">

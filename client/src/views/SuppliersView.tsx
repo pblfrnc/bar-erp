@@ -171,7 +171,7 @@ export const SuppliersView: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = false
   const totalProductsLinked = suppliers.reduce((acc, s) => acc + (s._count?.products || 0), 0);
 
   return (
-    <div className="space-y-6 pb-20 max-w-6xl mx-auto">
+    <div className="space-y-6 pb-20 w-full mx-auto">
       {/* Cabeçalho */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-sm dark:shadow-2xl">
         <div className="flex items-center gap-3.5">

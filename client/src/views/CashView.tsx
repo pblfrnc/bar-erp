@@ -183,7 +183,7 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
   const shift = shiftData.shift;
 
   return (
-    <div className="space-y-4 pb-20 max-w-6xl mx-auto">
+    <div className="space-y-4 pb-20 w-full mx-auto">
       {/* Cabeçalho */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex items-center justify-between shadow-sm transition-colors duration-150">
         <div className="flex items-center gap-3.5">

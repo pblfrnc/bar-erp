@@ -56,7 +56,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onBack }) => {
   }, [selectedDate]);
 
   return (
-    <div className="space-y-4 pb-20 max-w-6xl mx-auto">
+    <div className="space-y-4 pb-20 w-full mx-auto">
       {/* Cabeçalho */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex items-center justify-between shadow-sm dark:shadow-xl">
         <div className="flex items-center gap-3.5">

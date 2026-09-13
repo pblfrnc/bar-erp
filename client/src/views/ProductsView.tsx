@@ -39,7 +39,10 @@ import {
   Boxes,
   ArrowDown,
   ArrowUp,
-  ArrowRight
+  ArrowRight,
+  Scissors,
+  Scale,
+  Undo2
 } from 'lucide-react';
 import { ImportXmlModal } from '../components/ImportXmlModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
@@ -119,6 +122,19 @@ export const ProductsView: React.FC = () => {
   const [formBoxQuantity, setFormBoxQuantity] = useState<string>('24');
   const [formBoxPrice, setFormBoxPrice] = useState<string>('');
   const [formBoxEan, setFormBoxEan] = useState<string>('');
+
+  // Fator de Conversão / Correção de Entrada (Caixas / Cigarros / Porções em peso)
+  const [formConvFactor, setFormConvFactor] = useState<string>('12');
+  const [formConvMode, setFormConvMode] = useState<'box' | 'portion'>('box');
+  const [conversionBackup, setConversionBackup] = useState<{
+    stock: string;
+    costPrice: string;
+    price: string;
+    factor: number;
+    hasBoxPrice: boolean;
+    boxQuantity: string;
+    boxPrice: string;
+  } | null>(null);
 
   // EAN Lookup API
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
@@ -300,6 +316,9 @@ export const ProductsView: React.FC = () => {
     setFormBoxQuantity('24');
     setFormBoxPrice('');
     setFormBoxEan('');
+    setConversionBackup(null);
+    setFormConvFactor('12');
+    setFormConvMode('box');
     const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0]?.id || '');
     if (targetCat) {
       setFormCategoryId(targetCat);
@@ -381,6 +400,35 @@ export const ProductsView: React.FC = () => {
     setFormBoxPrice(p.boxPrice ? String(p.boxPrice) : '');
     setFormBoxEan(p.boxEan || '');
     setLookupFeedback(null);
+    setConversionBackup(null);
+
+    // Sugestão inicial de fator baseada no produto
+    const nameLower = (p.name || '').toLowerCase();
+    if (p.hasBoxPrice && p.boxQuantity && p.boxQuantity > 1) {
+      setFormConvFactor(String(p.boxQuantity));
+      setFormConvMode('box');
+    } else if (/\b(?:10x20|box\s*10|cigarro|marlboro|malboro|rothmans|derby|hollywood|lucky\s*strike|camel|dunhill|winston|chesterfield|kent|parliament|san\s*marino|plaza|calton)\b/i.test(nameLower) && /\b10\b/.test(nameLower)) {
+      setFormConvFactor('10');
+      setFormConvMode('box');
+    } else if (/\b(?:cx|c\/|caixa)\s*12\b|\b12\s*(?:un|latas|lts|garrafas|gfs)\b/i.test(nameLower)) {
+      setFormConvFactor('12');
+      setFormConvMode('box');
+    } else if (/\b(?:cx|c\/|fd|fardo|caixa)\s*24\b|\b24\s*(?:un|latas|lts|garrafas|gfs)\b/i.test(nameLower)) {
+      setFormConvFactor('24');
+      setFormConvMode('box');
+    } else if (/\b(?:pack|pct|cx|c\/)\s*6\b|\b6\s*(?:un|latas|lts|garrafas|gfs)\b/i.test(nameLower)) {
+      setFormConvFactor('6');
+      setFormConvMode('box');
+    } else if (/\b(\d+(?:[.,]\d+)?)\s*(?:kg|quilo|quilos)\b/i.test(nameLower) || p.unit?.toLowerCase() === 'kg') {
+      const kgM = nameLower.match(/\b(\d+(?:[.,]\d+)?)\s*(?:kg|quilo|quilos)\b/i);
+      const w = kgM ? parseFloat(kgM[1].replace(',', '.')) : 1;
+      setFormConvFactor(w >= 4 ? '12' : (w >= 2 ? '6' : '4'));
+      setFormConvMode('portion');
+    } else {
+      setFormConvFactor('12');
+      setFormConvMode('box');
+    }
+
     if (p.components && p.components.length > 0) {
       setIsComposed(true);
       setFormComponents(p.components.map(c => ({ componentId: c.componentId, quantity: c.quantity.toString() })));
@@ -797,7 +845,7 @@ export const ProductsView: React.FC = () => {
     <>
       {showProductModal ? (
         /* TELA INTEIRA DE CADASTRO / EDIÇÃO DE PRODUTO */
-        <div className="space-y-6 pb-28 max-w-6xl w-full mx-auto animate-in fade-in duration-200">
+        <div className="space-y-6 pb-28 w-full mx-auto animate-in fade-in duration-200">
           {/* Cabeçalho Superior */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-sm dark:shadow-xl">
             <div className="flex items-center gap-3.5">
@@ -902,14 +950,14 @@ export const ProductsView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex flex-wrap sm:flex-nowrap gap-2.5">
+              <div className="flex flex-wrap gap-2.5">
                 {/* Botão 1: Notas Fiscais Importadas (XML) */}
                 <button
                   type="button"
                   onClick={() => handleLookupEan(undefined, 'xml')}
                   disabled={lookupLoading || !formEan.trim()}
                   title="Puxa nome, fornecedor, NCM, CEST e preço de custo real das notas XML já importadas no sistema"
-                  className="flex-1 min-w-[200px] py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
+                  className="flex-1 min-w-[160px] py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
                 >
                   {lookupLoading && lookupLoadingMode === 'xml' ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -925,7 +973,7 @@ export const ProductsView: React.FC = () => {
                   onClick={() => handleLookupEan(undefined, 'global')}
                   disabled={lookupLoading || !formEan.trim()}
                   title="Puxa nome de produto e infere tributação oficial (NCM, CEST, CFOP) do catálogo nacional e global"
-                  className="flex-1 min-w-[200px] py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-blue-600/20 cursor-pointer"
+                  className="flex-1 min-w-[160px] py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-blue-600/20 cursor-pointer"
                 >
                   {lookupLoading && lookupLoadingMode === 'global' ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -941,7 +989,7 @@ export const ProductsView: React.FC = () => {
                   onClick={() => handleLookupEan(undefined, 'all')}
                   disabled={lookupLoading || !formEan.trim()}
                   title="Procura primeiro nas notas recebidas e, caso não encontre, recorre ao catálogo global"
-                  className="px-4 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-500/20 whitespace-nowrap cursor-pointer"
+                  className="flex-1 sm:flex-none px-4 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:pointer-events-none text-slate-950 font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-amber-500/20 whitespace-nowrap cursor-pointer"
                 >
                   {lookupLoading && lookupLoadingMode === 'all' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1395,6 +1443,176 @@ export const ProductsView: React.FC = () => {
                   )}
                 </div>
 
+                {/* Card Especial: Fator de Conversão & Correção de Entrada (Caixas / Cigarros / Porções em Peso) */}
+                <div className="bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-950">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Scissors className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-black text-slate-900 dark:text-white">Fator de Conversão & Fracionamento</h3>
+                          <span className="text-[10px] bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-extrabold px-2 py-0.5 rounded-full border border-indigo-500/30">
+                            Correção de Entrada
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Corrija produtos que receberam nota com valor e quantidade integral de caixa, fardo ou peso
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Se você deu entrada na nota fiscal e o produto assumiu o <strong>custo total da embalagem</strong> (ex: caixa de cerveja, maços de cigarro ou 5kg de batata), selecione a quantidade fracionada abaixo e clique em <strong>Aplicar Conversão</strong>. O estoque será multiplicado e o custo unitário será recalculado automaticamente.
+                    </p>
+
+                    {/* Atalhos Rápidos */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">Atalhos rápidos:</span>
+                      {[
+                        { label: '10 un (Cigarro)', factor: '10', mode: 'box' as const },
+                        { label: '12 un (Caixa)', factor: '12', mode: 'box' as const },
+                        { label: '6 un (Pack)', factor: '6', mode: 'box' as const },
+                        { label: '24 un (Fardo)', factor: '24', mode: 'box' as const },
+                        { label: '12 porções (5kg)', factor: '12', mode: 'portion' as const },
+                        { label: '6 porções (2kg)', factor: '6', mode: 'portion' as const },
+                      ].map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setFormConvFactor(preset.factor);
+                            setFormConvMode(preset.mode);
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition cursor-pointer ${
+                            formConvFactor === preset.factor && formConvMode === preset.mode
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-indigo-400'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Input do Fator Customizado e Ações */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block text-[11px] font-extrabold uppercase text-slate-600 dark:text-slate-400 mb-1">
+                          {formConvMode === 'portion' ? 'Qtd. de Porções no Peso/Embalagem:' : 'Unidades por Caixa / Pacote:'}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="2"
+                            max="1000"
+                            value={formConvFactor}
+                            onChange={(e) => setFormConvFactor(e.target.value)}
+                            className="w-24 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-sm font-bold focus:border-indigo-500 focus:outline-none shadow-xs"
+                          />
+                          <span className="text-xs text-slate-500">
+                            {formConvMode === 'portion' ? 'porções' : 'unidades'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const factor = Math.max(1, parseInt(formConvFactor, 10) || 1);
+                            if (factor <= 1) {
+                              alert('Informe um fator de conversão maior que 1.');
+                              return;
+                            }
+
+                            const currentCost = parseFloat(formCostPrice.replace(',', '.')) || 0;
+                            const currentStock = parseFloat(formStock.replace(',', '.')) || 0;
+                            const currentPrice = parseFloat(formPrice.replace(',', '.')) || 0;
+
+                            // Salva backup para permitir desfazer
+                            setConversionBackup({
+                              stock: formStock,
+                              costPrice: formCostPrice,
+                              price: formPrice,
+                              factor,
+                              hasBoxPrice: formHasBoxPrice,
+                              boxQuantity: formBoxQuantity,
+                              boxPrice: formBoxPrice
+                            });
+
+                            // 1. Estoque convertido
+                            const newStock = Math.round(currentStock * factor);
+                            setFormStock(String(newStock));
+
+                            // 2. Custo unitário convertido
+                            if (currentCost > 0) {
+                              const newUnitCost = Number((currentCost / factor).toFixed(4));
+                              setFormCostPrice(String(newUnitCost));
+
+                              // 3. Preço de venda recalculado com base na margem alvo
+                              const targetM = parseFloat(formTargetMargin.replace(',', '.')) || 50;
+                              if (targetM > 0 && targetM < 100) {
+                                const newSalePrice = Number((newUnitCost / (1 - (targetM / 100))).toFixed(2));
+                                setFormPrice(String(newSalePrice));
+                              }
+
+                              // 4. Se for caixa, salva custo da caixa e ativa caixa
+                              setFormHasBoxPrice(true);
+                              setFormBoxQuantity(String(factor));
+                              if (!formBoxPrice) {
+                                setFormBoxPrice(String(Number((currentCost * 1.5).toFixed(2))));
+                              }
+                            } else {
+                              // Se não havia custo, apenas ativa a caixa
+                              setFormHasBoxPrice(true);
+                              setFormBoxQuantity(String(factor));
+                            }
+                          }}
+                          className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl transition shadow-md shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Scissors className="w-3.5 h-3.5" />
+                          <span>Aplicar Conversão ({formConvFactor}x)</span>
+                        </button>
+
+                        {conversionBackup && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormStock(conversionBackup.stock);
+                              setFormCostPrice(conversionBackup.costPrice);
+                              setFormPrice(conversionBackup.price);
+                              setFormHasBoxPrice(conversionBackup.hasBoxPrice);
+                              setFormBoxQuantity(conversionBackup.boxQuantity);
+                              setFormBoxPrice(conversionBackup.boxPrice);
+                              setConversionBackup(null);
+                            }}
+                            className="py-2.5 px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
+                            title="Reverter para os valores anteriores à conversão"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            <span>Desfazer</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {conversionBackup && (
+                      <div className="mt-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                        <span>
+                          ✓ Conversão aplicada com sucesso: Estoque foi multiplicado por <strong>{conversionBackup.factor}</strong> e Custo Unitário dividido por <strong>{conversionBackup.factor}</strong>.
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          Clique em Salvar Alterações para gravar.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Card 3: Ficha Técnica & Produto Composto */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -1777,12 +1995,12 @@ export const ProductsView: React.FC = () => {
 
             {/* Rodapé Fixo de Ações (Sticky Bottom Bar) */}
             <div className="sticky bottom-4 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-200 dark:border-slate-800 p-4 rounded-3xl shadow-xl dark:shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-black">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-black shrink-0">
                   R$
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-black text-slate-900 dark:text-white truncate max-w-xs">
                       {formName || 'Novo Produto'}
                     </span>
@@ -1836,7 +2054,7 @@ export const ProductsView: React.FC = () => {
           </form>
         </div>
       ) : (
-        <div className="space-y-4 pb-20 max-w-6xl mx-auto">
+        <div className="space-y-4 pb-20 w-full mx-auto">
       {/* Cabeçalho */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm dark:shadow-xl space-y-4">
         {/* Linha Superior: Título & Botão Principal em Destaque */}

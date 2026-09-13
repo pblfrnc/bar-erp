@@ -545,7 +545,7 @@ export function App() {
       )}
 
       {/* Conteúdo da View Ativa no Painel do PC */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-5">
         {currentView === 'tables' && (
           <TablesView
             tables={tables}
