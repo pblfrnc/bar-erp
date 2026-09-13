@@ -4,9 +4,19 @@
   "description": "Sistema completo para operação de bares, controle de mesas, garçom e KDS em Android e Web",
   "icons": [
     {
-      "src": "/vite.svg",
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "sizes": "any"
     }
   ],
   "start_url": "/",

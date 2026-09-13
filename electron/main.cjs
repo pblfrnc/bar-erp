@@ -120,12 +120,17 @@ async function startServer() {
 }
 
 function createWindow() {
+  const appIconPath = process.platform === 'win32'
+    ? path.join(__dirname, 'assets', 'icon.ico')
+    : path.join(__dirname, 'assets', 'icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1366,
     height: 868,
     minWidth: 1024,
     minHeight: 680,
     title: 'BarERP Pro • Frente de Caixa & Mesas',
+    icon: fs.existsSync(appIconPath) ? appIconPath : undefined,
     backgroundColor: '#020617',
     autoHideMenuBar: true,
     webPreferences: {
