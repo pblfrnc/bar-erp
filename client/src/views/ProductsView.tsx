@@ -534,6 +534,19 @@ export const ProductsView: React.FC = () => {
       const parsedStock = parseFloat(formStock.replace(',', '.')) || 0;
       const parsedMinStock = parseFloat(formMinStock.replace(',', '.')) || 5;
 
+      // Agrupar componentes por componentId somando as quantidades para prevenir erro de chave única
+      const mergedComponentsMap = new Map<string, number>();
+      if (isComposed) {
+        for (const c of formComponents) {
+          if (c.componentId) {
+            const qty = parseFloat((c.quantity || '0').replace(',', '.')) || 0;
+            if (qty > 0) {
+              mergedComponentsMap.set(c.componentId, (mergedComponentsMap.get(c.componentId) || 0) + qty);
+            }
+          }
+        }
+      }
+
       const payload: any = {
         name: formName.trim(),
         code: formCode.trim() || null,
@@ -557,9 +570,9 @@ export const ProductsView: React.FC = () => {
         boxQuantity: formHasBoxPrice ? parseInt(formBoxQuantity || '24', 10) : null,
         boxPrice: formHasBoxPrice && formBoxPrice ? parseFloat(formBoxPrice.replace(',', '.')) : null,
         boxEan: formHasBoxPrice && formBoxEan.trim() ? formBoxEan.trim() : null,
-        components: isComposed ? formComponents.filter(c => c.componentId && parseFloat((c.quantity || '0').replace(',', '.')) > 0).map(c => ({
-          componentId: c.componentId,
-          quantity: parseFloat(c.quantity.replace(',', '.'))
+        components: isComposed ? Array.from(mergedComponentsMap.entries()).map(([componentId, quantity]) => ({
+          componentId,
+          quantity: Number(quantity.toFixed(4))
         })) : []
       };
 
@@ -1655,15 +1668,35 @@ export const ProductsView: React.FC = () => {
                         const subtotal = cCost * cQty;
 
                         return (
-                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl shadow-xs">
+                          <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 rounded-xl shadow-xs">
                             <select
                               value={comp.componentId}
                               onChange={(e) => {
+                                const newId = e.target.value;
+                                if (!newId) {
+                                  const newComps = [...formComponents];
+                                  newComps[idx].componentId = '';
+                                  setFormComponents(newComps);
+                                  return;
+                                }
+
+                                // Se o usuário selecionou um insumo que já estava em outra linha, soma as quantidades e remove esta linha duplicada
+                                const existingIdx = formComponents.findIndex((c, i) => i !== idx && c.componentId === newId);
+                                if (existingIdx !== -1) {
+                                  const currentQty = parseFloat((comp.quantity || '1').replace(',', '.')) || 1;
+                                  const existQty = parseFloat((formComponents[existingIdx].quantity || '0').replace(',', '.')) || 0;
+                                  const mergedComps = [...formComponents];
+                                  mergedComps[existingIdx].quantity = String(Number((existQty + currentQty).toFixed(3)));
+                                  mergedComps.splice(idx, 1);
+                                  setFormComponents(mergedComps);
+                                  return;
+                                }
+
                                 const newComps = [...formComponents];
-                                newComps[idx].componentId = e.target.value;
+                                newComps[idx].componentId = newId;
                                 setFormComponents(newComps);
                               }}
-                              className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-xs focus:border-amber-500 focus:outline-none cursor-pointer"
+                              className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:border-amber-500 focus:outline-none cursor-pointer"
                             >
                               <option value="">Selecione um insumo do estoque...</option>
                               {products.filter(p => p.id !== editingProduct?.id && !p.components?.length).map(p => (
@@ -1673,29 +1706,58 @@ export const ProductsView: React.FC = () => {
                               ))}
                             </select>
 
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700">
-                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold select-none">Qtd:</span>
+                            <div className="flex items-center gap-2 justify-between sm:justify-end">
+                              {/* Campo de Quantidade Destacado com Controles - e + */}
+                              <div className="flex items-center bg-slate-50 dark:bg-slate-950 border-2 border-indigo-200 dark:border-indigo-800/80 rounded-xl p-0.5 shadow-xs focus-within:border-amber-500">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const curr = parseFloat((comp.quantity || '0').replace(',', '.')) || 0;
+                                    const next = Math.max(0.01, curr - (curr > 1 ? 1 : 0.1));
+                                    const newComps = [...formComponents];
+                                    newComps[idx].quantity = String(Number(next.toFixed(3)));
+                                    setFormComponents(newComps);
+                                  }}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black text-sm transition cursor-pointer select-none"
+                                  title="Diminuir quantidade"
+                                >
+                                  -
+                                </button>
                                 <input
                                   type="text"
                                   inputMode="decimal"
                                   placeholder="1.0"
                                   value={comp.quantity}
                                   onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.,]/g, '');
                                     const newComps = [...formComponents];
-                                    newComps[idx].quantity = e.target.value.replace(/[^0-9.,]/g, '');
+                                    newComps[idx].quantity = val;
                                     setFormComponents(newComps);
                                   }}
-                                  className="w-16 bg-transparent text-slate-900 dark:text-white font-mono text-xs focus:outline-none text-right font-bold cursor-text"
+                                  className="w-16 px-1.5 py-1 text-center bg-transparent text-slate-900 dark:text-white font-mono text-xs font-bold focus:outline-none cursor-text"
                                 />
-                                <span className="text-[10px] text-slate-500 font-mono select-none">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const curr = parseFloat((comp.quantity || '0').replace(',', '.')) || 0;
+                                    const next = curr + (curr >= 1 ? 1 : 0.1);
+                                    const newComps = [...formComponents];
+                                    newComps[idx].quantity = String(Number(next.toFixed(3)));
+                                    setFormComponents(newComps);
+                                  }}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black text-sm transition cursor-pointer select-none"
+                                  title="Aumentar quantidade"
+                                >
+                                  +
+                                </button>
+                                <span className="text-[10px] px-1.5 text-slate-500 font-mono select-none font-bold">
                                   {selProd?.unit || 'un'}
                                 </span>
                               </div>
 
                               {subtotal > 0 && (
-                                <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap min-w-16 text-right">
-                                  = R$ {subtotal.toFixed(2)}
+                                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-bold whitespace-nowrap min-w-16 text-right">
+                                  R$ {subtotal.toFixed(2)}
                                 </span>
                               )}
 
@@ -1706,7 +1768,7 @@ export const ProductsView: React.FC = () => {
                                   newComps.splice(idx, 1);
                                   setFormComponents(newComps);
                                 }}
-                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition cursor-pointer"
                                 title="Remover este insumo"
                               >
                                 <Trash2 className="w-4 h-4" />
