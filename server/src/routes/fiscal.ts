@@ -799,6 +799,27 @@ export function createFiscalRouter() {
     }
   });
 
+  // Dados públicos do estabelecimento para cabeçalho de comprovantes (sem token/CSC)
+  router.get('/establishment', async (req, res) => {
+    try {
+      const settings: any = await getFiscalSettingsSafe();
+      const endereco = [
+        [settings?.logradouro, settings?.numero].filter(Boolean).join(', '),
+        settings?.bairro,
+        [settings?.municipio, settings?.uf].filter(Boolean).join(' - ')
+      ].filter(Boolean).join(' • ');
+      res.json({
+        nomeFantasia: settings?.nomeFantasia || null,
+        razaoSocial: settings?.razaoSocial || null,
+        cnpj: settings?.cnpj || null,
+        ie: settings?.ie || null,
+        endereco: endereco || settings?.addressInfo || null
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Erro ao buscar dados do estabelecimento.' });
+    }
+  });
+
   // ============================================================
   // Upload dedicado do Certificado Digital A1 para a Focus NFe
   // ============================================================

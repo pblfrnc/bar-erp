@@ -1,6 +1,6 @@
 # 🧠 MEMÓRIA E CONTEXTO ARQUITETURAL DO BAR ERP PRO
 > **Data de Atualização:** 15 de Outubro de 2026  
-> **Versão Oficial do Sistema:** `v1.8.0`  
+> **Versão Oficial do Sistema:** `v1.8.1`  
 > **Status:** Produção Estável  
 > **Repositório:** [pblfrnc/bar-erp](https://github.com/pblfrnc/bar-erp)  
 > **Branch Principal:** `main`  
@@ -54,6 +54,12 @@
     - Grande: `130px` (35mm)
 - **Nome Fantasia no Cupom:**
   - Se configurado, o proxy do DANFE injeta o Nome Fantasia em negrito (13px) no topo de `dados-da-empresa`, mantendo a Razão Social oficial e o CNPJ logo abaixo (100% legal perante o Manual do DANFE NFC-e da SEFAZ).
+
+### A2. Comprovante Não Fiscal (Conferência de Mesa / Pedido Fechado)
+- **Componente único:** `client/src/components/ThermalReceipt.tsx`, montado só no `App.tsx` e no `WaiterApp.tsx` (nunca duplicar o `id="thermal-receipt"` em outra tela).
+- **Para imprimir:** chamar `printOrderReceipt(order)` (`client/src/services/printService.ts`), que dispara o evento `barerp:print-receipt`. O App define o pedido e chama `triggerPrint()` depois de 300ms. Nunca chamar `printSilent()`/`window.print()` direto para comprovante: imprimiria o pedido que estiver no estado do App.
+- **Cabeçalho:** dados reais via `GET /api/fiscal/establishment` (Nome Fantasia, Razão Social, CNPJ, endereço — sem token/CSC), com cache em `localStorage` (`bar_erp_establishment`).
+- **Layout:** nome do item em linha própria e "qtd x unitário ... total" abaixo; `@page` com a largura da bobina e escala de fonte de `bar_erp_printer_settings`. No CSS de impressão, só a raiz do cupom recebe `display: block` (forçar nos filhos quebra o alinhamento).
 
 ### B. NF-e (Modelo 55 — Nota Fiscal Grande em Folha A4)
 - **Destino:** Impressora comum de escritório (Laser / Jato de Tinta) ou "Salvar como PDF".

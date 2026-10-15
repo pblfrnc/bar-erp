@@ -4,6 +4,7 @@ import { api } from './services/api';
 import { socket } from './services/socket';
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
+import { PRINT_RECEIPT_EVENT, triggerPrint } from './services/printService';
 
 export function WaiterApp() {
   const [tables, setTables] = useState<Table[]>([]);
@@ -75,13 +76,15 @@ export function WaiterApp() {
     };
   }, []);
 
-  // Definir primeiro pedido ativo para impressão se houver
+  // Impressão do comprovante do pedido solicitado pela tela (mesa, pagamento)
   useEffect(() => {
-    const tableWithOrder = tables.find((t) => t.activeOrder);
-    if (tableWithOrder?.activeOrder) {
-      setPrintOrder(tableWithOrder.activeOrder);
-    }
-  }, [tables]);
+    const handlePrintReceipt = (e: Event) => {
+      setPrintOrder((e as CustomEvent<Order>).detail);
+      setTimeout(triggerPrint, 300);
+    };
+    window.addEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
+    return () => window.removeEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none">

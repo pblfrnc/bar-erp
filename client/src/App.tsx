@@ -24,6 +24,7 @@ import { UpdateNotificationModal, UpdateInfo } from './components/UpdateNotifica
 
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
+import { PRINT_RECEIPT_EVENT, triggerPrint } from './services/printService';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
 import { ManageWaitersModal } from './components/ManageWaitersModal';
 import { ManageStaffModal } from './components/ManageStaffModal';
@@ -207,6 +208,17 @@ export function App() {
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
 
+  // Impressão do comprovante do pedido solicitado pela tela (mesa, pagamento, histórico)
+  useEffect(() => {
+    const handlePrintReceipt = (e: Event) => {
+      setPrintOrder((e as CustomEvent<Order>).detail);
+      setActivePrintType('bill');
+      setTimeout(triggerPrint, 300);
+    };
+    window.addEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
+    return () => window.removeEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
+  }, []);
+
   // Tema: Light ou Dark
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('bar_theme');
@@ -365,9 +377,7 @@ export function App() {
 
         setKitchenTicket(ticketData);
         setActivePrintType('kitchen');
-        setTimeout(() => {
-          if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); }
-        }, 300);
+        setTimeout(triggerPrint, 300);
       }
     };
 
@@ -401,14 +411,6 @@ export function App() {
       socket.off('cash:updated', onCashUpdated);
     };
   }, []);
-
-  // Definir primeiro pedido ativo para impressão se houver
-  useEffect(() => {
-    const tableWithOrder = tables.find((t) => t.activeOrder);
-    if (tableWithOrder?.activeOrder) {
-      setPrintOrder(tableWithOrder.activeOrder);
-    }
-  }, [tables]);
 
   // BLOQUEIO TOTAL E FORÇADO: Se a licença não estiver ativa, ou estiver expirada / bloqueada, trava tudo na tela de ativação
   const isBlockedOrExpired = isLicensed === false || licenseStatus === 'BLOCKED' || licenseStatus === 'EXPIRED' || licenseStatus === 'UNLICENSED' || licenseStatus === 'INVALID';

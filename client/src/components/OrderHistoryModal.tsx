@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order } from '../types';
 import { api } from '../services/api';
-import { ThermalReceipt } from './ThermalReceipt';
+import { printOrderReceipt } from '../services/printService';
 import {
   X,
   Search,
@@ -60,12 +60,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ onClose })
   });
 
   const handlePrintReceipt = () => {
-    if (!selectedOrder) return;
-    if ((window as any).electronAPI && (window as any).electronAPI.printSilent) {
-      (window as any).electronAPI.printSilent();
-    } else {
-      window.print();
-    }
+    printOrderReceipt(selectedOrder);
   };
 
   return (
@@ -366,13 +361,6 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ onClose })
           </div>
         </div>
       </div>
-
-      {/* Recibo térmico isolado para impressão física */}
-      {selectedOrder && (
-        <div className="hidden print:block fixed inset-0 z-50 bg-white p-2">
-          <ThermalReceipt order={selectedOrder} />
-        </div>
-      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, Category, Order } from '../types';
 import { api } from '../services/api';
+import { printOrderReceipt } from '../services/printService';
 import {
   X,
   Search,
@@ -215,9 +216,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
       // Impressão opcional
       if (printReceipt) {
-        if ((window as any).electronAPI?.printSilent) {
-          (window as any).electronAPI.printSilent();
-        }
+        printOrderReceipt(res.order);
       }
 
       // Limpar carrinho para próxima venda rápida

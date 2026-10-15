@@ -59,6 +59,14 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
+export interface EstablishmentInfo {
+  nomeFantasia: string | null;
+  razaoSocial: string | null;
+  cnpj: string | null;
+  ie: string | null;
+  endereco: string | null;
+}
+
 export const api = {
   getApiUrl: () => getApiUrl(),
   uploadXml: (formData: FormData) => fetch(`${getApiUrl()}/fiscal/import-xml`, { method: 'POST', body: formData }).then(r => r.json()),
@@ -513,6 +521,10 @@ export const api = {
     fetchWithRetry(`${getApiUrl()}/staff/${id}`, {
       method: 'DELETE'
     }).then(handleResponse<{ success: boolean; message: string }>),
+
+  // Dados públicos do estabelecimento (cabeçalho de comprovantes não fiscais)
+  getEstablishment: (): Promise<EstablishmentInfo> =>
+    fetchWithRetry(`${getApiUrl()}/fiscal/establishment`).then(handleResponse<EstablishmentInfo>),
 
   // Configurações de Impressoras Térmicas
   getPrinterSettings: (): Promise<PrinterSettings> =>

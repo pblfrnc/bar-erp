@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Table, Order, PaymentMethod, OrderItem } from '../types';
 import { api } from '../services/api';
+import { printOrderReceipt } from '../services/printService';
 import {
   X,
   Printer,
@@ -142,7 +143,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Imprimir conferência (80mm/58mm)
   const handlePrint = () => {
-    if ((window as any).electronAPI && (window as any).electronAPI.printSilent) { (window as any).electronAPI.printSilent(); } else { window.print(); }
+    printOrderReceipt(currentOrder);
   };
 
   // Compartilhar conta no WhatsApp

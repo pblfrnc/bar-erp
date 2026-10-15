@@ -87,6 +87,11 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 @media print {
+  /* Fundo branco: impressora térmica com printBackground imprimiria o cinza do app como pontilhado */
+  html,
+  body {
+    background: white !important;
+  }
   body * {
     visibility: hidden;
   }
@@ -95,17 +100,18 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   #kitchen-ticket-receipt,
   #kitchen-ticket-receipt * {
     visibility: visible;
-    display: block !important;
   }
+  /* Só a raiz do cupom vira block; os filhos mantêm o próprio display (flex das linhas/colunas) */
   #thermal-receipt,
   #kitchen-ticket-receipt {
+    display: block !important;
     position: absolute;
     left: var(--printer-margin-left, 0mm);
     top: var(--printer-margin-top, 0mm);
-    width: var(--printer-paper-width, 80mm);
-    max-width: var(--printer-paper-width, 80mm);
+    width: calc(var(--printer-paper-width, 80mm) - var(--printer-margin-left, 0mm) - var(--printer-margin-right, 0mm));
+    max-width: calc(var(--printer-paper-width, 80mm) - var(--printer-margin-left, 0mm) - var(--printer-margin-right, 0mm));
     margin: 0;
-    padding: 6px;
+    padding: 0;
     background: white;
     color: black;
     box-sizing: border-box;
