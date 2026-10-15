@@ -200,8 +200,8 @@ app.post('/api/admin/licenses/renew', async (req, res) => {
     const offlineKey = generateOfflineKey(machineId, result.newExpiresAt);
 
     res.json({
-      success: true,
       ...result,
+      success: true,
       offlineKey
     });
   } catch (err: any) {
@@ -215,7 +215,7 @@ app.post('/api/admin/licenses/toggle-block', async (req, res) => {
     const { machineId } = req.body;
     if (!machineId) return res.status(400).json({ success: false, error: 'ID da máquina é obrigatório.' });
     const result = await devDb.toggleBlockLicense(machineId);
-    res.json({ success: true, ...result });
+    res.json({ ...result, success: true });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

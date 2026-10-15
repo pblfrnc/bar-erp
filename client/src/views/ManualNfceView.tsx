@@ -20,10 +20,16 @@ import {
   RotateCcw,
   Loader2,
   Copy,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product } from '../types';
+import { formatCpfCnpj, getCpfCnpjError, NFCE_LIMITE_SEM_IDENTIFICACAO } from '../utils/fiscalDoc';
+
+// NCM válido para a SEFAZ: exatamente 8 dígitos
+const cleanNcm = (ncm?: string | null) => String(ncm || '').replace(/\D/g, '');
+const isValidNcm = (ncm?: string | null) => /^\d{8}$/.test(cleanNcm(ncm));
 
 interface ManualNfceViewProps {
   onBack: () => void;
@@ -54,6 +60,11 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [printSuccessFeedback, setPrintSuccessFeedback] = useState<boolean>(false);
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+
+  // Cadastro de NCM na hora da emissão (produtos sem NCM)
+  const [ncmPromptProducts, setNcmPromptProducts] = useState<Product[] | null>(null);
+  const [ncmInputs, setNcmInputs] = useState<Record<string, string>>({});
+  const [isSavingNcm, setIsSavingNcm] = useState<boolean>(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +145,9 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   };
 
   const total = items.reduce((acc, curr) => acc + (curr.product.price * curr.quantity), 0);
+  const cleanCustomerDoc = customerCpf.replace(/\D/g, '');
+  const customerDocError = getCpfCnpjError(customerCpf);
+  const requiresCustomerDoc = total >= NFCE_LIMITE_SEM_IDENTIFICACAO;
 
   const handleResetForNewSale = () => {
     setItems([]);
@@ -210,9 +224,23 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
     return () => window.removeEventListener('keydown', handleKey);
   }, [saleSuccessData]);
 
-  const handleEmit = async () => {
-    if (items.length === 0) {
+  const handleEmit = async (emitItems = items) => {
+    if (emitItems.length === 0) {
       alert('Adicione pelo menos um produto à nota fiscal.');
+      return;
+    }
+    if (customerDocError) {
+      alert(customerDocError + ' Corrija o documento ou deixe o campo em branco.');
+      return;
+    }
+    if (requiresCustomerDoc && !cleanCustomerDoc) {
+      alert('Para NFC-e a partir de R$ 10.000,00 a SEFAZ exige o CPF ou CNPJ do consumidor.');
+      return;
+    }
+    const productsWithoutNcm = emitItems.map((i) => i.product).filter((p) => !isValidNcm(p.ncm));
+    if (productsWithoutNcm.length > 0) {
+      setNcmInputs({});
+      setNcmPromptProducts(productsWithoutNcm);
       return;
     }
     setIsEmitting(true);
@@ -220,17 +248,17 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       const saleTotal = total;
       const payload = {
         orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
-        customerCpf: customerCpf.replace(/\D/g, '') || undefined,
+        customerCpf: cleanCustomerDoc || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,
-        items: items.map((i) => ({
+        items: emitItems.map((i) => ({
           productId: i.product.id,
           ean: i.product.ean,
           code: i.product.code,
           quantity: i.quantity,
           price: i.product.price,
           name: i.product.name,
-          ncm: i.product.ncm || '22030000',
+          ncm: cleanNcm(i.product.ncm),
           cfop: i.product.cfop || '5102',
           unit: i.product.unit || 'un',
           cest: i.product.cest || undefined
@@ -244,6 +272,12 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
+
+      if (data.status !== 'autorizado') {
+        alert(`A NFC-e foi enviada e está em processamento na SEFAZ (ref: ${data.referencia}).\n\nNÃO emita novamente. Consulte em instantes na tela de Reimpressão de NFC-e.`);
+        handleResetForNewSale();
+        return;
+      }
       
       const danfeUrl = data.caminhoDanfe;
       const refNota = data.referencia || data.ref;
@@ -270,6 +304,36 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       alert(err.message || 'Erro ao emitir NFC-e');
     } finally {
       setIsEmitting(false);
+    }
+  };
+
+  // Salva o NCM no cadastro do produto (vale para as próximas vendas) e segue com a emissão
+  const handleSaveNcmAndEmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ncmPromptProducts) return;
+    const invalid = ncmPromptProducts.find((p) => !isValidNcm(ncmInputs[p.id]));
+    if (invalid) {
+      alert(`Informe o NCM com 8 dígitos para "${invalid.name}".`);
+      return;
+    }
+    setIsSavingNcm(true);
+    try {
+      const updated: Record<string, string> = {};
+      for (const p of ncmPromptProducts) {
+        const ncm = cleanNcm(ncmInputs[p.id]);
+        await api.updateProduct(p.id, { ncm });
+        updated[p.id] = ncm;
+      }
+      const withNcm = (p: Product) => (updated[p.id] ? { ...p, ncm: updated[p.id] } : p);
+      const updatedItems = items.map((i) => ({ ...i, product: withNcm(i.product) }));
+      setItems(updatedItems);
+      setProducts((prev) => prev.map(withNcm));
+      setNcmPromptProducts(null);
+      await handleEmit(updatedItems);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao salvar o NCM do produto.');
+    } finally {
+      setIsSavingNcm(false);
     }
   };
 
@@ -458,9 +522,15 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
                               {item.product.code && (
                                 <span className="text-slate-400 dark:text-slate-500">#{item.product.code}</span>
                               )}
-                              <span className="text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 px-1 rounded border border-cyan-200 dark:border-cyan-900/40">
-                                NCM: {item.product.ncm || '22030000'}
-                              </span>
+                              {isValidNcm(item.product.ncm) ? (
+                                <span className="text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 px-1 rounded border border-cyan-200 dark:border-cyan-900/40">
+                                  NCM: {item.product.ncm}
+                                </span>
+                              ) : (
+                                <span className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1 rounded border border-amber-200 dark:border-amber-900/40 font-bold">
+                                  NCM pendente
+                                </span>
+                              )}
                               <span className="text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-1 rounded">
                                 CFOP: {item.product.cfop || '5102'}
                               </span>
@@ -529,19 +599,35 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
             {/* CPF / CNPJ */}
             <div>
               <label htmlFor="nfce-customer-cpf" className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
-                CPF / CNPJ na Nota (Opcional)
+                CPF / CNPJ na Nota {requiresCustomerDoc ? '*' : '(Opcional)'}
               </label>
               <input
                 id="nfce-customer-cpf"
                 type="text"
                 placeholder="000.000.000-00 (ou deixar em branco)"
                 value={customerCpf}
-                onChange={(e) => setCustomerCpf(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:border-emerald-500 focus:outline-none cursor-text shadow-xs"
+                onChange={(e) => setCustomerCpf(formatCpfCnpj(e.target.value))}
+                className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:outline-none cursor-text shadow-xs ${
+                  customerDocError || (requiresCustomerDoc && !cleanCustomerDoc)
+                    ? 'border-red-400 dark:border-red-500/60 focus:border-red-500'
+                    : 'border-slate-300 dark:border-slate-800 focus:border-emerald-500'
+                }`}
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
-                Se informado, o cupom fiscal constará o documento do comprador.
-              </span>
+              {customerDocError ? (
+                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 mt-1 block">{customerDocError}</span>
+              ) : requiresCustomerDoc && !cleanCustomerDoc ? (
+                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 mt-1 block">
+                  Obrigatório: a SEFAZ exige CPF ou CNPJ em NFC-e a partir de R$ 10.000,00.
+                </span>
+              ) : cleanCustomerDoc ? (
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 block">
+                  {cleanCustomerDoc.length === 11 ? 'CPF válido' : 'CNPJ válido'}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
+                  Se informado, o cupom fiscal constará o documento do comprador.
+                </span>
+              )}
             </div>
 
             {/* Nome do Cliente */}
@@ -608,7 +694,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
 
               <button
                 type="button"
-                onClick={handleEmit}
+                onClick={() => handleEmit()}
                 disabled={isEmitting || items.length === 0}
                 className="w-full py-4 px-6 rounded-2xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 transition flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-500/20 active:scale-95 cursor-pointer"
               >
@@ -753,6 +839,71 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
             </button>
 
           </div>
+        </div>
+      )}
+
+      {/* Modal: cadastrar NCM dos produtos que não têm (salvo no produto para as próximas vendas) */}
+      {ncmPromptProducts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <form
+            onSubmit={handleSaveNcmAndEmit}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl flex flex-col gap-5"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 shrink-0 bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">Produto sem NCM</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  A SEFAZ exige o NCM (8 dígitos) de cada item. O código informado fica salvo no cadastro do produto para as próximas vendas.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+              {ncmPromptProducts.map((p, idx) => (
+                <div key={p.id}>
+                  <label htmlFor={`ncm-${p.id}`} className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5 cursor-pointer">
+                    {p.name}
+                  </label>
+                  <input
+                    id={`ncm-${p.id}`}
+                    type="text"
+                    inputMode="numeric"
+                    autoFocus={idx === 0}
+                    placeholder="Ex: 22030000 (cerveja)"
+                    value={ncmInputs[p.id] || ''}
+                    onChange={(e) => setNcmInputs((prev) => ({ ...prev, [p.id]: cleanNcm(e.target.value).slice(0, 8) }))}
+                    className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border rounded-xl text-slate-900 dark:text-white font-mono text-sm focus:outline-none cursor-text shadow-xs ${
+                      ncmInputs[p.id] && !isValidNcm(ncmInputs[p.id])
+                        ? 'border-amber-400 dark:border-amber-500/60 focus:border-amber-500'
+                        : 'border-slate-300 dark:border-slate-800 focus:border-emerald-500'
+                    }`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => setNcmPromptProducts(null)}
+                disabled={isSavingNcm}
+                className="flex-1 py-3 px-4 rounded-2xl font-bold text-sm bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingNcm || ncmPromptProducts.some((p) => !isValidNcm(ncmInputs[p.id]))}
+                className="flex-1 py-3 px-4 rounded-2xl font-black text-sm bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isSavingNcm ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>Salvar NCM e Emitir</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

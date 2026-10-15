@@ -100,7 +100,7 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
 
   try {
     // 1. Obter configurações fiscais
-    const rows: any[] = await prisma.$queryRawUnsafe('SELECT * FROM "FiscalSettings" WHERE id = "default" LIMIT 1;').catch(() => []);
+    const rows: any[] = await prisma.$queryRawUnsafe<any[]>('SELECT * FROM "FiscalSettings" WHERE id = "default" LIMIT 1;').catch(() => []);
     const settings = rows?.[0];
     if (!settings || !settings.apiToken) {
       return { added: 0, updatedWithXml: 0 };
@@ -157,7 +157,7 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
       const dataEmissao = item.data_emissao || new Date().toISOString();
 
       // Verifica se a nota já existe no banco
-      const existing: any[] = await prisma.$queryRawUnsafe(
+      const existing: any[] = await prisma.$queryRawUnsafe<any[]>(
         'SELECT "id", "status", "xmlContent", "valorTotal" FROM "NotaRecebida" WHERE "chave" = ? LIMIT 1',
         chaveClean
       ).catch(() => []);
@@ -193,7 +193,7 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
         }
 
         // Verificar se os produtos desta nota já foram importados anteriormente no estoque
-        const alreadyImported: any[] = await prisma.$queryRawUnsafe(
+        const alreadyImported: any[] = await prisma.$queryRawUnsafe<any[]>(
           'SELECT 1 FROM "PriceHistory" WHERE REPLACE(COALESCE("nfeChave", \'\'), \' \', \'\') = ? LIMIT 1',
           chaveClean
         ).catch(() => []);

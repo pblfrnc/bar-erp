@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { sanitizeCest } from './fiscalDoc.js';
 
 /**
  * Build payload for NF‑e emission using Focus NFe API.
@@ -82,17 +83,8 @@ export async function buildNfePayload(params: {
       const codigoInterno = String(i.code || '').trim();
       const codigoProduto = (eanValido || codigoInterno || String(idx + 1)).slice(0, 60);
 
-      // CEST (Código Especificador da Substituição Tributária)
-      // Exigência estrita da SEFAZ: exatamente 7 dígitos numéricos ([0-9]{7})
-      // Ex: 302103 (cervejas/bebidas sem o zero inicial) -> preenche com padStart para '0302103'
-      const rawCest = i.cest ? String(i.cest).replace(/\D/g, '') : '';
-      let cleanCest: string | undefined = undefined;
-      if (rawCest) {
-        const paddedCest = rawCest.length === 6 ? rawCest.padStart(7, '0') : rawCest;
-        if (/^\d{7}$/.test(paddedCest) && paddedCest !== '0000000') {
-          cleanCest = paddedCest;
-        }
-      }
+      // CEST (Código Especificador da Substituição Tributária) — exatamente 7 dígitos
+      const cleanCest = sanitizeCest(i.cest);
 
       return {
         numero_item: String(idx + 1),
@@ -183,8 +175,9 @@ export async function persistNfeRecord(data: {
   xmlUrl?: string;
   valorTotal?: number;
   status?: string;
+  dataEmissao?: string;
 }) {
-  const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal, status } = data;
+  const { referencia, chave, numero, serie, pdfUrl, xmlUrl, valorTotal, status, dataEmissao } = data;
   const finalStatus = status || 'autorizado';
 
   try {
@@ -197,7 +190,7 @@ export async function persistNfeRecord(data: {
           chave: chave ?? null,
           numero: numero ? String(numero) : null,
           serie: serie ? String(serie) : null,
-          dataEmissao: new Date().toISOString(),
+          dataEmissao: dataEmissao || new Date().toISOString(),
           valorTotal: valorTotal ?? 0,
           status: finalStatus,
           xmlUrl: xmlUrl ?? null,
@@ -227,9 +220,9 @@ export async function persistNfeRecord(data: {
       INSERT OR REPLACE INTO "NotaEmitida" (
         "id", "referencia", "chave", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlUrl", "pdfUrl", "createdAt"
       ) VALUES (
-        ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, CURRENT_TIMESTAMP
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
       )
-    `, id, referencia, chave ?? null, numero ? String(numero) : null, serie ?? null, valorTotal ?? 0, finalStatus, xmlUrl ?? null, pdfUrl ?? null);
+    `, id, referencia, chave ?? null, numero ? String(numero) : null, serie ?? null, dataEmissao || new Date().toISOString(), valorTotal ?? 0, finalStatus, xmlUrl ?? null, pdfUrl ?? null);
     console.log(`[persistNfeRecord] Nota ${referencia} gravada via fallback SQL.`);
   } catch (sqlErr: any) {
     console.error(`[persistNfeRecord] Erro ao persistir NotaEmitida:`, sqlErr);

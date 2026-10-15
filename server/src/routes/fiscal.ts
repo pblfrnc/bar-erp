@@ -15,6 +15,7 @@ import { buildNfePayload, persistNfeRecord } from '../services/nfeService.js';
 import { getPrinterSettingsSafe } from './settings.js';
 import { encryptField, decryptField } from '../services/securityVault.js';
 import { runNfeRecebidasSync } from '../services/nfeRecebidasScheduler.js';
+import { getCpfCnpjError, NFCE_LIMITE_SEM_IDENTIFICACAO, sanitizeCest } from '../services/fiscalDoc.js';
 
 // Função para arquivar XMLs com segurança por 5 anos (Armazenamento Físico)
 function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: string) {
@@ -33,6 +34,27 @@ function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: 
     fs.writeFileSync(filePath, xmlContent, 'utf-8');
   } catch (err) {
     console.error('Erro ao arquivar XML no cofre de segurança:', err);
+  }
+}
+
+// Baixa o XML autorizado (nfeProc com protocolo SEFAZ) da Focus NFe e arquiva no cofre de SAÍDA.
+// Nunca lança erro: falha de download não pode travar a venda (a Focus também mantém o XML).
+async function archiveAuthorizedXml(focusRoot: string, authHeader: string, caminhoXml: string | undefined, chave: string) {
+  if (!caminhoXml || !chave) return;
+  try {
+    const downloadUrl = caminhoXml.startsWith('http') ? caminhoXml : `${focusRoot}${caminhoXml}`;
+    const fileRes = await fetch(downloadUrl, {
+      headers: downloadUrl.includes('focusnfe.com.br') ? { 'Authorization': authHeader } : {},
+      redirect: 'follow'
+    });
+    const text = fileRes.ok ? await fileRes.text() : '';
+    if (text.includes('<nfeProc') || text.includes('<NFe')) {
+      secureArchiveXML('SAIDA', chave, text);
+    } else {
+      console.warn(`[archiveAuthorizedXml] XML da nota ${chave} não disponível (HTTP ${fileRes.status}).`);
+    }
+  } catch (err) {
+    console.warn(`[archiveAuthorizedXml] Falha ao baixar XML da nota ${chave}:`, err);
   }
 }
 
@@ -95,9 +117,12 @@ async function ensureFiscalTables() {
 
     // Auto-recuperação resiliente da NF-e emitida ontem (Chave 15260936275163000124550020000000011794431341, Série 2, Nº 1)
     try {
-      const existingNota: any[] = await prisma.$queryRawUnsafe(
+      // Só se aplica à instalação do emitente desta nota (CNPJ 36.275.163/0001-24)
+      const fiscalSettings: any = await getFiscalSettingsSafe().catch(() => null);
+      const isEmitenteDaNota = String(fiscalSettings?.cnpj || '').replace(/\D/g, '') === '36275163000124';
+      const existingNota: any[] = isEmitenteDaNota ? await prisma.$queryRawUnsafe<any[]>(
         `SELECT id FROM "NotaEmitida" WHERE "chave" = '15260936275163000124550020000000011794431341' OR ("numero" = '1' AND "serie" = '2') LIMIT 1`
-      );
+      ) : [{ id: 'skip' }];
       if (!existingNota || existingNota.length === 0) {
         const chaveRec = '15260936275163000124550020000000011794431341';
         const refRec = `nfe_${chaveRec}`;
@@ -1325,18 +1350,23 @@ export function createFiscalRouter() {
             : `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(queryTarget)}`;
           const xmlUrl = focusData?.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${queryTarget}.xml`;
           const finalStatus = focusData?.status || 'autorizado';
+          // Sem dados da Focus, número/série/mês de emissão são extraídos da própria chave de 44 dígitos
+          const chaveInfo = /^\d{44}$/.test(queryTarget) ? queryTarget : null;
+          const numeroChave = chaveInfo ? String(parseInt(chaveInfo.substring(25, 34), 10)) : undefined;
+          const serieChave = chaveInfo ? String(parseInt(chaveInfo.substring(22, 25), 10)) : undefined;
+          const dataEmissaoChave = chaveInfo ? `20${chaveInfo.substring(2, 4)}-${chaveInfo.substring(4, 6)}-01T12:00:00-03:00` : undefined;
 
           // Persiste a nota no banco local para que conste em todas as telas
           await persistNfeRecord({
             referencia: ref,
             chave: queryTarget,
-            numero: focusData?.numero ? String(focusData.numero) : (targetNumero || '1'),
-            serie: focusData?.serie ? String(focusData.serie) : (targetSerie || '2'),
+            numero: focusData?.numero ? String(focusData.numero) : (targetNumero || numeroChave),
+            serie: focusData?.serie ? String(focusData.serie) : (targetSerie || serieChave),
             pdfUrl: danfeUrl,
             xmlUrl: xmlUrl,
             valorTotal: Number(focusData?.valor_total || focusData?.total || 0),
             status: finalStatus,
-            dataEmissao: focusData?.data_emissao || '2026-09-11T12:00:00-03:00'
+            dataEmissao: focusData?.data_emissao || dataEmissaoChave
           });
 
           return res.json({
@@ -1344,8 +1374,8 @@ export function createFiscalRouter() {
               id: `nfe_${queryTarget}`,
               referencia: ref,
               chave: queryTarget,
-              numero: focusData?.numero ? String(focusData.numero) : (targetNumero || '1'),
-              serie: focusData?.serie ? String(focusData.serie) : (targetSerie || '2'),
+              numero: focusData?.numero ? String(focusData.numero) : (targetNumero || numeroChave),
+              serie: focusData?.serie ? String(focusData.serie) : (targetSerie || serieChave),
               status: finalStatus,
               valorTotal: Number(focusData?.valor_total || focusData?.total || 0),
               createdAt: '2026-09-11T12:00:00.000Z'
@@ -1413,8 +1443,8 @@ export function createFiscalRouter() {
           filtradas = notas.filter((n: any) => isNfe(n));
         }
 
-        // Se for NF-e e houver notas recentes com status 'processando' ou sem número, sincroniza com a Focus NFe
-        if (tipo === 'nfe') {
+        // Se houver notas recentes (NF-e ou NFC-e) com status 'processando' ou sem número, sincroniza com a Focus NFe
+        if (tipo === 'nfe' || tipo === 'nfce') {
           const settings = await getFiscalSettingsSafe();
           if (settings?.apiToken) {
             const isProducao = settings.environment === 'producao';
@@ -1424,7 +1454,7 @@ export function createFiscalRouter() {
             for (const n of filtradas) {
               if ((n.status === 'processando' || !n.numero) && n.referencia) {
                 try {
-                  const checkRes = await fetch(`${baseURL}/v2/nfe/${encodeURIComponent(n.referencia)}?completa=1`, {
+                  const checkRes = await fetch(`${baseURL}/v2/${tipo}/${encodeURIComponent(n.referencia)}?completa=1`, {
                     headers: { 'Authorization': authHeader }
                   });
                   const checkData: any = await checkRes.json().catch(() => ({}));
@@ -1767,10 +1797,11 @@ export function createFiscalRouter() {
 
         // Tenta resolver a referência real no banco de dados local caso o usuário tenha passado o número ou chave
         let targetRef = searchTarget;
+        let localNota: any = null;
         try {
           const numInt = parseInt(searchTarget, 10);
           const padded9 = !isNaN(numInt) ? String(numInt).padStart(9, '0') : null;
-          const localNota = await (prisma as any).notaEmitida.findFirst({
+          localNota = await (prisma as any).notaEmitida.findFirst({
             where: {
               OR: [
                 { referencia: searchTarget },
@@ -2020,6 +2051,23 @@ export function createFiscalRouter() {
 
       const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
 
+      // Documento informado deve estar completo e com dígitos verificadores válidos (nunca descartar em silêncio)
+      const docError = getCpfCnpjError(cleanDestDoc);
+      if (docError) {
+        return res.status(400).json({ error: docError });
+      }
+
+      // NCM com 8 dígitos é obrigatório em cada item (nunca usar NCM genérico que não corresponde ao produto)
+      const itemSemNcm = items.find((i: any) => String(i.ncm || '').replace(/\D/g, '').length !== 8);
+      if (itemSemNcm) {
+        return res.status(400).json({ error: `O produto "${itemSemNcm.name || 'sem nome'}" está sem NCM válido (8 dígitos). Cadastre o NCM antes de emitir.` });
+      }
+
+      // SEFAZ exige identificação do consumidor em NFC-e a partir de R$ 10.000,00
+      if (!cleanDestDoc && totalItemsValue >= NFCE_LIMITE_SEM_IDENTIFICACAO) {
+        return res.status(400).json({ error: 'Para NFC-e a partir de R$ 10.000,00 a SEFAZ exige o CPF ou CNPJ do consumidor.' });
+      }
+
       const focusPayload: any = {
         cnpj_emitente: cleanCnpj,
         data_emissao: dataEmissao,
@@ -2032,8 +2080,7 @@ export function createFiscalRouter() {
         local_destino: '1', // 1 = Operação Interna
         serie: String(settings.serieNfce || '1'),
         itens: items.map((i: any, index: number) => {
-          const rawNcm = (i.ncm ? String(i.ncm).replace(/\D/g, '') : '');
-          const cleanNcm = rawNcm.length >= 8 ? rawNcm.slice(0, 8) : (rawNcm ? rawNcm.padEnd(8, '0') : '21069090');
+          const cleanNcm = String(i.ncm).replace(/\D/g, '');
           const cleanCfop = (i.cfop ? String(i.cfop).replace(/\D/g, '') : '') || '5102';
           const qty = Number(i.quantity) || 1;
           const price = Number(i.price) || 0;
@@ -2045,6 +2092,7 @@ export function createFiscalRouter() {
           const eanValido = eanClean.length >= 8 ? eanClean : '';
           const codigoInterno = String(i.code || '').trim();
           const codigoProduto = (eanValido || codigoInterno || String(index + 1)).slice(0, 60);
+          const cleanCest = sanitizeCest(i.cest);
 
           return {
             numero_item: String(index + 1),
@@ -2067,7 +2115,8 @@ export function createFiscalRouter() {
               ? (cleanCfop === '5405' ? '60' : '00')
               : (cleanCfop === '5405' ? '500' : '102'),
             pis_situacao_tributaria: '07',
-            cofins_situacao_tributaria: '07'
+            cofins_situacao_tributaria: '07',
+            ...(cleanCest ? { codigo_cest: cleanCest } : {})
           };
         }),
         formas_pagamento: [
@@ -2102,6 +2151,8 @@ export function createFiscalRouter() {
       console.log('[emit-nfce] Payload:', JSON.stringify(focusPayload, null, 2));
 
       const cleanToken = (settings.apiToken || '').trim();
+      const focusRoot = settings.environment === 'producao' ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
+      const focusAuthHeader = 'Basic ' + Buffer.from(cleanToken + ':').toString('base64');
       const focusRes = await fetch(focusUrl, {
         method: 'POST',
         headers: {
@@ -2144,8 +2195,7 @@ export function createFiscalRouter() {
         try {
           const NotaEmitida = (prisma as any).notaEmitida;
           
-          const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${settings.cnpj.replace(/\D/g, '')}</CNPJ></emit></infNFe></NFe>`;
-          secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
+          void archiveAuthorizedXml(focusRoot, focusAuthHeader, data.caminho_xml_nota_fiscal, data.chave_nfe || focusDataRef);
           
           const host = req.get('host');
           const protocol = req.protocol;
@@ -2161,7 +2211,7 @@ export function createFiscalRouter() {
                 dataEmissao: new Date().toISOString(),
                 valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
                 status: data.status,
-                xmlUrl: baseURL + '/' + data.ref + '.xml',
+                xmlUrl: data.caminho_xml_nota_fiscal || baseURL + '/' + data.ref + '.xml',
                 pdfUrl: danfeUrl
               }
             });
@@ -2197,8 +2247,7 @@ export function createFiscalRouter() {
           const authorizedDanfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(checkData.ref || data.ref)}`;
           try {
             const NotaEmitida = (prisma as any).notaEmitida;
-            const xmlToSave = `<?xml version="1.0" encoding="UTF-8"?><NFe><infNFe Id="${focusDataRef}"><emit><CNPJ>${cleanCnpj}</CNPJ></emit></infNFe></NFe>`;
-            secureArchiveXML('SAIDA', focusDataRef, xmlToSave);
+            void archiveAuthorizedXml(focusRoot, focusAuthHeader, checkData.caminho_xml_nota_fiscal, checkData.chave_nfe || focusDataRef);
             if (NotaEmitida) {
               await NotaEmitida.create({
                 data: {
@@ -2209,7 +2258,7 @@ export function createFiscalRouter() {
                   dataEmissao: new Date().toISOString(),
                   valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
                   status: checkData.status,
-                  xmlUrl: baseURL + '/' + checkData.ref + '.xml',
+                  xmlUrl: checkData.caminho_xml_nota_fiscal || baseURL + '/' + checkData.ref + '.xml',
                   pdfUrl: authorizedDanfeUrl
                 }
               });
@@ -2235,6 +2284,13 @@ export function createFiscalRouter() {
           return res.status(400).json({ error: `SEFAZ recusou a nota: ${errMsg}` });
         }
 
+        await persistNfeRecord({
+          referencia: data.ref || ref,
+          valorTotal: focusDataValor,
+          status: 'processando',
+          dataEmissao: new Date().toISOString()
+        });
+
         return res.json({
           success: true,
           status: checkData.status,
@@ -2244,7 +2300,12 @@ export function createFiscalRouter() {
         });
       }
 
-      res.json(data);
+      // Qualquer outro status (erro_autorizacao, denegado...) não é autorização: nunca responder como sucesso
+      console.error('[emit-nfce] Status inesperado da Focus NFe:', JSON.stringify(data, null, 2));
+      const errMsgFinal = Array.isArray(data.erros)
+        ? data.erros.map((e: any) => `${e.campo ? '[' + e.campo + '] ' : ''}${e.mensagem || e.codigo}`).join('\n')
+        : data.mensagem_sefaz || data.mensagem || `Status: ${data.status}`;
+      return res.status(400).json({ error: `SEFAZ não autorizou a nota: ${errMsgFinal}` });
     } catch (err: any) {
       console.error('[emit-nfce] Exceção:', err);
       res.status(500).json({ error: err.message || 'Erro ao conectar com API Fiscal.' });
@@ -2346,6 +2407,7 @@ export function createFiscalRouter() {
 
       if (currentData.status === 'autorizado') {
         const xmlUrl = currentData.caminho_xml_nota_fiscal || `${baseURL}/v2/nfe/${ref}.xml`;
+        void archiveAuthorizedXml(baseURL, authHeader, currentData.caminho_xml_nota_fiscal, currentData.chave_nfe || currentData.chave || ref);
         await persistNfeRecord({
           referencia: ref,
           chave: currentData.chave_nfe || currentData.chave,

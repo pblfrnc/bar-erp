@@ -1,6 +1,6 @@
 # 🧠 MEMÓRIA E CONTEXTO ARQUITETURAL DO BAR ERP PRO
-> **Data de Atualização:** 11 de Setembro de 2026  
-> **Versão Oficial do Sistema:** `v1.6.9`  
+> **Data de Atualização:** 15 de Outubro de 2026  
+> **Versão Oficial do Sistema:** `v1.8.0`  
 > **Status:** Produção Estável  
 > **Repositório:** [pblfrnc/bar-erp](https://github.com/pblfrnc/bar-erp)  
 > **Branch Principal:** `main`  
@@ -29,6 +29,7 @@
 - **Desktop Wrapper:** Electron com IPC seguro (`electron/main.cjs`, `electron/preload.cjs`).
 - **Provedor Fiscal:** Focus NFe API v2 (Emissão de NFC-e mod 65 e NF-e mod 55).
 - **CI/CD:** GitHub Actions que compila e gera o instalador `.exe` automaticamente em cada `push` na branch `main`.
+- **Versionamento Automático (desde v1.7.0):** o job `version` do workflow roda `scripts/get-next-version.cjs`, que compara a versão local com a última release do GitHub e incrementa o patch (`1.7.7 → 1.7.8`). A linha legada `1.6.9` saltou direto para `1.7.0`. O CI aplica `npm version` em `package.json`, `server/` e `client/` e registra tags perpétuas. `scripts/bump-version.cjs` faz o bump local (`npm run bump:minor` → saltos como `1.7.8 → 1.8.0`; o CI respeita a versão local quando ela é maior que a remota).
 
 ---
 
@@ -76,6 +77,20 @@
   - Homologação: `https://homologacao.focusnfe.com.br`
   - Produção: `https://api.focusnfe.com.br`
   - Rota de validação `/api/fiscal/validate-api` checa `/v2/empresas/:cnpj` e alerta se o token for de ambiente divergente (ex: token de homologação em ambiente de produção).
+- **Identificação do Consumidor na NFC-e (revisado em 15/10/2026):**
+  - **Opcional até R$ 9.999,99; obrigatória a partir de R$ 10.000,00** (`NFCE_LIMITE_SEM_IDENTIFICACAO`). Único fluxo de emissão: `ManualNfceView.tsx` → `POST /api/fiscal/emit-nfce`.
+  - CPF/CNPJ informado é validado (tamanho + dígitos verificadores módulo 11) **no client e no backend** — documento inválido bloqueia a emissão com mensagem clara (nunca é descartado em silêncio).
+  - Validadores compartilhados: `client/src/utils/fiscalDoc.ts` e `server/src/services/fiscalDoc.ts` (cópias idênticas — manter em sincronia). `EmitNfeView.tsx` (NF-e) também usa o utilitário do client.
+- **Retorno da Emissão de NFC-e (`emit-nfce`):** só `autorizado` é sucesso. `processando` é gravado em `NotaEmitida` (status `processando`) e o `/recent-notes?tipo=nfce` sincroniza com a Focus depois; a tela avisa para NÃO reemitir. Qualquer outro status (`erro_autorizacao`, `denegado`) retorna 400. CEST é enviado (`codigo_cest`) via `sanitizeCest` (7 dígitos) — mesmo helper da NF-e.
+- **NCM obrigatório na NFC-e:** item sem NCM de 8 dígitos bloqueia a emissão (client e backend — não existe mais NCM padrão `22030000`/`21069090`). Na tela, abre modal "Produto sem NCM" que salva o NCM no cadastro (`PUT /products/:id` parcial) e emite em seguida; a tabela mostra badge "NCM pendente".
+- **Cofre de XML de SAÍDA:** `archiveAuthorizedXml()` (`fiscal.ts`) baixa o XML autorizado real (`caminho_xml_nota_fiscal`) da Focus e grava em `xml_vault/AAAA/MM/SAIDA/<chave>.xml` — para NFC-e e NF-e. Nunca bloqueia a venda se o download falhar.
+- **Auto-reparo da NF-e nº 1 série 2 (v1.7.1):** só roda quando o CNPJ configurado é `36275163000124`.
+- **`persistNfeRecord` (`nfeService.ts`)** aceita `dataEmissao` (antes ignorava e gravava a data de hoje em notas recuperadas).
+- **IBS / CBS (Reforma Tributária) — NÃO IMPLEMENTADO (status em 15/10/2026):**
+  - Payload da NFC-e/NF-e hoje não envia nenhum campo de IBS/CBS/IS.
+  - Simples Nacional (CRT 1): grupo IBS/CBS opcional em 2026; obrigatoriedade prevista para jan/2027 (confirmar data na NT 2025.002-RTC vigente).
+  - Campos Focus por item: `ibs_cbs_situacao_tributaria` (CST, 3 dígitos), `ibs_cbs_classificacao_tributaria` (cClassTrib, 6 dígitos), `ibs_cbs_base_calculo`, `ibs_uf_aliquota`/`ibs_uf_valor`, `ibs_mun_aliquota`/`ibs_mun_valor`, `ibs_valor_total`, `cbs_aliquota`/`cbs_valor`. Totais: `ibs_cbs_base_calculo`, `ibs_valor_total`, `ibs_uf_valor_total`, `ibs_mun_valor_total`, `cbs_valor_total`, `ibs_cbs_is_valor_total` (vNFTot). Referência: https://campos.focusnfe.com.br/nfe/NotaFiscalXML.html
+  - Alíquotas de teste 2026: CBS 0,9% + IBS 0,1% (sem recolhimento efetivo).
 - **Monitor da SEFA PA:**
   - Diagnóstico inteligente com teste de rota específica por UF (`/v2/nfce/status?uf=PA`), detecção de conexão e token Focus NFe.
 
@@ -231,6 +246,41 @@
      - Impossibilita ataques de dicionário e rainbow tables.
      - Compatibilidade retroativa transparente preservada para acessos legados.
 
+---
 
+## 14. 🧾 EMISSÃO DE NF-e (MODELO 55) — DESTINATÁRIO
+- **Tela:** `client/src/views/EmitNfeView.tsx` → `POST /api/fiscal/emit-nfe` (`server/src/services/nfeService.ts`).
+- **CPF/CNPJ do destinatário** validado matematicamente (módulo 11) e com busca automática de dados na Receita Federal (CNPJ).
+- **Endereço obrigatório** (CEP, logradouro, número, bairro, município, UF) com auto-preenchimento via Receita e ViaCEP.
+- `tipo_documento` = saída; CEST sanitizado para 7 dígitos.
+- **Reimpressão e Cancelamento** (`NfeReprintView.tsx`, `NfeCancelView.tsx`): busca direta por número + série, com auto-recuperação de notas antigas para reimpressão/cancelamento.
 
+---
+
+## 15. 📥 NOTAS PENDENTES DF-e & IMPORTAÇÃO DE XML
+- **Módulo de Notas Pendentes** (`client/src/views/PendingInvoicesView.tsx`, exibido abaixo do 2º Bip no `FiscalHubView`): ciclo de status das notas destinadas pela SEFAZ e indicadores de XML disponível/pendente. Card mostra o valor total da NF-e; PDF oficial da Focus é entregue sem redirecionar.
+- **Auto-cura (v1.7.4):** notas já importadas como finalizadas são reconhecidas e não reaparecem como pendentes (`nfeRecebidasScheduler.ts`).
+- **Precificação Inteligente por Margem** (`FiscalImportView.tsx`): ao importar o XML, sugere preço de venda pela margem configurada, grava `PriceHistory` (custo/venda antigo × novo) e projeta lucro previsto do estoque no SPED.
+- **Painel do Contador** (`AccountantPanelView.tsx`): caixa de seleção para incluir ou não o estoque no SPED; notas de entrada contabilizadas no fechamento mensal.
+
+---
+
+## 16. 📦 FATOR DE CONVERSÃO, FRACIONAMENTO & FICHA TÉCNICA (v1.7.5 → v1.7.8)
+- **Na Importação do XML** (`FiscalImportView.tsx`): detecção automática de embalagens (caixa com 12/24 un, pacote/maço de cigarro) e de itens em peso (ex: batata 5kg → rendimento em porções). Modos: `Caixa / Embalagem` e `Rendimento de Porções`, com presets e campo livre.
+  - Custo unitário efetivo = `custo do XML ÷ fator`; estoque recebe `quantidade × fator` unidades/porções.
+  - Se o produto já tem `hasBoxPrice`, o fator é pré-carregado da quantidade da caixa e o `boxPrice` é atualizado (`preço sugerido × fator`).
+- **Na Edição do Produto** (`ProductsView.tsx`): fator de conversão e fracionamento para corrigir entradas lançadas erradas. Campos do schema: `hasBoxPrice`, `boxPrice`, `boxCostPrice`, `costPrice`.
+- **Ficha Técnica (v1.7.8):** campo de quantidade aprimorado e **prevenção de insumos duplicados** — ao selecionar um insumo que já existe em outra linha, as quantidades são somadas e a linha duplicada é removida.
+
+---
+
+## 17. 🔐 LICENÇAS — EVOLUÇÕES POSTERIORES À v1.6.9
+- **Turso Cloud (libSQL) no dev-panel** (`dev-panel/server/db.ts`): se `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` estiverem definidos, usa o banco na nuvem (persistência permanente no Render, cujo disco é efêmero); senão cai para SQLite local via `file://`.
+- **Bloqueio Estrito** (`client/src/App.tsx` + `server/src/routes/settings.ts`): licença expirada ou bloqueada força a tela de ativação, com checagem periódica (não dá para contornar navegando).
+- Seletor de servidor de licenças no modal de ativação; URL oficial do Render como padrão.
+
+---
+
+## 18. 🎨 IDENTIDADE VISUAL
+- Ícones oficiais do Windows (`.exe`) e Android (APKs Garçom/Cozinha) usam o ícone **Beer** do Lucide sobre fundo **âmbar** (cor primária do app).
 
