@@ -522,6 +522,15 @@ export const api = {
       method: 'DELETE'
     }).then(handleResponse<{ success: boolean; message: string }>),
 
+  // Imprime o recibo da mesa na impressora do computador do caixa (pedido feito pelo celular).
+  // Sem retry automático: repetir a requisição poderia imprimir o recibo em duplicidade.
+  printReceiptOnCashier: (orderId: string, requestedBy?: string): Promise<{ ok: boolean }> =>
+    fetch(`${getApiUrl()}/orders/${orderId}/print-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestedBy })
+    }).then(handleResponse<{ ok: boolean }>),
+
   // Dados públicos do estabelecimento (cabeçalho de comprovantes não fiscais)
   getEstablishment: (): Promise<EstablishmentInfo> =>
     fetchWithRetry(`${getApiUrl()}/fiscal/establishment`).then(handleResponse<EstablishmentInfo>),

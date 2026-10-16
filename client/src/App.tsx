@@ -24,7 +24,7 @@ import { UpdateNotificationModal, UpdateInfo } from './components/UpdateNotifica
 
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
-import { PRINT_RECEIPT_EVENT, triggerPrint } from './services/printService';
+import { PRINT_RECEIPT_EVENT, triggerPrint, isPrintStation, printOrderReceipt } from './services/printService';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
 import { ManageWaitersModal } from './components/ManageWaitersModal';
 import { ManageStaffModal } from './components/ManageStaffModal';
@@ -217,6 +217,32 @@ export function App() {
     };
     window.addEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
     return () => window.removeEventListener(PRINT_RECEIPT_EVENT, handlePrintReceipt);
+  }, []);
+
+  // Estação de impressão: o computador do caixa (Electron) imprime os recibos de mesa pedidos pelo celular
+  const printBlockedRef = React.useRef(false);
+  useEffect(() => {
+    if (!isPrintStation()) return;
+    const register = () => socket.emit('print-station:register');
+    const onRemoteReceipt = (payload: { order?: Order }, ack?: (res: { ok: boolean; error?: string }) => void) => {
+      if (printBlockedRef.current) {
+        ack?.({ ok: false, error: 'A licença do BarERP no computador do caixa está bloqueada ou expirada.' });
+        return;
+      }
+      if (!payload?.order) {
+        ack?.({ ok: false, error: 'Pedido inválido para impressão.' });
+        return;
+      }
+      printOrderReceipt(payload.order);
+      ack?.({ ok: true });
+    };
+    if (socket.connected) register();
+    socket.on('connect', register);
+    socket.on('print:receipt', onRemoteReceipt);
+    return () => {
+      socket.off('connect', register);
+      socket.off('print:receipt', onRemoteReceipt);
+    };
   }, []);
 
   // Tema: Light ou Dark
@@ -414,6 +440,7 @@ export function App() {
 
   // BLOQUEIO TOTAL E FORÇADO: Se a licença não estiver ativa, ou estiver expirada / bloqueada, trava tudo na tela de ativação
   const isBlockedOrExpired = isLicensed === false || licenseStatus === 'BLOCKED' || licenseStatus === 'EXPIRED' || licenseStatus === 'UNLICENSED' || licenseStatus === 'INVALID';
+  printBlockedRef.current = isBlockedOrExpired;
 
   if (isBlockedOrExpired) {
     return (
@@ -428,7 +455,13 @@ export function App() {
 
   // Tela de Login obrigatória no modo computador / gestão
   if (appMode === 'admin' && !currentUser) {
-    return <LoginScreen onLoginSuccess={(u) => setCurrentUser(u)} />;
+    return (
+      <>
+        {/* Mantém o recibo montado: o caixa imprime recibos pedidos pelo celular mesmo na tela de login */}
+        <ThermalReceipt order={printOrder} />
+        <LoginScreen onLoginSuccess={(u) => setCurrentUser(u)} />
+      </>
+    );
   }
 
   if (appMode === 'waiter') {

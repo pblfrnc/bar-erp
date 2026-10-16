@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Table, Order, PaymentMethod, OrderItem } from '../types';
 import { api } from '../services/api';
-import { printOrderReceipt } from '../services/printService';
+import { printOrderReceipt, printButtonLabel } from '../services/printService';
 import {
   X,
   Printer,
@@ -254,10 +254,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <button
               onClick={handlePrint}
               className="p-2 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-              title="Imprimir conferência 80mm"
+              title={printButtonLabel()}
             >
               <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Imprimir (80mm)</span>
+              <span className="hidden sm:inline">{printButtonLabel()}</span>
             </button>
 
             <button

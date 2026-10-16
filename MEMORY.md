@@ -1,6 +1,6 @@
 # 🧠 MEMÓRIA E CONTEXTO ARQUITETURAL DO BAR ERP PRO
 > **Data de Atualização:** 15 de Outubro de 2026  
-> **Versão Oficial do Sistema:** `v1.8.1`  
+> **Versão Oficial do Sistema:** `v1.8.2`  
 > **Status:** Produção Estável  
 > **Repositório:** [pblfrnc/bar-erp](https://github.com/pblfrnc/bar-erp)  
 > **Branch Principal:** `main`  
@@ -60,6 +60,12 @@
 - **Para imprimir:** chamar `printOrderReceipt(order)` (`client/src/services/printService.ts`), que dispara o evento `barerp:print-receipt`. O App define o pedido e chama `triggerPrint()` depois de 300ms. Nunca chamar `printSilent()`/`window.print()` direto para comprovante: imprimiria o pedido que estiver no estado do App.
 - **Cabeçalho:** dados reais via `GET /api/fiscal/establishment` (Nome Fantasia, Razão Social, CNPJ, endereço — sem token/CSC), com cache em `localStorage` (`bar_erp_establishment`).
 - **Layout:** nome do item em linha própria e "qtd x unitário ... total" abaixo; `@page` com a largura da bobina e escala de fonte de `bar_erp_printer_settings`. No CSS de impressão, só a raiz do cupom recebe `display: block` (forçar nos filhos quebra o alinhamento).
+
+### A3. Impressão do Recibo pelo Celular (Garçom → Impressora do Caixa)
+- No celular/navegador, `printOrderReceipt(order)` chama `POST /api/orders/:id/print-receipt`. No Electron imprime localmente.
+- O servidor envia `print:receipt` (com o pedido completo) para **uma única** estação da sala Socket.IO `print-stations` (a conectada há mais tempo) e aguarda o ack por 8s (`emitWithAck`). Respostas: 409 sem PC conectado, 502 se o PC recusou (licença bloqueada), 504 sem resposta.
+- O PC (Electron) entra na sala com `print-station:register` ao conectar/reconectar (`App.tsx`) e imprime pelo mesmo `ThermalReceipt` + `printSilent` (impressora do caixa — a mesma da NFC-e). O recibo fica montado também na tela de login.
+- Sem retry automático no POST (evita recibo duplicado); toques repetidos no botão são ignorados enquanto o envio está pendente.
 
 ### B. NF-e (Modelo 55 — Nota Fiscal Grande em Folha A4)
 - **Destino:** Impressora comum de escritório (Laser / Jato de Tinta) ou "Salvar como PDF".

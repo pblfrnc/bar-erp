@@ -1,7 +1,7 @@
 import React from 'react';
 import { Table, OrderItem } from '../types';
 import { api } from '../services/api';
-import { printOrderReceipt } from '../services/printService';
+import { printOrderReceipt, printButtonLabel } from '../services/printService';
 import {
   X,
   Plus,
@@ -231,7 +231,7 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition whitespace-nowrap active:scale-95 cursor-pointer"
           >
             <Printer className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-            Imprimir 80mm
+            {printButtonLabel()}
           </button>
         </div>
 

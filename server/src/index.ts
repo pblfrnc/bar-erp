@@ -28,6 +28,7 @@ import { setupNfeAutoSyncScheduler } from './services/nfeRecebidasScheduler.js';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { PRINT_STATIONS_ROOM } from './printStations.js';
 
 
 const app = express();
@@ -101,6 +102,12 @@ io.on('connection', (socket) => {
 
   console.log(`⚡ Dispositivo conectado (${clientType}): ${socket.id} (IP: ${ip})`);
   io.emit('devices_updated', Array.from(activeDevices.values()));
+
+  // Computadores do caixa (Electron) se registram como estação de impressão dos recibos pedidos pelo celular
+  socket.on('print-station:register', () => {
+    socket.join(PRINT_STATIONS_ROOM);
+    console.log(`🖨️ Estação de impressão registrada: ${socket.id} (IP: ${ip})`);
+  });
 
   socket.on('disconnect', (reason) => {
     activeDevices.delete(socket.id);

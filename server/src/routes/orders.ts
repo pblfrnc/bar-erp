@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../prisma.js';
+import { PRINT_STATIONS_ROOM } from '../printStations.js';
 
 export function createOrdersRouter(io: SocketIOServer) {
   const router = Router();
@@ -280,6 +281,48 @@ export function createOrdersRouter(io: SocketIOServer) {
   });
 
   // Buscar comanda por ID
+  // Imprimir recibo da mesa a partir do celular: envia o pedido para o computador do caixa (Electron),
+  // que imprime na mesma impressora térmica das NFC-e e dos pedidos, e aguarda a confirmação
+  router.post('/:id/print-receipt', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          table: true,
+          items: { include: { product: true }, orderBy: { addedAt: 'asc' } },
+          payments: { orderBy: { receivedAt: 'asc' } }
+        }
+      });
+      if (!order) {
+        return res.status(404).json({ error: 'Comanda não encontrada' });
+      }
+
+      const stations = await io.in(PRINT_STATIONS_ROOM).fetchSockets();
+      if (stations.length === 0) {
+        return res.status(409).json({ error: 'Nenhum computador do caixa conectado para imprimir. Verifique se o BarERP está aberto no PC.' });
+      }
+
+      // Envia para uma única estação (a conectada há mais tempo) para não imprimir em duplicidade
+      const requestedBy = req.body?.requestedBy ? String(req.body.requestedBy).slice(0, 60) : undefined;
+      const acks = await io.to(stations[0].id).timeout(8000).emitWithAck('print:receipt', { order, requestedBy });
+      const ack: any = acks[0];
+      if (!ack?.ok) {
+        return res.status(502).json({ error: ack?.error || 'O computador do caixa não conseguiu imprimir o recibo.' });
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Erro ao enviar recibo para impressão:', error);
+      const timedOut = String(error?.message || '').includes('timed out');
+      res.status(timedOut ? 504 : 500).json({
+        error: timedOut
+          ? 'O computador do caixa não respondeu. Verifique se o BarERP está aberto e logado no PC.'
+          : 'Erro ao enviar recibo para impressão.'
+      });
+    }
+  });
+
   router.get('/:id', async (req, res) => {
     try {
       const { id } = req.params;
