@@ -20,6 +20,7 @@ export interface MenuProduct {
   description: string | null;
   price: number;
   soldOut: boolean;
+  image: string | null; // caminho no próprio site (/api/menu/<loja>/img/<hash>)
   box: { quantity: number; price: number } | null;
   groups: MenuGroup[];
 }
@@ -28,6 +29,7 @@ export interface MenuCategory {
   id: string;
   name: string;
   icon: string | null;
+  kind?: 'food' | 'drink'; // comidas vêm antes e com mais destaque (cardápios antigos não têm)
 }
 
 export interface PublishedMenu {

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, QrCode, Send, Printer } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, ListChecks, Loader2, QrCode, Send, Printer } from 'lucide-react';
 import { api } from '../services/api';
 import { Category, DigitalMenuStatus } from '../types';
 import { buildTableQrSheetHtml, exportTableQrSheet } from '../utils/tableQrSheet';
+import { DigitalMenuItemsModal } from './DigitalMenuItemsModal';
 
 const formatDateTime = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca';
@@ -39,6 +40,7 @@ export const DigitalMenuCard: React.FC = () => {
   const [qrPreview, setQrPreview] = useState('');
   const [busy, setBusy] = useState<'save' | 'publish' | 'qr' | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [showItems, setShowItems] = useState(false);
 
   const electron = (window as any).electronAPI;
 
@@ -236,6 +238,23 @@ export const DigitalMenuCard: React.FC = () => {
       <div className="space-y-3">
         <Switch checked={enabled} onChange={() => setEnabled((v) => !v)} label="Publicar o cardápio na internet" />
 
+        <button
+          type="button"
+          onClick={() => setShowItems(true)}
+          className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-left transition cursor-pointer"
+        >
+          <span className="flex items-center gap-3">
+            <ListChecks className="w-5 h-5 text-amber-500 shrink-0" />
+            <span>
+              <span className="block text-sm font-bold text-slate-900 dark:text-white">Escolher itens, fotos e descrições</span>
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                Marque o que aparece no cardápio e adicione foto e descrição a cada produto.
+              </span>
+            </span>
+          </span>
+          <span className="text-xs font-black text-amber-700 dark:text-amber-400 shrink-0">Abrir</span>
+        </button>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block space-y-1">
             <span className="block text-xs font-bold text-slate-600 dark:text-slate-300">Nome no cardápio</span>
@@ -346,6 +365,8 @@ export const DigitalMenuCard: React.FC = () => {
           {busy === 'save' ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
+
+      {showItems && <DigitalMenuItemsModal onClose={() => setShowItems(false)} />}
     </div>
   );
 };

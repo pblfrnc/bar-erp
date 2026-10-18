@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
+import { createHash } from 'crypto';
 import { prisma } from '../prisma.js';
 import { lookupEanCatalog, getNextSequentialCode } from '../services/catalogService.js';
 import { isBarProduct } from './importXml.js';
@@ -6,6 +7,15 @@ import { isPromotionActiveAt } from '../services/pricing.js';
 import { scheduleMenuPublish } from '../services/digitalMenu.js';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+// Confere o tipo pela assinatura do arquivo (não confia no Content-Type)
+function detectImageMime(buf: Buffer): string | null {
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
 
 // Valida e normaliza o corpo de um grupo de adicionais; devolve mensagem de erro ou os dados
 function parseModifierGroupBody(body: any) {
@@ -76,6 +86,71 @@ export function createProductsRouter() {
       });
     }
     next();
+  });
+
+  // Cardápio digital: define quais produtos aparecem ({ show: [ids], hide: [ids] })
+  router.put('/menu-visibility', async (req, res) => {
+    try {
+      const show = Array.isArray(req.body?.show) ? req.body.show.map(String) : [];
+      const hide = Array.isArray(req.body?.hide) ? req.body.hide.map(String) : [];
+      await prisma.$transaction([
+        prisma.product.updateMany({ where: { id: { in: show } }, data: { showInMenu: true } }),
+        prisma.product.updateMany({ where: { id: { in: hide } }, data: { showInMenu: false } })
+      ]);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao salvar itens do cardápio:', error);
+      res.status(500).json({ error: 'Erro ao salvar os itens do cardápio digital' });
+    }
+  });
+
+  // Foto do produto (cardápio digital)
+  router.get('/:id/image', async (req, res) => {
+    try {
+      const image = await prisma.productImage.findUnique({ where: { productId: req.params.id } });
+      if (!image) return res.status(404).json({ error: 'Produto sem foto' });
+      res.setHeader('Content-Type', image.mimeType);
+      // A URL leva ?v=<hash>, então pode ficar em cache; o helmet bloquearia <img> de outra origem
+      res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.send(Buffer.from(image.data));
+    } catch (error) {
+      console.error('Erro ao ler foto do produto:', error);
+      res.status(500).json({ error: 'Erro ao ler a foto do produto' });
+    }
+  });
+
+  router.put('/:id/image', express.raw({ type: 'image/*', limit: MAX_IMAGE_BYTES }), async (req, res) => {
+    try {
+      const data = Buffer.isBuffer(req.body) ? req.body : null;
+      if (!data || data.length === 0) return res.status(400).json({ error: 'Envie a foto (JPEG, PNG ou WebP).' });
+      const mimeType = detectImageMime(data);
+      if (!mimeType) return res.status(400).json({ error: 'Formato de imagem não suportado. Use JPEG, PNG ou WebP.' });
+
+      const product = await prisma.product.findUnique({ where: { id: req.params.id }, select: { id: true } });
+      if (!product) return res.status(404).json({ error: 'Produto não encontrado' });
+
+      const hash = createHash('sha256').update(data).digest('hex').slice(0, 32);
+      await prisma.productImage.upsert({
+        where: { productId: product.id },
+        update: { data, mimeType, hash },
+        create: { productId: product.id, data, mimeType, hash }
+      });
+      res.json({ imageHash: hash });
+    } catch (error) {
+      console.error('Erro ao salvar foto do produto:', error);
+      res.status(500).json({ error: 'Erro ao salvar a foto do produto' });
+    }
+  });
+
+  router.delete('/:id/image', async (req, res) => {
+    try {
+      await prisma.productImage.deleteMany({ where: { productId: req.params.id } });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao remover foto do produto:', error);
+      res.status(500).json({ error: 'Erro ao remover a foto do produto' });
+    }
   });
 
   // Reorganizar produtos entre Bar (volume em ml) e Cozinha sob demanda
@@ -258,7 +333,11 @@ export function createProductsRouter() {
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }]
       });
 
-      res.json(products);
+      // Só o hash da foto (a imagem é servida por /:id/image?v=<hash>)
+      const images = await prisma.productImage.findMany({ select: { productId: true, hash: true } });
+      const imageHashes = new Map(images.map((i) => [i.productId, i.hash]));
+
+      res.json(products.map((p) => ({ ...p, imageHash: imageHashes.get(p.id) || null })));
     } catch (error) {
       console.error('Erro ao listar produtos:', error);
       res.status(500).json({ error: 'Erro ao listar produtos' });
@@ -331,6 +410,7 @@ export function createProductsRouter() {
           kdsStation: kdsStation || 'BAR',
           stock: stock !== undefined ? Number(stock) : 100,
           minStock: minStock !== undefined ? Number(minStock) : 10,
+          showInMenu: req.body.showInMenu !== false,
           ...(components && Array.isArray(components) && components.length > 0 ? {
             components: {
               create: components.map((c: any) => ({
@@ -441,6 +521,7 @@ export function createProductsRouter() {
       if (stock !== undefined) dataToUpdate.stock = Number(stock);
       if (minStock !== undefined) dataToUpdate.minStock = Number(minStock);
       if (isActive !== undefined) dataToUpdate.isActive = Boolean(isActive);
+      if (req.body.showInMenu !== undefined) dataToUpdate.showInMenu = Boolean(req.body.showInMenu);
 
       if (components && Array.isArray(components)) {
         dataToUpdate.components = {
@@ -923,6 +1004,7 @@ export function createProductsRouter() {
       }
 
       await prisma.productModifierGroup.deleteMany({ where: { productId: id } });
+      await prisma.productImage.deleteMany({ where: { productId: id } });
 
       // Excluir pedidos históricos com este produto e o produto em si
       await prisma.orderItem.deleteMany({

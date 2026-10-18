@@ -51,7 +51,9 @@ app.use(helmet({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 500, // Limite de 500 requests por IP a cada 15 min
-  message: { error: "Muitas requisições deste IP, tente novamente mais tarde." }
+  message: { error: "Muitas requisições deste IP, tente novamente mais tarde." },
+  // Fotos dos produtos: cada miniatura na lista seria uma requisição
+  skip: (req) => req.method === 'GET' && /^\/products\/[^/]+\/image$/.test(req.path)
 });
 app.use("/api", limiter);
 

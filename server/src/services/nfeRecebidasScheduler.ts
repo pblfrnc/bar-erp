@@ -129,18 +129,40 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
     `);
 
     // 3. Consultar notas recebidas na Focus NFe
-    const queryParams = cleanCnpj ? `?cnpj_destinatario=${cleanCnpj}` : '';
-    const focusRes = await fetch(`${baseURL}/v2/nfes_recebidas${queryParams}`, {
-      headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
-    });
+    // A Focus devolve no máximo 100 notas por requisição; as demais são obtidas
+    // repetindo a consulta com versao = X-Max-Version da página anterior.
+    // Sem isso, depois das 100 primeiras notas do CNPJ nenhuma nota nova entrava.
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 100;
+    const notasFocus: any[] = [];
+    let versao = 0;
 
-    if (!focusRes.ok) {
-      return { added: 0, updatedWithXml: 0 };
-    }
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const params = new URLSearchParams();
+      if (cleanCnpj) params.set('cnpj', cleanCnpj);
+      if (versao > 0) params.set('versao', String(versao));
+      const qs = params.toString();
 
-    const notasFocus = await focusRes.json().catch(() => null);
-    if (!Array.isArray(notasFocus)) {
-      return { added: 0, updatedWithXml: 0 };
+      const focusRes = await fetch(`${baseURL}/v2/nfes_recebidas${qs ? `?${qs}` : ''}`, {
+        headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
+      });
+
+      if (!focusRes.ok) {
+        const body = await focusRes.text().catch(() => '');
+        console.warn(`[NfeRecebidasScheduler] Focus NFe respondeu ${focusRes.status} ao listar notas recebidas (versao=${versao}): ${body.slice(0, 300)}`);
+        break;
+      }
+
+      const pagina = await focusRes.json().catch(() => null);
+      if (!Array.isArray(pagina) || pagina.length === 0) break;
+      notasFocus.push(...pagina);
+
+      const headerMax = parseInt(focusRes.headers.get('X-Max-Version') || '', 10);
+      const itemsMax = pagina.reduce((max: number, n: any) => Math.max(max, parseInt(n?.versao, 10) || 0), 0);
+      const nextVersao = Number.isFinite(headerMax) && headerMax > 0 ? headerMax : itemsMax;
+
+      if (pagina.length < PAGE_SIZE || nextVersao <= versao) break;
+      versao = nextVersao;
     }
 
     for (const item of notasFocus) {
@@ -220,7 +242,7 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
         added++;
 
         // Manifesta ciência automaticamente se ainda não tiver manifesto
-        if (!item.manifesto) {
+        if (!item.manifestacao_destinatario) {
           fetch(`${baseURL}/v2/nfes_recebidas/${chaveClean}/manifesto`, {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': authHeader },
@@ -231,7 +253,24 @@ export async function runNfeRecebidasSync(): Promise<{ added: number; updatedWit
         // Se a nota já estava cadastrada mas ainda sem XML completo
         const cur = existing[0];
         const hasFullXml = cur.xmlContent && (cur.xmlContent.includes('<nfeProc') || cur.xmlContent.includes('<NFe'));
-        
+
+        // Corrige notas gravadas com valor zerado (ex.: criadas pela importação sem o vNF)
+        if (hasFullXml && !(Number(cur.valorTotal) > 0)) {
+          let valorCorrigido = valorTotal;
+          try {
+            const jsonObj = parser.parse(cur.xmlContent);
+            const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
+            const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || '0');
+            if (xmlVal > 0) valorCorrigido = xmlVal;
+          } catch (_) {}
+          if (valorCorrigido > 0) {
+            await prisma.$executeRawUnsafe(
+              'UPDATE "NotaRecebida" SET "valorTotal" = ? WHERE "chave" = ?',
+              valorCorrigido, chaveClean
+            ).catch(() => {});
+          }
+        }
+
         if (!hasFullXml) {
           // Tenta baixar o XML agora que a SEFAZ pode ter liberado
           const result = await fetchNfeRecebidaXmlDirect(baseURL, authHeader, chaveClean);

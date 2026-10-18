@@ -9,6 +9,7 @@ import { prisma } from '../prisma.js';
 export const DEFAULT_MENU_SITE_URL = 'https://cardapio-barerp.netlify.app';
 
 const SCHEDULE_INTERVAL_MS = 5 * 60 * 1000;
+const IMAGE_UPLOAD_TIMEOUT_MS = 30 * 1000;
 const DEBOUNCE_MS = 8 * 1000;
 const REQUEST_TIMEOUT_MS = 15 * 1000;
 // https obrigatório; http só no próprio computador (testes)
@@ -66,7 +67,7 @@ export async function buildMenu(row: SettingsRow) {
   const [categories, products, promotions] = await Promise.all([
     prisma.category.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
     prisma.product.findMany({
-      where: { isActive: true, price: { gt: 0 } },
+      where: { isActive: true, showInMenu: true, price: { gt: 0 } },
       orderBy: { name: 'asc' },
       include: {
         modifierGroups: {
@@ -77,6 +78,8 @@ export async function buildMenu(row: SettingsRow) {
     }),
     prisma.promotion.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } })
   ]);
+  const images = await prisma.productImage.findMany({ select: { productId: true, hash: true } });
+  const imageHashes = new Map(images.map((i) => [i.productId, i.hash]));
 
   const menuProducts = products
     .filter((p) => !hidden.has(p.categoryId))
@@ -87,10 +90,9 @@ export async function buildMenu(row: SettingsRow) {
       description: p.description?.trim() || null,
       price: p.price,
       soldOut: p.trackStock && p.stock <= 0,
-      box:
-        p.hasBoxPrice && (p.boxPrice || 0) > 0 && (p.boxQuantity || 0) > 0
-          ? { quantity: p.boxQuantity as number, price: p.boxPrice as number }
-          : null,
+      image: imageHashes.has(p.id) ? `/api/menu/${row.storeId}/img/${imageHashes.get(p.id)}` : null,
+      kitchen: p.kdsStation === 'KITCHEN',
+      box: menuBox(p),
       groups: p.modifierGroups
         .map((link) => link.group)
         .filter((g) => g.isActive && g.options.length > 0)
@@ -103,7 +105,18 @@ export async function buildMenu(row: SettingsRow) {
     }))
     .filter((p) => !(row.hideSoldOut && p.soldOut));
 
-  const usedCategories = new Set(menuProducts.map((p) => p.categoryId));
+  // Categoria é "comida" quando a maioria dos itens sai na cozinha; comidas vêm antes das bebidas no site
+  const kitchenCount = new Map<string, { kitchen: number; total: number }>();
+  for (const p of menuProducts) {
+    const c = kitchenCount.get(p.categoryId) || { kitchen: 0, total: 0 };
+    c.total++;
+    if (p.kitchen) c.kitchen++;
+    kitchenCount.set(p.categoryId, c);
+  }
+  const kindOf = (categoryId: string): 'food' | 'drink' => {
+    const c = kitchenCount.get(categoryId);
+    return c && c.kitchen * 2 > c.total ? 'food' : 'drink';
+  };
 
   return {
     version: 1,
@@ -114,9 +127,11 @@ export async function buildMenu(row: SettingsRow) {
       timezoneOffset: new Date().getTimezoneOffset()
     },
     categories: categories
-      .filter((c) => usedCategories.has(c.id))
-      .map((c) => ({ id: c.id, name: c.name, icon: c.icon || null })),
-    products: menuProducts,
+      .filter((c) => kitchenCount.has(c.id))
+      .map((c) => ({ id: c.id, name: c.name, icon: c.icon || null, kind: kindOf(c.id) }))
+      // sort estável: mantém a ordem do cadastro dentro de cada grupo
+      .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'food' ? -1 : 1)),
+    products: menuProducts.map(({ kitchen, ...p }) => p),
     promotions: promotions.map((p) => ({
       id: p.id,
       name: p.name,
@@ -130,6 +145,54 @@ export async function buildMenu(row: SettingsRow) {
       categoryIds: p.categoryIds
     }))
   };
+}
+
+// Caixa fechada só aparece com preço acima do custo (preço de caixa igual ao custo é engano no cadastro/importação)
+function menuBox(p: { hasBoxPrice: boolean; boxPrice: number | null; boxQuantity: number | null; boxCostPrice: number | null; costPrice: number | null }) {
+  const quantity = p.boxQuantity || 0;
+  const price = p.boxPrice || 0;
+  if (!p.hasBoxPrice || price <= 0 || quantity <= 0) return null;
+  const boxCost = p.boxCostPrice || (p.costPrice ? p.costPrice * quantity : 0);
+  if (boxCost > 0 && price <= boxCost + 0.005) return null;
+  return { quantity, price };
+}
+
+// Envia ao site as fotos que mudaram desde a última publicação. Devolve os produtos cuja foto não subiu.
+async function syncImages(row: SettingsRow, productIds: string[]): Promise<Set<string>> {
+  const failed = new Set<string>();
+  const pending = await prisma.productImage.findMany({
+    where: { productId: { in: productIds } },
+    select: { productId: true, hash: true, publishedHash: true }
+  });
+  for (const img of pending.filter((i) => i.hash !== i.publishedHash)) {
+    try {
+      const full = await prisma.productImage.findUnique({ where: { productId: img.productId } });
+      if (!full) continue;
+      const res = await fetch(`${effectiveSiteUrl(row)}/api/menu/${row.storeId}/img/${img.hash}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${row.publishSecret}`, 'Content-Type': full.mimeType },
+        body: Buffer.from(full.data),
+        signal: AbortSignal.timeout(IMAGE_UPLOAD_TIMEOUT_MS)
+      });
+      if (!res.ok) {
+        const data: any = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      await prisma.productImage.update({ where: { productId: img.productId }, data: { publishedHash: img.hash } });
+      // A foto antiga não é mais usada (best effort)
+      if (img.publishedHash) {
+        fetch(`${effectiveSiteUrl(row)}/api/menu/${row.storeId}/img/${img.publishedHash}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${row.publishSecret}` },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+        }).catch(() => {});
+      }
+    } catch (err: any) {
+      console.warn(`[Cardápio digital] Foto do produto ${img.productId} não foi enviada:`, friendlyError(err));
+      failed.add(img.productId);
+    }
+  }
+  return failed;
 }
 
 async function callSite(row: SettingsRow, method: 'PUT' | 'DELETE', body?: string) {
@@ -163,6 +226,8 @@ async function doPublish(force: boolean) {
       where: { id: 'default' },
       data: { storeId: randomBytes(10).toString('hex'), publishSecret: randomBytes(32).toString('hex'), lastHash: null }
     });
+    // Loja nova: as fotos precisam subir de novo
+    await prisma.productImage.updateMany({ data: { publishedHash: null } });
   }
 
   const menu = await buildMenu(row);
@@ -170,10 +235,13 @@ async function doPublish(force: boolean) {
   if (!force && hash === row.lastHash) return;
 
   try {
-    await callSite(row, 'PUT', JSON.stringify({ ...menu, updatedAt: new Date().toISOString() }));
+    // Fotos antes do cardápio; a que falhar sai sem foto agora e o hash não é gravado, para tentar de novo
+    const failedImages = await syncImages(row, menu.products.filter((p) => p.image).map((p) => p.id));
+    const products = menu.products.map((p) => (failedImages.has(p.id) ? { ...p, image: null } : p));
+    await callSite(row, 'PUT', JSON.stringify({ ...menu, products, updatedAt: new Date().toISOString() }));
     await prisma.digitalMenuSettings.update({
       where: { id: 'default' },
-      data: { lastHash: hash, lastPublishedAt: new Date(), lastError: null }
+      data: { lastHash: failedImages.size > 0 ? null : hash, lastPublishedAt: new Date(), lastError: null }
     });
   } catch (err: any) {
     const message = friendlyError(err);
@@ -256,6 +324,8 @@ export async function saveDigitalMenuSettings(body: any) {
   if (before.enabled && before.storeId && before.publishSecret && (!enabled || siteChanged)) {
     await callSite(before, 'DELETE').catch((err) => console.warn('[Cardápio digital] Falha ao tirar do ar:', err.message));
   }
+  // Site novo não tem as fotos
+  if (siteChanged) await prisma.productImage.updateMany({ data: { publishedHash: null } });
 
   await prisma.digitalMenuSettings.update({
     where: { id: 'default' },

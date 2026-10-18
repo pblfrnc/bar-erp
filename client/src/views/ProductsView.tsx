@@ -3,6 +3,7 @@ import { Product, Category, KdsStation, Supplier, ModifierGroup } from '../types
 import { api } from '../services/api';
 import {
   UtensilsCrossed,
+  QrCode,
   Search,
   Plus,
   Edit2,
@@ -50,6 +51,8 @@ import { ImportXmlModal } from '../components/ImportXmlModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
 import { ModifierGroupsManager, describeModifierRule } from '../components/ModifierGroupsManager';
 import { PromotionsManager } from '../components/PromotionsManager';
+import { ProductPhotoField } from '../components/ProductPhotoField';
+import { DigitalMenuItemsModal } from '../components/DigitalMenuItemsModal';
 
 const productGroupIds = (p: Product) =>
   [...(p.modifierGroups || [])].sort((a, b) => a.sortOrder - b.sortOrder).map((link) => link.groupId);
@@ -119,6 +122,7 @@ export const ProductsView: React.FC = () => {
   const [initialModifierGroupIds, setInitialModifierGroupIds] = useState<string[]>([]);
   const [showModifierManager, setShowModifierManager] = useState<boolean>(false);
   const [showPromotionsManager, setShowPromotionsManager] = useState<boolean>(false);
+  const [showMenuItems, setShowMenuItems] = useState<boolean>(false);
 
   // Modal Histórico de Preços
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
@@ -130,6 +134,12 @@ export const ProductsView: React.FC = () => {
   const [showStockReportModal, setShowStockReportModal] = useState<boolean>(false);
   const [stockReportData, setStockReportData] = useState<any>(null);
   const [stockReportLoading, setStockReportLoading] = useState<boolean>(false);
+
+  // Cardápio digital: aparece no cardápio e foto (enviada depois de salvar o produto)
+  const [formShowInMenu, setFormShowInMenu] = useState<boolean>(true);
+  const [formPhotoBlob, setFormPhotoBlob] = useState<Blob | null>(null);
+  const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null);
+  const [formPhotoRemoved, setFormPhotoRemoved] = useState<boolean>(false);
 
   // Venda por Caixa / Fardo Fechado
   const [formHasBoxPrice, setFormHasBoxPrice] = useState<boolean>(false);
@@ -314,8 +324,33 @@ export const ProductsView: React.FC = () => {
     loadData();
   }, []);
 
+  const resetFormPhoto = () => {
+    setFormPhotoBlob(null);
+    setFormPhotoPreview((cur) => {
+      if (cur) URL.revokeObjectURL(cur);
+      return null;
+    });
+    setFormPhotoRemoved(false);
+  };
+
+  const pickFormPhoto = (image: Blob) => {
+    setFormPhotoBlob(image);
+    setFormPhotoPreview((cur) => {
+      if (cur) URL.revokeObjectURL(cur);
+      return URL.createObjectURL(image);
+    });
+    setFormPhotoRemoved(false);
+  };
+
+  const removeFormPhoto = () => {
+    resetFormPhoto();
+    setFormPhotoRemoved(true);
+  };
+
   const openCreateModal = () => {
     setEditingProduct(null);
+    setFormShowInMenu(true);
+    resetFormPhoto();
     setFormName('');
     setFormCode('');
     setFormEan('');
@@ -356,6 +391,8 @@ export const ProductsView: React.FC = () => {
 
   const handleDuplicateProduct = async (p: Product) => {
     setEditingProduct(null); // Criação de novo item!
+    setFormShowInMenu(p.showInMenu !== false);
+    resetFormPhoto();
     setFormName(`${p.name} (Cópia)`);
     setFormEan(''); // Limpa o EAN para o usuário bipar o código novo
     setFormBrand(p.brand || '');
@@ -403,6 +440,8 @@ export const ProductsView: React.FC = () => {
 
   const openEditModal = (p: Product) => {
     setEditingProduct(p);
+    setFormShowInMenu(p.showInMenu !== false);
+    resetFormPhoto();
     setFormName(p.name);
     setFormCode(p.code || '');
     setFormEan(p.ean || '');
@@ -582,6 +621,7 @@ export const ProductsView: React.FC = () => {
         supplier: finalSupplier,
         supplierId: finalSupplierId,
         description: formDescription.trim() || null,
+        showInMenu: formShowInMenu,
         price,
         costPrice: parsedCost,
         targetMargin: formTargetMargin ? parseFloat(formTargetMargin.replace(',', '.')) : null,
@@ -615,6 +655,15 @@ export const ProductsView: React.FC = () => {
           alert(`Produto salvo, mas os adicionais não foram gravados: ${err.message || err}`);
         }
       }
+
+      const productId = editingProduct?.id || saved.id;
+      try {
+        if (formPhotoBlob) await api.uploadProductImage(productId, formPhotoBlob);
+        else if (formPhotoRemoved && editingProduct?.imageHash) await api.deleteProductImage(productId);
+      } catch (err: any) {
+        alert(`Produto salvo, mas a foto não foi gravada: ${err.message || err}`);
+      }
+      resetFormPhoto();
 
       setShowProductModal(false);
       loadData();
@@ -1203,19 +1252,6 @@ export const ProductsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="prod-form-desc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
-                      Descrição / Ingredientes (Exibido no Cardápio)
-                    </label>
-                    <textarea
-                      id="prod-form-desc"
-                      rows={2}
-                      placeholder="Ex: Chopp puro malte artesanal com lúpulos aromáticos. Teor alcoólico 5.0%..."
-                      value={formDescription}
-                      onChange={(e) => setFormDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none cursor-text shadow-xs"
-                    />
-                  </div>
                 </div>
 
                 {/* Card 2: Formação de Preço & Custos */}
@@ -1879,6 +1915,56 @@ export const ProductsView: React.FC = () => {
 
               {/* COLUNA DIREITA (5 colunas) */}
               <div className="lg:col-span-5 space-y-6">
+                {/* Card: Cardápio Digital (QR na mesa) */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <QrCode className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Cardápio Digital</h3>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Mostrar no cardápio</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={formShowInMenu}
+                        onClick={() => setFormShowInMenu((v) => !v)}
+                        className={`relative w-11 h-6 shrink-0 rounded-full transition cursor-pointer ${formShowInMenu ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${formShowInMenu ? 'translate-x-5' : ''}`} />
+                      </button>
+                    </label>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5">Foto</span>
+                    <ProductPhotoField
+                      imageUrl={
+                        formPhotoPreview ||
+                        (!formPhotoRemoved && editingProduct?.imageHash ? api.productImageUrl(editingProduct.id, editingProduct.imageHash) : null)
+                      }
+                      onPick={pickFormPhoto}
+                      onRemove={removeFormPhoto}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="prod-form-desc" className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1.5 cursor-pointer">
+                      Descrição / Ingredientes
+                    </label>
+                    <textarea
+                      id="prod-form-desc"
+                      rows={3}
+                      maxLength={500}
+                      placeholder="Ex: Picanha fatiada com fritas, farofa e vinagrete. Serve 2 pessoas."
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none cursor-text shadow-xs"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Aparece para o cliente no cardápio digital, abaixo do nome.</span>
+                  </div>
+                </div>
+
                 {/* Card 4: Fornecedor & Distribuidora */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -2294,6 +2380,15 @@ export const ProductsView: React.FC = () => {
           >
             <BadgePercent className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
             <span>Promoções do Dia</span>
+          </button>
+
+          <button
+            onClick={() => setShowMenuItems(true)}
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Escolher os itens do cardápio digital (QR na mesa), com foto e descrição"
+          >
+            <QrCode className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <span>Cardápio Digital</span>
           </button>
 
           <button
@@ -3279,6 +3374,15 @@ export const ProductsView: React.FC = () => {
 
       {showPromotionsManager && (
         <PromotionsManager products={products} categories={categories} onClose={() => setShowPromotionsManager(false)} />
+      )}
+
+      {showMenuItems && (
+        <DigitalMenuItemsModal
+          onClose={() => {
+            setShowMenuItems(false);
+            loadData();
+          }}
+        />
       )}
 
       {showImportXmlModal && (

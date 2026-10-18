@@ -76,6 +76,10 @@ export interface Product {
 
   // Adicionais / perguntas exibidos ao lançar o produto
   modifierGroups?: { groupId: string; sortOrder: number; group: ModifierGroup }[];
+
+  // Cardápio digital
+  showInMenu?: boolean;
+  imageHash?: string | null; // foto em /products/:id/image?v=<hash>
 }
 
 export interface ModifierOption {

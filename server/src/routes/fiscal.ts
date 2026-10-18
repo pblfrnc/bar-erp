@@ -37,6 +37,23 @@ function secureArchiveXML(type: 'ENTRADA' | 'SAIDA', chave: string, xmlContent: 
   }
 }
 
+// Valor de uma NotaRecebida; se estiver zerado, reextrai o vNF do XML salvo.
+function valorRecebidaComFallback(valorTotal: any, xmlContent: string | null | undefined): number {
+  const val = Number(valorTotal) || 0;
+  if (val > 0 || !xmlContent) return val;
+  try {
+    let xml = xmlContent;
+    if (xml.startsWith('{')) xml = JSON.parse(xml)?.raw || '';
+    if (!xml) return val;
+    const parsed = parser.parse(xml);
+    const nfe = parsed.nfeProc?.NFe?.infNFe || parsed.NFe?.infNFe;
+    const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || parsed.resNFe?.vNF || '0');
+    return xmlVal > 0 ? xmlVal : val;
+  } catch (_) {
+    return val;
+  }
+}
+
 // Baixa o XML autorizado (nfeProc com protocolo SEFAZ) da Focus NFe e arquiva no cofre de SAÍDA.
 // Nunca lança erro: falha de download não pode travar a venda (a Focus também mantém o XML).
 async function archiveAuthorizedXml(focusRoot: string, authHeader: string, caminhoXml: string | undefined, chave: string) {
@@ -3002,7 +3019,7 @@ export function createFiscalRouter() {
           numero: row.numero || '',
           serie: row.serie || '',
           dataEmissao: row.dataEmissao || row.createdAt,
-          valorTotal: typeof row.valorTotal === 'number' ? row.valorTotal : parseFloat(row.valorTotal || '0'),
+          valorTotal: valorRecebidaComFallback(row.valorTotal, hasXml ? row.xmlContent : null),
           status: normStatus,
           hasXml,
           createdAt: row.createdAt
@@ -3421,6 +3438,31 @@ export function createFiscalRouter() {
       const emit = nfe.emit || {};
       const emitCnpj = (emit.CNPJ || emit.CPF || '').toString().replace(/\D/g, '');
       const emitNome = emit.xNome || 'Fornecedor sem nome';
+      const numeroNf = nfe.ide?.nNF ? String(nfe.ide.nNF) : '';
+      const serieNf = nfe.ide?.serie ? String(nfe.ide.serie) : '';
+      const dataEmissao = nfe.ide?.dhEmi || nfe.ide?.dEmi ? String(nfe.ide.dhEmi || nfe.ide.dEmi) : '';
+      const valorTotal = parseFloat(nfe.total?.ICMSTot?.vNF || '0') || 0;
+
+      // Garante a nota em NotaRecebida com valor e XML corretos. Notas que a
+      // sincronização não trouxe eram criadas depois pelo apply-import com valor 0.
+      try {
+        await prisma.$executeRawUnsafe(
+          `INSERT OR IGNORE INTO "NotaRecebida"
+            ("id", "chave", "emitente", "cnpjEmitente", "numero", "serie", "dataEmissao", "valorTotal", "status", "xmlContent", "createdAt")
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'recebida', ?, ?)`,
+          chaveClean, chaveClean, emitNome, emitCnpj, numeroNf, serieNf,
+          dataEmissao || new Date().toISOString(), valorTotal, xmlText, new Date().toISOString()
+        );
+        if (valorTotal > 0) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "NotaRecebida" SET "valorTotal" = ?
+             WHERE "chave" = ? AND COALESCE("valorTotal", 0) = 0`,
+            valorTotal, chaveClean
+          );
+        }
+      } catch (dbErr) {
+        console.warn('[Parsed XML] Erro ao salvar NotaRecebida:', dbErr);
+      }
 
       // Sincronizar fornecedor se existir CNPJ
       let supplierRecord: any = null;
@@ -3463,8 +3505,10 @@ export function createFiscalRouter() {
         },
         items,
         accessKey: chaveClean,
-        numero: nfe.ide?.nNF ? String(nfe.ide.nNF) : '',
-        serie: nfe.ide?.serie ? String(nfe.ide.serie) : ''
+        numero: numeroNf,
+        serie: serieNf,
+        dataEmissao: dataEmissao || undefined,
+        valorTotal
       });
     } catch (err: any) {
       console.error('[Parsed XML] Erro:', err);
@@ -3590,18 +3634,10 @@ export function createFiscalRouter() {
 
       const emitidas = emitidasRaw || [];
       // Se a nota recebida estiver com valorTotal zerado mas tiver XML, reextrai dinamicamente
-      const recebidas = (recebidasRaw || []).map((n: any) => {
-        let val = Number(n.valorTotal) || 0;
-        if (val === 0 && n.xmlContent && !n.xmlContent.startsWith('{')) {
-          try {
-            const parsed = parser.parse(n.xmlContent);
-            const nfe = parsed.nfeProc?.NFe?.infNFe || parsed.NFe?.infNFe;
-            const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || '0');
-            if (xmlVal > 0) val = xmlVal;
-          } catch (_) {}
-        }
-        return { ...n, valorTotal: val };
-      });
+      const recebidas = (recebidasRaw || []).map((n: any) => ({
+        ...n,
+        valorTotal: valorRecebidaComFallback(n.valorTotal, n.xmlContent)
+      }));
 
       const emitidasTotal = emitidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
       const recebidasTotal = recebidas.reduce((acc: number, n: any) => acc + (n.valorTotal || 0), 0);
@@ -3715,18 +3751,10 @@ export function createFiscalRouter() {
       `, `${monthPrefix}%`, `${monthPrefix}%`, startIso, endIso, startTs, endTs);
 
       const emitidas = emitidasRaw || [];
-      const recebidas = (recebidasRaw || []).map((n: any) => {
-        let val = Number(n.valorTotal) || 0;
-        if (val === 0 && n.xmlContent && !n.xmlContent.startsWith('{')) {
-          try {
-            const parsed = parser.parse(n.xmlContent);
-            const nfe = parsed.nfeProc?.NFe?.infNFe || parsed.NFe?.infNFe;
-            const xmlVal = parseFloat(nfe?.total?.ICMSTot?.vNF || '0');
-            if (xmlVal > 0) val = xmlVal;
-          } catch (_) {}
-        }
-        return { ...n, valorTotal: val };
-      });
+      const recebidas = (recebidasRaw || []).map((n: any) => ({
+        ...n,
+        valorTotal: valorRecebidaComFallback(n.valorTotal, n.xmlContent)
+      }));
 
       const zip = new AdmZip();
 

@@ -3,7 +3,7 @@ import {
   Beef,
   Beer,
   Cake,
-  ChevronDown,
+  ChevronRight,
   Clock,
   Coffee,
   CupSoda,
@@ -22,7 +22,7 @@ import {
   X
 } from 'lucide-react';
 import { applyBestPromotion, describePromotion, isPromotionActiveAt } from '../../client/src/utils/pricing';
-import type { MenuProduct, PublishedMenu } from './types';
+import type { MenuCategory, MenuProduct, PublishedMenu } from './types';
 
 // Ícones mais usados nas categorias do BarERP; os demais caem no talher
 const CATEGORY_ICONS: Record<string, typeof Beer> = {
@@ -44,6 +44,7 @@ const CATEGORY_ICONS: Record<string, typeof Beer> = {
 
 const REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
+const MAX_HIGHLIGHTS = 10;
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -52,6 +53,8 @@ const normalize = (s: string) =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
+
+const categoryIcon = (category: MenuCategory) => CATEGORY_ICONS[category.icon || ''] || UtensilsCrossed;
 
 // /m/<loja>?mesa=5
 function readLocation() {
@@ -66,13 +69,18 @@ const storeNow = (timezoneOffset: number) =>
 
 type LoadState = { status: 'loading' } | { status: 'error'; notFound: boolean } | { status: 'ready'; menu: PublishedMenu };
 
+interface Section {
+  category: MenuCategory;
+  products: MenuProduct[];
+}
+
 export default function App() {
   const { storeId, table } = useMemo(readLocation, []);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [now, setNow] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openProduct, setOpenProduct] = useState<MenuProduct | null>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -115,7 +123,7 @@ export default function App() {
     [menu, localNow]
   );
 
-  const sections = useMemo(() => {
+  const sections = useMemo<Section[]>(() => {
     if (!menu) return [];
     const q = normalize(query.trim());
     return menu.categories
@@ -129,6 +137,23 @@ export default function App() {
       }))
       .filter((s) => s.products.length > 0);
   }, [menu, query]);
+
+  // Cardápios publicados antes da separação não têm "kind": tudo vira uma lista só, sem títulos de grupo
+  const hasKinds = Boolean(menu?.categories.some((c) => c.kind));
+  const foodSections = hasKinds ? sections.filter((s) => s.category.kind === 'food') : sections;
+  const drinkSections = hasKinds ? sections.filter((s) => s.category.kind !== 'food') : [];
+
+  // Destaques: comidas com foto, primeiro as que estão em promoção agora
+  const highlights = useMemo(() => {
+    if (!menu || query) return [];
+    const foodCategoryIds = new Set(menu.categories.filter((c) => c.kind === 'food').map((c) => c.id));
+    return menu.products
+      .filter((p) => p.image && !p.soldOut && (!hasKinds || foodCategoryIds.has(p.categoryId)))
+      .map((p) => ({ p, promo: applyBestPromotion(p, menu.promotions, localNow).promotion ? 0 : 1 }))
+      .sort((a, b) => a.promo - b.promo)
+      .slice(0, MAX_HIGHLIGHTS)
+      .map(({ p }) => p);
+  }, [menu, query, localNow, hasKinds]);
 
   // Destaca a categoria visível na lista de atalhos
   useEffect(() => {
@@ -178,6 +203,51 @@ export default function App() {
   const { menu: m } = state;
   const updatedAt = new Date(m.updatedAt);
 
+  const renderChip = ({ category }: Section) => {
+    const Icon = categoryIcon(category);
+    const active = activeCategory === category.id;
+    return (
+      <a
+        key={category.id}
+        href={`#cat-${category.id}`}
+        data-cat={category.id}
+        className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+          active
+            ? 'bg-stone-900 text-white border-stone-900 dark:bg-amber-500 dark:text-stone-950 dark:border-amber-500'
+            : 'bg-white text-stone-700 border-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:border-stone-800'
+        }`}
+      >
+        <Icon className="w-4 h-4" />
+        {category.name}
+      </a>
+    );
+  };
+
+  const renderSection = ({ category, products }: Section, variant: 'food' | 'drink') => {
+    const Icon = categoryIcon(category);
+    return (
+      <section key={category.id} id={`cat-${category.id}`}>
+        <h3 className="flex items-center gap-2 text-base font-black mb-2">
+          <Icon className="w-[18px] h-[18px] text-amber-600 dark:text-amber-400" />
+          {category.name}
+        </h3>
+        {variant === 'food' ? (
+          <ul className="space-y-2.5">
+            {products.map((product) => (
+              <FoodCard key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
+            ))}
+          </ul>
+        ) : (
+          <ul className="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden">
+            {products.map((product) => (
+              <DrinkRow key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  };
+
   return (
     <div className="min-h-screen pb-[env(safe-area-inset-bottom)]">
       <header className="bg-gradient-to-b from-amber-500 to-amber-600 text-stone-950 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-5">
@@ -220,26 +290,12 @@ export default function App() {
               </button>
             )}
           </label>
-          <div ref={chipsRef} className="no-scrollbar flex gap-2 overflow-x-auto py-3 -mx-4 px-4">
-            {sections.map(({ category }) => {
-              const Icon = CATEGORY_ICONS[category.icon || ''] || UtensilsCrossed;
-              const active = activeCategory === category.id;
-              return (
-                <a
-                  key={category.id}
-                  href={`#cat-${category.id}`}
-                  data-cat={category.id}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
-                    active
-                      ? 'bg-stone-900 text-white border-stone-900 dark:bg-amber-500 dark:text-stone-950 dark:border-amber-500'
-                      : 'bg-white text-stone-700 border-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:border-stone-800'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {category.name}
-                </a>
-              );
-            })}
+          <div ref={chipsRef} className="no-scrollbar flex items-center gap-2 overflow-x-auto py-3 -mx-4 px-4">
+            {foodSections.map(renderChip)}
+            {foodSections.length > 0 && drinkSections.length > 0 && (
+              <span aria-hidden className="shrink-0 w-px h-6 bg-stone-300 dark:bg-stone-700" />
+            )}
+            {drinkSections.map(renderChip)}
           </div>
         </div>
       </div>
@@ -262,35 +318,36 @@ export default function App() {
           </section>
         )}
 
+        {highlights.length > 0 && (
+          <section>
+            <h2 className="text-lg font-black mb-2">Destaques</h2>
+            <ul className="no-scrollbar flex gap-3 overflow-x-auto -mx-4 px-4 pb-1 snap-x snap-mandatory">
+              {highlights.map((product) => (
+                <HighlightCard key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
+              ))}
+            </ul>
+          </section>
+        )}
+
         {sections.length === 0 && (
           <p className="py-12 text-center text-sm text-stone-500">
             {query ? `Nada encontrado para "${query}".` : 'Nenhum produto no cardápio ainda.'}
           </p>
         )}
 
-        {sections.map(({ category, products }) => {
-          const Icon = CATEGORY_ICONS[category.icon || ''] || UtensilsCrossed;
-          return (
-            <section key={category.id} id={`cat-${category.id}`}>
-              <h2 className="flex items-center gap-2 text-lg font-black mb-2">
-                <Icon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                {category.name}
-              </h2>
-              <ul className="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden">
-                {products.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    product={product}
-                    menu={m}
-                    now={localNow}
-                    expanded={expanded === product.id}
-                    onToggle={() => setExpanded((cur) => (cur === product.id ? null : product.id))}
-                  />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
+        {foodSections.length > 0 && (
+          <div className="space-y-5">
+            {hasKinds && <GroupTitle icon={UtensilsCrossed} title="Comidas" />}
+            {foodSections.map((s) => renderSection(s, 'food'))}
+          </div>
+        )}
+
+        {drinkSections.length > 0 && (
+          <div className="space-y-5">
+            <GroupTitle icon={Beer} title="Bebidas" />
+            {drinkSections.map((s) => renderSection(s, 'drink'))}
+          </div>
+        )}
 
         <footer className="pt-2 pb-8 text-center text-xs text-stone-500 dark:text-stone-400 space-y-1">
           <p className="font-semibold text-stone-700 dark:text-stone-300">Para pedir, chame o garçom.</p>
@@ -301,76 +358,198 @@ export default function App() {
           </p>
         </footer>
       </main>
+
+      {openProduct && <ProductSheet product={openProduct} menu={m} now={localNow} onClose={() => setOpenProduct(null)} />}
     </div>
   );
 }
 
-function ProductRow({
-  product,
-  menu,
-  now,
-  expanded,
-  onToggle
-}: {
-  product: MenuProduct;
-  menu: PublishedMenu;
-  now: Date;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const { price, promotion } = applyBestPromotion(product, menu.promotions, now);
-  const hasDetails = product.groups.length > 0;
+function GroupTitle({ icon: Icon, title }: { icon: typeof Beer; title: string }) {
+  return (
+    <h2 className="flex items-center gap-2 pt-1 text-xl font-black">
+      <span className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center">
+        <Icon className="w-[18px] h-[18px]" />
+      </span>
+      {title}
+    </h2>
+  );
+}
 
-  const body = (
-    <>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-bold text-[15px] leading-snug">{product.name}</h3>
-          {product.soldOut && (
-            <span className="rounded-md bg-stone-200 dark:bg-stone-800 px-1.5 py-0.5 text-[10px] font-black uppercase text-stone-600 dark:text-stone-300">
-              Esgotado
+// Foto do produto; se não carregar (sem internet, foto apagada), some sem quebrar o layout
+function ProductImage({ src, alt, className }: { src: string | null; alt: string; className: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} className={className} />;
+}
+
+function SoldOutBadge() {
+  return (
+    <span className="rounded-md bg-stone-200 dark:bg-stone-800 px-1.5 py-0.5 text-[10px] font-black uppercase text-stone-600 dark:text-stone-300">
+      Esgotado
+    </span>
+  );
+}
+
+function PriceTag({ product, menu, now, size = 'md' }: { product: MenuProduct; menu: PublishedMenu; now: Date; size?: 'md' | 'lg' }) {
+  const { price, promotion } = applyBestPromotion(product, menu.promotions, now);
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className={`font-black ${size === 'lg' ? 'text-xl' : 'text-[15px]'} ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>
+        {brl(price)}
+      </span>
+      {promotion && <span className="text-xs text-stone-400 line-through">{brl(product.price)}</span>}
+    </span>
+  );
+}
+
+function HighlightCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
+  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+  return (
+    <li className="snap-start shrink-0 w-44">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full text-left rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden"
+      >
+        <div className="relative aspect-[4/3] bg-stone-100 dark:bg-stone-800">
+          <ProductImage src={product.image} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+          {promotion && (
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
+              <Sparkles className="w-3 h-3" />
+              Promoção
             </span>
           )}
         </div>
-        {product.description && (
-          <p className="mt-0.5 text-[13px] leading-snug text-stone-500 dark:text-stone-400 line-clamp-3">{product.description}</p>
-        )}
-        {promotion && (
-          <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-            <Sparkles className="w-3 h-3" />
-            {promotion.name}
-          </span>
-        )}
-        {product.box && (
-          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-            Caixa com {product.box.quantity}: <span className="font-semibold text-stone-700 dark:text-stone-200">{brl(product.box.price)}</span>
-          </p>
-        )}
-        {hasDetails && (
-          <p className="mt-1 inline-flex items-center gap-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-            {expanded ? 'Ocultar opções' : 'Ver opções e adicionais'}
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-          </p>
-        )}
-      </div>
-      <div className="shrink-0 text-right">
-        {promotion && <p className="text-xs text-stone-400 line-through">{brl(product.price)}</p>}
-        <p className={`font-black text-[15px] ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>{brl(price)}</p>
-      </div>
-    </>
+        <div className="p-2.5">
+          <p className="font-bold text-sm leading-snug line-clamp-2 min-h-[2.5em]">{product.name}</p>
+          <div className="mt-1">
+            <PriceTag product={product} menu={menu} now={now} />
+          </div>
+        </div>
+      </button>
+    </li>
   );
+}
 
+// Comidas: card com foto grande à direita (estilo dos cardápios de delivery)
+function FoodCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
+  const { promotion } = applyBestPromotion(product, menu.promotions, now);
   return (
     <li className={product.soldOut ? 'opacity-55' : ''}>
-      {hasDetails ? (
-        <button type="button" onClick={onToggle} aria-expanded={expanded} className="w-full flex gap-3 px-4 py-3 text-left">
-          {body}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full flex gap-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-3 text-left"
+      >
+        <div className="min-w-0 flex-1 flex flex-col">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-bold text-[15px] leading-snug">{product.name}</h4>
+            {product.soldOut && <SoldOutBadge />}
+          </div>
+          {product.description && (
+            <p className="mt-1 text-[13px] leading-snug text-stone-500 dark:text-stone-400 line-clamp-2">{product.description}</p>
+          )}
+          {promotion && (
+            <span className="mt-1.5 self-start inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+              <Sparkles className="w-3 h-3" />
+              {promotion.name}
+            </span>
+          )}
+          <div className="mt-auto pt-2">
+            <PriceTag product={product} menu={menu} now={now} />
+          </div>
+        </div>
+        <ProductImage src={product.image} alt={product.name} className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-xl object-cover bg-stone-100 dark:bg-stone-800" />
+      </button>
+    </li>
+  );
+}
+
+// Bebidas: linha compacta, foto pequena quando houver
+function DrinkRow({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
+  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+  return (
+    <li className={product.soldOut ? 'opacity-55' : ''}>
+      <button type="button" onClick={onOpen} className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
+        <ProductImage src={product.image} alt={product.name} className="w-12 h-12 shrink-0 rounded-lg object-cover bg-stone-100 dark:bg-stone-800" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-semibold text-[15px] leading-snug">{product.name}</h4>
+            {product.soldOut && <SoldOutBadge />}
+            {promotion && <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-label={promotion.name} />}
+          </div>
+          {product.description && <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-1">{product.description}</p>}
+          {product.box && (
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Caixa c/ {product.box.quantity}: <span className="font-semibold text-stone-700 dark:text-stone-200">{brl(product.box.price)}</span>
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <PriceTag product={product} menu={menu} now={now} />
+        </div>
+        <ChevronRight className="w-4 h-4 shrink-0 text-stone-300 dark:text-stone-600" />
+      </button>
+    </li>
+  );
+}
+
+// Detalhe do produto: foto grande, descrição completa, caixa fechada e adicionais
+function ProductSheet({ product, menu, now, onClose }: { product: MenuProduct; menu: PublishedMenu; now: Date; onClose: () => void }) {
+  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={product.name}>
+      <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-stone-950/60" />
+      <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-stone-900 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar"
+          className="absolute right-3 top-3 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-stone-950/80 text-stone-700 dark:text-stone-200 flex items-center justify-center shadow"
+        >
+          <X className="w-5 h-5" />
         </button>
-      ) : (
-        <div className="flex gap-3 px-4 py-3">{body}</div>
-      )}
-      {hasDetails && expanded && (
-        <div className="px-4 pb-4 space-y-3">
+        {product.image ? (
+          <ProductImage src={product.image} alt={product.name} className="w-full aspect-[4/3] object-cover bg-stone-100 dark:bg-stone-800" />
+        ) : (
+          <div className="h-14" />
+        )}
+        <div className="px-5 pt-4 space-y-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap pr-10">
+              <h2 className="text-xl font-black leading-tight">{product.name}</h2>
+              {product.soldOut && <SoldOutBadge />}
+            </div>
+            {product.description && (
+              <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-300 whitespace-pre-line">{product.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <PriceTag product={product} menu={menu} now={now} size="lg" />
+            {promotion && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                <Sparkles className="w-3 h-3" />
+                {promotion.name}
+              </span>
+            )}
+          </div>
+          {product.box && (
+            <p className="text-sm text-stone-600 dark:text-stone-300">
+              Caixa com {product.box.quantity}: <span className="font-bold text-stone-900 dark:text-white">{brl(product.box.price)}</span>
+            </p>
+          )}
           {product.groups.map((g) => (
             <div key={g.name} className="rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 p-3">
               <p className="text-xs font-black uppercase tracking-wide text-stone-600 dark:text-stone-300">
@@ -387,11 +566,13 @@ function ProductRow({
               </ul>
             </div>
           ))}
+          <p className="pt-1 text-center text-xs font-semibold text-stone-500 dark:text-stone-400">Para pedir, chame o garçom.</p>
         </div>
-      )}
-    </li>
+      </div>
+    </div>
   );
 }
+
 
 function groupRule(min: number, max: number) {
   if (min >= 1 && max === 1) return 'escolha 1';

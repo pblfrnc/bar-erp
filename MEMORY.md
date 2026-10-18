@@ -362,6 +362,14 @@
 - **Tela:** `DigitalMenuCard` em Configurações (ligar, nome, recado, categorias escondidas, esconder esgotados, site alternativo em Avançado, link + QR, "QR Codes das mesas (PDF)"). O PDF A4 (6 por folha, 1º cartão geral sem mesa) sai pelo IPC `save-html-as-pdf` do Electron (não usar `window.print()`: com `kiosk-printing` vai direto para a térmica). Links externos abrem pelo IPC `open-external`.
 - **Atenção:** trocar o endereço do site ou perder o banco (sem backup) gera novos links → reimprimir os QR Codes.
 
+### v1.8.8 — NF-e recebidas completas, valor das notas de compra e fotos no cardápio (sessão de 18/10/2026)
+- **NF-e recebidas:** a listagem `GET /v2/nfes_recebidas` da Focus devolve **no máximo 100 notas**; as seguintes vêm com `versao=<X-Max-Version>`. O agendador (`nfeRecebidasScheduler.ts`) só lia a 1ª página e, passadas 100 notas no CNPJ, notas novas nunca entravam (XML do dia 15 baixado à mão). Agora pagina até o fim (teto 100 páginas). Parâmetro correto é `cnpj` (era `cnpj_destinatario`); manifesto vem em `manifestacao_destinatario` (era `manifesto`, por isso dava ciência em toda nota nova).
+- **Valor zerado nas notas de compra:** `GET /fiscal/parsed-by-chave/:chave` (bip da chave no FiscalImportView) não devolvia `valorTotal`/`dataEmissao`, e o `apply-import` criava a `NotaRecebida` com 0. Agora a rota devolve os dois e já grava a nota com valor e XML. Notas antigas com 0: o agendador corrige pelo XML e listagem/resumo/exportação recalculam pelo `vNF` (`valorRecebidaComFallback` em `fiscal.ts`).
+- **Itens do cardápio:** `Product.showInMenu` (padrão true) e tela `DigitalMenuItemsModal` (botão "Cardápio Digital" em Produtos e no card de Configurações), com marcar por categoria, filtros e foto/descrição por item. Rota `PUT /api/products/menu-visibility { show, hide }`.
+- **Fotos:** tabela `ProductImage` (bytes no banco, entra no backup; `hash` = 32 hex do SHA-256). O navegador reduz para 1000 px JPEG (`utils/imageResize.ts`). Rotas `GET/PUT/DELETE /api/products/:id/image` (PUT com corpo binário `image/*`, até 2 MB, tipo conferido pela assinatura); GET fica fora do rate limit. Na publicação, `syncImages` envia só as fotos com `hash != publishedHash` para a função `menu/netlify/functions/menu-image.mts` (`/api/menu/:storeId/img/:hash`, blob `images/<loja>/<hash>`, cache imutável, corpo precisa bater com o hash). Foto que falha sai sem foto e o `lastHash` não é gravado (tenta de novo em 5 min). Trocar de site ou de storeId zera `publishedHash`.
+- **Site no estilo Consumer:** categorias com `kind` (comida quando a maioria dos itens é `KITCHEN`), comidas antes das bebidas; carrossel "Destaques" (comidas com foto, promoção primeiro), comidas em card com foto grande, bebidas em lista compacta, detalhe do produto em janela com foto grande.
+- **Caixa fechada:** não aparece no cardápio quando `boxPrice <= boxCostPrice` (ou custo unitário × quantidade).
+
 ---
 
 ## 20. 📌 PENDÊNCIAS & DECISÕES

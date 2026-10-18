@@ -381,6 +381,23 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       console.error('[Migrations] Erro ao criar a tabela do cardápio digital:', e.message);
     }
 
+    // Cardápio digital: escolha dos itens e fotos dos produtos
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "showInMenu" BOOLEAN NOT NULL DEFAULT true;`); } catch (e) {}
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ProductImage" (
+          "productId" TEXT NOT NULL PRIMARY KEY,
+          "data" BLOB NOT NULL,
+          "mimeType" TEXT NOT NULL,
+          "hash" TEXT NOT NULL,
+          "publishedHash" TEXT,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+    } catch (e: any) {
+      console.error('[Migrations] Erro ao criar a tabela de fotos dos produtos:', e.message);
+    }
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {

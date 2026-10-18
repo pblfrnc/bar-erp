@@ -285,6 +285,32 @@ export const api = {
     }).then(handleResponse<Product>);
   },
 
+  // Foto do produto no cardápio digital (já redimensionada no navegador)
+  productImageUrl: (id: string, hash: string) => `${getApiUrl()}/products/${id}/image?v=${hash}`,
+
+  uploadProductImage: async (id: string, image: Blob): Promise<{ imageHash: string }> => {
+    cachedProducts = null;
+    return fetch(`${getApiUrl()}/products/${id}/image`, {
+      method: 'PUT',
+      headers: { 'Content-Type': image.type || 'image/jpeg' },
+      body: image
+    }).then(handleResponse<{ imageHash: string }>);
+  },
+
+  deleteProductImage: async (id: string): Promise<void> => {
+    cachedProducts = null;
+    await fetch(`${getApiUrl()}/products/${id}/image`, { method: 'DELETE' }).then(handleResponse<any>);
+  },
+
+  setMenuVisibility: async (show: string[], hide: string[]): Promise<void> => {
+    cachedProducts = null;
+    await fetchWithRetry(`${getApiUrl()}/products/menu-visibility`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show, hide })
+    }).then(handleResponse<any>);
+  },
+
   getPriceHistory: async (productId: string): Promise<PriceHistory[]> => {
     return fetchWithRetry(`${getApiUrl()}/products/${productId}/price-history`).then(handleResponse<PriceHistory[]>);
   },
