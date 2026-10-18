@@ -24,10 +24,12 @@ export async function buildNfePayload(params: {
   const { items, customerDoc, orderId, settings, paymentMethod } = params;
 
   // Generate a unique reference identifier (required by Focus)
+  // If orderId is provided (e.g. from sale session or order), reuse it as the reference so retries do not skip numbers
   const ts = Date.now();
   const rnd = Math.floor(Math.random() * 9000) + 1000;
-  const ref = orderId
-    ? `nfe_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
+  const cleanOrderId = orderId ? String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) : '';
+  const ref = cleanOrderId
+    ? `nfe_${cleanOrderId}`
     : `nfe_${ts}_${rnd}`;
 
   // Date in ISO‑8601 with São Paulo timezone (‑03:00)

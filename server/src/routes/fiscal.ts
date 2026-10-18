@@ -279,8 +279,8 @@ export function createFiscalRouter() {
       const xmlData = req.file.buffer.toString('utf-8');
       const jsonObj = parser.parse(xmlData);
 
-      // Verificar se é uma NFe válida
-      const nfe = jsonObj.nfeProc?.NFe?.infNFe;
+      // Verificar se é uma NFe válida (suporta com protocolo nfeProc ou emitida em contingência direta NFe)
+      const nfe = jsonObj.nfeProc?.NFe?.infNFe || jsonObj.NFe?.infNFe;
       if (!nfe) {
         return res.status(400).json({ error: 'O arquivo não parece ser um XML válido de NF-e.' });
       }
@@ -337,8 +337,9 @@ export function createFiscalRouter() {
           name: prod.xProd,
           quantity: parseFloat(prod.qCom),
           unitCost: parseFloat(prod.vUnCom),
-          ncm: prod.NCM ? String(prod.NCM) : undefined,
-          cfop: prod.CFOP ? String(prod.CFOP) : undefined,
+          ncm: prod.NCM ? String(prod.NCM).replace(/\D/g, '').slice(0, 8) : undefined,
+          cfop: prod.CFOP ? String(prod.CFOP).replace(/\D/g, '').slice(0, 4) : undefined,
+          cest: prod.CEST ? String(prod.CEST).replace(/\D/g, '').slice(0, 7) : undefined,
           unit: prod.uCom || 'un'
         };
       });
@@ -632,11 +633,16 @@ export function createFiscalRouter() {
             }
           }
 
+          const effectiveNcm = item.ncm ?? item.xmlItem?.ncm ?? null;
+          const effectiveCest = item.cest ?? item.xmlItem?.cest ?? null;
+          const effectiveCfop = item.cfop ?? item.xmlItem?.cfop ?? null;
+
           if (effectiveSupplierId) updateData.supplierId = effectiveSupplierId;
           if (effectiveSupplierName) updateData.supplier = effectiveSupplierName;
-          if (item.xmlItem.ncm) updateData.ncm = item.xmlItem.ncm;
-          if (item.xmlItem.cfop) updateData.cfop = item.xmlItem.cfop;
-          if (item.xmlItem.ean) updateData.ean = item.xmlItem.ean;
+          if (effectiveNcm) updateData.ncm = String(effectiveNcm).replace(/\D/g, '').slice(0, 8);
+          if (effectiveCest) updateData.cest = String(effectiveCest).replace(/\D/g, '').slice(0, 7);
+          if (effectiveCfop) updateData.cfop = String(effectiveCfop).replace(/\D/g, '').slice(0, 4);
+          if (item.xmlItem?.ean) updateData.ean = item.xmlItem.ean;
 
           const updatedProd = await prisma.product.update({
             where: { id: item.productId },
@@ -695,7 +701,11 @@ export function createFiscalRouter() {
           const boxCost = rawCost > 0 ? rawCost : Number((newCost * boxQty).toFixed(2));
           const boxSale = item.newBoxPrice ? Number(item.newBoxPrice) : Number((newSale * boxQty).toFixed(2));
 
-          // Cria novo produto com dados fiscais e fornecedor herdados da nota
+          const effectiveNcm = item.ncm ?? item.xmlItem?.ncm ?? null;
+          const effectiveCest = item.cest ?? item.xmlItem?.cest ?? null;
+          const effectiveCfop = item.cfop ?? item.xmlItem?.cfop ?? null;
+
+          // Cria novo produto com dados fiscais e fornecedor herdados da nota ou informados na conferência
           const newProd = await prisma.product.create({
             data: {
               name: item.xmlItem.name,
@@ -703,8 +713,9 @@ export function createFiscalRouter() {
               ean: item.xmlItem.ean || null,
               supplier: effectiveSupplierName,
               supplierId: effectiveSupplierId,
-              ncm: item.xmlItem.ncm || null,
-              cfop: item.xmlItem.cfop || null,
+              ncm: effectiveNcm ? String(effectiveNcm).replace(/\D/g, '').slice(0, 8) : null,
+              cest: effectiveCest ? String(effectiveCest).replace(/\D/g, '').slice(0, 7) : null,
+              cfop: effectiveCfop ? String(effectiveCfop).replace(/\D/g, '').slice(0, 4) : '5102',
               unit: item.xmlItem.unit || 'un',
               price: newSale,
               costPrice: newCost,
@@ -1490,21 +1501,22 @@ export function createFiscalRouter() {
             const authHeader = 'Basic ' + Buffer.from(settings.apiToken.trim() + ':').toString('base64');
 
             for (const n of filtradas) {
-              if ((n.status === 'processando' || !n.numero) && n.referencia) {
+              const needsSync = (n.status === 'processando' || n.status === 'emitido_contingencia' || n.status === 'contingencia' || !n.numero) && n.referencia;
+              if (needsSync) {
                 try {
                   const checkRes = await fetch(`${baseURL}/v2/${tipo}/${encodeURIComponent(n.referencia)}?completa=1`, {
                     headers: { 'Authorization': authHeader }
                   });
                   const checkData: any = await checkRes.json().catch(() => ({}));
-                  if (checkData.status === 'autorizado') {
-                    n.status = 'autorizado';
+                  if (checkData.status === 'autorizado' || checkData.status === 'emitido_contingencia' || checkData.status === 'contingencia') {
+                    n.status = checkData.status;
                     n.chave = checkData.chave_nfe || checkData.chave || n.chave;
                     n.numero = checkData.numero ? String(checkData.numero) : n.numero;
                     n.serie = checkData.serie ? String(checkData.serie) : n.serie;
                     await (prisma as any).notaEmitida.updateMany({
                       where: { referencia: n.referencia },
                       data: {
-                        status: 'autorizado',
+                        status: checkData.status,
                         chave: n.chave,
                         numero: n.numero,
                         serie: n.serie
@@ -2044,16 +2056,18 @@ export function createFiscalRouter() {
       }
 
       // Gera um ref único para esta nota (obrigatório pela Focus NFe)
-      // Formato: nfce_<orderId ou timestamp>_<random>
+      // Formato: nfce_<saleKey ou orderId ou timestamp>
       const ts = Date.now();
       const rnd = Math.floor(Math.random() * 9000) + 1000;
-      // saleKey (id da venda): ref fixa por venda, para "tentar de novo" nunca gerar uma segunda nota da mesma venda
-      const cleanSaleKey = saleKey ? String(saleKey).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) : '';
+      // saleKey ou orderId (id da venda/sessão): ref fixa por tentativa para nunca pular numeração nem duplicar nota na SEFAZ
+      const cleanSaleKey = saleKey
+        ? String(saleKey).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+        : orderId
+          ? String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40)
+          : '';
       const ref = cleanSaleKey
         ? `nfce_${cleanSaleKey}`
-        : orderId
-          ? `nfce_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
-          : `nfce_${ts}_${rnd}`;
+        : `nfce_${ts}_${rnd}`;
 
       // Mapeamento para requisição na Focus NFe
       const baseURL = settings.environment === 'producao' 
@@ -2217,7 +2231,8 @@ export function createFiscalRouter() {
             const prev = await prevRes.json();
             const host = req.get('host');
             const danfeUrlPrev = `${req.protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(prev.ref || ref)}`;
-            if (prev.status === 'autorizado') {
+            const isPreOk = prev.status === 'autorizado' || prev.status === 'emitido_contingencia' || prev.status === 'contingencia';
+            if (isPreOk) {
               try {
                 const NotaEmitida = (prisma as any).notaEmitida;
                 const exists = NotaEmitida ? await NotaEmitida.findFirst({ where: { referencia: prev.ref || ref } }) : true;
@@ -2240,7 +2255,7 @@ export function createFiscalRouter() {
               } catch (e) {
                 console.error('Erro ao salvar NotaEmitida (consulta prévia)', e);
               }
-              return res.json({ success: true, status: 'autorizado', referencia: prev.ref || ref, chaveAcesso: prev.chave_nfe, caminhoDanfe: danfeUrlPrev });
+              return res.json({ success: true, status: prev.status, contingencia: prev.status !== 'autorizado', referencia: prev.ref || ref, chaveAcesso: prev.chave_nfe, caminhoDanfe: danfeUrlPrev });
             }
             if (String(prev.status || '').startsWith('processando')) {
               return res.json({ success: true, status: 'processando', referencia: prev.ref || ref });
@@ -2293,8 +2308,10 @@ export function createFiscalRouter() {
       const focusDataValor = totalItemsValue;
       const focusDataStatus = data.status;
 
-      if (data.status === 'autorizado') {
-        
+      const isOkStatus = (st: string) => st === 'autorizado' || st === 'emitido_contingencia' || st === 'contingencia';
+
+      if (isOkStatus(data.status)) {
+        const isContingencia = data.status !== 'autorizado';
         // Salva Nota Emitida no DB
         try {
           const NotaEmitida = (prisma as any).notaEmitida;
@@ -2310,8 +2327,8 @@ export function createFiscalRouter() {
               data: {
                 referencia: data.ref,
                 chave: data.chave_nfe,
-                numero: data.numero,
-                serie: data.serie,
+                numero: data.numero ? String(data.numero) : null,
+                serie: data.serie ? String(data.serie) : null,
                 dataEmissao: new Date().toISOString(),
                 valorTotal: totalItemsValue,
                 status: data.status,
@@ -2331,6 +2348,7 @@ export function createFiscalRouter() {
         return res.json({
           success: true,
           status: data.status,
+          contingencia: isContingencia,
           referencia: data.ref,
           chaveAcesso: data.chave_nfe,
           caminhoDanfe: danfeUrl
@@ -2345,7 +2363,8 @@ export function createFiscalRouter() {
         });
         const checkData = await checkRes.json();
 
-        if (checkData.status === 'autorizado') {
+        if (isOkStatus(checkData.status)) {
+          const isContingencia = checkData.status !== 'autorizado';
           const host = req.get('host');
           const protocol = req.protocol;
           const authorizedDanfeUrl = `${protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(checkData.ref || data.ref)}`;
@@ -2357,8 +2376,8 @@ export function createFiscalRouter() {
                 data: {
                   referencia: checkData.ref,
                   chave: checkData.chave_nfe,
-                  numero: checkData.numero,
-                  serie: checkData.serie,
+                  numero: checkData.numero ? String(checkData.numero) : null,
+                  serie: checkData.serie ? String(checkData.serie) : null,
                   dataEmissao: new Date().toISOString(),
                   valorTotal: totalItemsValue,
                   status: checkData.status,
@@ -2374,6 +2393,7 @@ export function createFiscalRouter() {
           return res.json({
             success: true,
             status: checkData.status,
+            contingencia: isContingencia,
             referencia: checkData.ref || data.ref,
             chaveAcesso: checkData.chave_nfe,
             caminhoDanfe: authorizedDanfeUrl
@@ -3490,8 +3510,9 @@ export function createFiscalRouter() {
           name: prod.xProd || 'Produto sem descrição',
           quantity: parseFloat(prod.qCom || '1'),
           unitCost: parseFloat(prod.vUnCom || '0'),
-          ncm: prod.NCM ? String(prod.NCM) : '',
-          cfop: prod.CFOP ? String(prod.CFOP) : '',
+          ncm: prod.NCM ? String(prod.NCM).replace(/\D/g, '').slice(0, 8) : '',
+          cfop: prod.CFOP ? String(prod.CFOP).replace(/\D/g, '').slice(0, 4) : '',
+          cest: prod.CEST ? String(prod.CEST).replace(/\D/g, '').slice(0, 7) : '',
           unit: prod.uCom || 'UN'
         };
       });

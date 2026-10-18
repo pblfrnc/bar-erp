@@ -66,7 +66,8 @@ export async function emitNfceForOrder(order: Order, options: { customerDoc?: st
   if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
 
   const referencia = data.referencia || data.ref || '';
-  if (data.status !== 'autorizado') return { status: 'processing', referencia };
+  const isOk = data.status === 'autorizado' || data.status === 'emitido_contingencia' || data.status === 'contingencia';
+  if (!isOk) return { status: 'processing', referencia };
   return { status: 'authorized', danfeUrl: data.caminhoDanfe || null, referencia };
 }
 

@@ -80,6 +80,8 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [printSuccessFeedback, setPrintSuccessFeedback] = useState<boolean>(false);
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+  // Chave única e estável para a sessão de emissão de NF-e (evita saltos de numeração na Focus NFe em caso de retry/erro)
+  const [saleSessionKey, setSaleSessionKey] = useState<string>(() => 'nfe_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -298,6 +300,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
   };
 
   const handleResetForNewSale = () => {
+    setSaleSessionKey('nfe_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
     setItems([]);
     setSaleSuccessData(null);
     setSearchTerm('');
@@ -492,7 +495,7 @@ export const EmitNfeView: React.FC<EmitNfeViewProps> = ({ onBack }) => {
       const saleTotal = total;
       const cleanDoc = customerCpf.replace(/\D/g, '');
       const payload = {
-        orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
+        orderId: saleSessionKey,
         customerCpf: cleanDoc || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,

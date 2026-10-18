@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   Scissors,
   Scale,
-  Layers
+  Layers,
+  FileText
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, Category } from '../types';
@@ -30,6 +31,7 @@ interface XmlItem {
   unitCost: number;
   ncm: string;
   cfop: string;
+  cest?: string;
   unit: string;
 }
 
@@ -47,6 +49,10 @@ interface MatchState {
   conversionFactor?: number;
   isConversionActive?: boolean;
   conversionMode?: 'box' | 'portion';
+  // Dados fiscais (NCM, CEST, CFOP)
+  ncm?: string;
+  cest?: string;
+  cfop?: string;
 }
 
 function detectConversionSuggestion(name: string, unit?: string): { factor: number; mode: 'box' | 'portion'; detected: boolean; label?: string } {
@@ -192,6 +198,19 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         newBoxPrice = Number((suggestedSale * conversionFactor).toFixed(2));
       }
 
+      // Dados Fiscais (NCM, CEST e CFOP)
+      const suggestCfop = (rawCfop?: string) => {
+        const c = String(rawCfop || '').replace(/\D/g, '');
+        if (c.startsWith('54') || c.startsWith('64')) return '5405';
+        return '5102';
+      };
+
+      // Prioridade: dados fiscais da nota de compra (XML de entrada) auto-preenchidos diretamente,
+      // com fallback para o cadastro existente do produto caso a nota não informe
+      const initialNcm = (item.ncm || exactMatch?.ncm || '').replace(/\D/g, '').slice(0, 8);
+      const initialCest = (item.cest || exactMatch?.cest || '').replace(/\D/g, '').slice(0, 7);
+      const initialCfop = (suggestCfop(item.cfop) || exactMatch?.cfop || '5102').replace(/\D/g, '').slice(0, 4);
+
       return {
         xmlItem: item,
         action: exactMatch ? 'LINK' : 'NEW',
@@ -203,7 +222,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
         newBoxPrice: newBoxPrice,
         conversionFactor,
         isConversionActive,
-        conversionMode
+        conversionMode,
+        ncm: initialNcm,
+        cest: initialCest,
+        cfop: initialCfop
       };
     });
   };
@@ -395,7 +417,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
       const keyToSend = (confirmChave || chaveAcesso || xmlData?.accessKey || '').replace(/\D/g, '');
       const itemsPayload = validMatches.map(m => ({
         ...m,
-        conversionFactor: (m.isConversionActive && m.conversionFactor && m.conversionFactor > 0) ? m.conversionFactor : 1
+        conversionFactor: (m.isConversionActive && m.conversionFactor && m.conversionFactor > 0) ? m.conversionFactor : 1,
+        ncm: (m.ncm || m.xmlItem.ncm || '').replace(/\D/g, '').slice(0, 8) || undefined,
+        cest: (m.cest || m.xmlItem.cest || '').replace(/\D/g, '').slice(0, 7) || undefined,
+        cfop: (m.cfop || m.xmlItem.cfop || '').replace(/\D/g, '').slice(0, 4) || undefined
       }));
       const res = await api.applyXmlImport({
         items: itemsPayload,
@@ -880,6 +905,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                               newBox = Number((newSale * found.boxQuantity).toFixed(2));
                             }
                           }
+                          const newNcm = (match.ncm || match.xmlItem.ncm || found?.ncm || '').replace(/\D/g, '').slice(0, 8);
+                          const newCest = (match.cest || match.xmlItem.cest || found?.cest || '').replace(/\D/g, '').slice(0, 7);
+                          const newCfop = (match.cfop || (match.xmlItem.cfop?.startsWith('54') || match.xmlItem.cfop?.startsWith('64') ? '5405' : '5102') || found?.cfop || '5102').replace(/\D/g, '').slice(0, 4);
+
                           updateMatch(i, {
                             productId: pId,
                             targetMargin: margin,
@@ -887,7 +916,10 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                             conversionFactor: convFactor,
                             isConversionActive: convActive,
                             updateBoxPrice: Boolean(found?.hasBoxPrice),
-                            newBoxPrice: newBox
+                            newBoxPrice: newBox,
+                            ncm: newNcm,
+                            cest: newCest,
+                            cfop: newCfop
                           });
                         }}
                         className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-xs rounded-lg p-2.5 focus:border-indigo-500 outline-none shadow-xs"
@@ -1132,6 +1164,136 @@ export const FiscalImportView: React.FC<FiscalImportViewProps> = ({ onBack, chav
                               className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg outline-none focus:border-emerald-500"
                             />
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DADOS FISCAIS: NCM, CEST e CFOP */}
+                {match.action !== 'IGNORE' && (
+                  <div className="mt-3 bg-slate-50 dark:bg-slate-950/80 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-sky-500" />
+                        Dados Fiscais (NCM, CEST e CFOP)
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {match.action === 'LINK' ? 'Atualiza cadastro do produto' : 'Grava no novo produto'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {/* NCM */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
+                            NCM (8 dígitos) *
+                          </label>
+                          {match.xmlItem.ncm && (match.ncm !== match.xmlItem.ncm) && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(i, { ncm: match.xmlItem.ncm.replace(/\D/g, '').slice(0, 8) })}
+                              className="text-[9px] text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                              title="Usar NCM que veio na NF de compra"
+                            >
+                              Usar NF ({match.xmlItem.ncm})
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            maxLength={8}
+                            placeholder="Ex: 22030000"
+                            value={match.ncm || ''}
+                            onChange={(e) => updateMatch(i, { ncm: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                            className={`w-full bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg p-1.5 outline-none ${
+                              (match.ncm || '').length === 8 
+                                ? 'border-emerald-300 dark:border-emerald-500/40 focus:border-emerald-500' 
+                                : 'border-amber-300 dark:border-amber-500/40 focus:border-amber-500'
+                            }`}
+                          />
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                            {(match.ncm || '').length === 8 ? (
+                              <span className="text-emerald-500 font-bold text-xs" title="NCM preenchido">✓</span>
+                            ) : (
+                              <span className="text-amber-500 font-bold text-[10px]" title="NCM incompleto">!</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-slate-400 mt-0.5">
+                          {(match.ncm || '').length === 8 ? '✓ NCM preenchido' : '⚠️ Obrigatório para emissão de NFC-e'}
+                        </p>
+                      </div>
+
+                      {/* CEST */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
+                            CEST (Subst. Tributária)
+                          </label>
+                          {match.xmlItem.cest && (match.cest !== match.xmlItem.cest) && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(i, { cest: (match.xmlItem.cest || '').replace(/\D/g, '').slice(0, 7) })}
+                              className="text-[9px] text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                              title="Usar CEST que veio na NF de compra"
+                            >
+                              Usar NF ({match.xmlItem.cest})
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={7}
+                          placeholder="Ex: 0300100"
+                          value={match.cest || ''}
+                          onChange={(e) => updateMatch(i, { cest: e.target.value.replace(/\D/g, '').slice(0, 7) })}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg p-1.5 focus:border-sky-500 outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 mt-0.5">
+                          7 dígitos (opcional / ST)
+                        </p>
+                      </div>
+
+                      {/* CFOP */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
+                            CFOP Saída
+                          </label>
+                          {match.xmlItem.cfop && (
+                            <span className="text-[9px] text-slate-400 font-mono">Entr: {match.xmlItem.cfop}</span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={4}
+                          placeholder="Ex: 5102"
+                          value={match.cfop || '5102'}
+                          onChange={(e) => updateMatch(i, { cfop: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs font-bold rounded-lg p-1.5 focus:border-sky-500 outline-none"
+                        />
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {[
+                            { code: '5102', label: '5102 Normal' },
+                            { code: '5405', label: '5405 ST' },
+                            { code: '5101', label: '5101 Própria' }
+                          ].map(btn => (
+                            <button
+                              key={btn.code}
+                              type="button"
+                              onClick={() => updateMatch(i, { cfop: btn.code })}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition cursor-pointer ${
+                                match.cfop === btn.code
+                                  ? 'bg-sky-600 text-white'
+                                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-sky-400'
+                              }`}
+                            >
+                              {btn.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>

@@ -60,6 +60,8 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [printSuccessFeedback, setPrintSuccessFeedback] = useState<boolean>(false);
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+  // Chave única e estável para a sessão de venda manual (evita saltos de numeração na Focus NFe em caso de retry/erro)
+  const [saleSessionKey, setSaleSessionKey] = useState<string>(() => 'man_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
 
   // Cadastro de NCM na hora da emissão (produtos sem NCM)
   const [ncmPromptProducts, setNcmPromptProducts] = useState<Product[] | null>(null);
@@ -150,6 +152,7 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
   const requiresCustomerDoc = total >= NFCE_LIMITE_SEM_IDENTIFICACAO;
 
   const handleResetForNewSale = () => {
+    setSaleSessionKey('man_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7));
     setItems([]);
     setSaleSuccessData(null);
     setResultDanfe(null);
@@ -247,7 +250,8 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
     try {
       const saleTotal = total;
       const payload = {
-        orderId: `${Date.now()}${Math.floor(Math.random() * 9000) + 1000}`,
+        saleKey: saleSessionKey,
+        orderId: saleSessionKey,
         customerCpf: cleanCustomerDoc || undefined,
         customerName: customerName.trim() || undefined,
         paymentMethod,
@@ -273,7 +277,8 @@ export const ManualNfceView: React.FC<ManualNfceViewProps> = ({ onBack }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro na transmissão à SEFAZ.');
 
-      if (data.status !== 'autorizado') {
+      const isOk = data.status === 'autorizado' || data.status === 'emitido_contingencia' || data.status === 'contingencia';
+      if (!isOk) {
         alert(`A NFC-e foi enviada e está em processamento na SEFAZ (ref: ${data.referencia}).\n\nNÃO emita novamente. Consulte em instantes na tela de Reimpressão de NFC-e.`);
         handleResetForNewSale();
         return;
