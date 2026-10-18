@@ -489,6 +489,16 @@ export function createOrdersRouter(io: SocketIOServer) {
         return res.status(404).json({ error: 'Item não encontrado no pedido' });
       }
 
+      // Não deixar o total ficar abaixo do que já foi abatido (haver)
+      const currentOrder = await prisma.order.findUnique({ where: { id } });
+      if (currentOrder && (currentOrder.paidAmount || 0) > 0) {
+        const newSubtotal = currentOrder.subtotal - item.totalPrice;
+        const newTotal = newSubtotal + (currentOrder.isServiceFeeActive ? newSubtotal * currentOrder.serviceFeeRate : 0) - currentOrder.discount;
+        if (newTotal < currentOrder.paidAmount - 0.05) {
+          return res.status(400).json({ error: 'O cliente já abateu (haver) mais do que o novo total da conta ficaria. Ajuste os pagamentos antes.' });
+        }
+      }
+
       // Devolver estoque (Ficha Técnica ou Unidade)
       if (item.product) {
         if (item.product.components && item.product.components.length > 0) {
@@ -558,6 +568,9 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       const serviceFee = isServiceFeeActive ? order.subtotal * serviceFeeRate : 0;
       const total = order.subtotal + serviceFee - order.discount;
+      if (total < (order.paidAmount || 0) - 0.05) {
+        return res.status(400).json({ error: 'O cliente já abateu (haver) mais do que o novo total da conta ficaria. Ajuste os pagamentos antes.' });
+      }
 
       const updated = await prisma.order.update({
         where: { id },
@@ -588,6 +601,9 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       const discountAmount = Math.max(0, Number(discount) || 0);
       const total = Math.max(0, order.subtotal + order.serviceFee - discountAmount);
+      if (total < (order.paidAmount || 0) - 0.05) {
+        return res.status(400).json({ error: 'O cliente já abateu (haver) mais do que o novo total da conta ficaria. Ajuste os pagamentos antes.' });
+      }
 
       const updated = await prisma.order.update({
         where: { id },
@@ -612,15 +628,16 @@ export function createOrdersRouter(io: SocketIOServer) {
     }
   });
 
-  // Realizar Pagamento e/ou Fechar Comanda
-  router.post('/:id/pay', async (req, res) => {
+  // Realizar Pagamento e/ou Fechar Comanda (inclui abatimento parcial / haver)
+  type PayResult = { status: number; body: unknown };
+
+  const processPayment = async (id: string, body: any): Promise<PayResult> => {
     try {
-      const { id } = req.params;
-      const { payments, closeOrder, customerId, paidItems } = req.body;
+      const { payments, closeOrder, customerId, paidItems } = body;
       // payments: Array<{ amount: number, method: string, notes?: string }>
 
       if (!payments || !Array.isArray(payments) || payments.length === 0) {
-        return res.status(400).json({ error: 'Nenhum pagamento fornecido' });
+        return { status: 400, body: { error: 'Nenhum pagamento fornecido' } };
       }
 
       const order = await prisma.order.findUnique({
@@ -628,7 +645,10 @@ export function createOrdersRouter(io: SocketIOServer) {
         include: { table: true, payments: true }
       });
 
-      if (!order) return res.status(404).json({ error: 'Comanda não encontrada' });
+      if (!order) return { status: 404, body: { error: 'Comanda não encontrada' } };
+      if (order.status !== 'OPEN') {
+        return { status: 409, body: { error: 'Esta comanda já foi fechada ou unida a outra mesa. Atualize a tela.' } };
+      }
 
       // Buscar turno de caixa aberto
       const activeShift = await prisma.cashShift.findFirst({
@@ -637,9 +657,18 @@ export function createOrdersRouter(io: SocketIOServer) {
       });
 
       if (!activeShift) {
-        return res.status(403).json({ error: 'O Caixa (PDV) está fechado! Abra o turno do caixa antes de fechar pedidos ou receber pagamentos.' });
+        return { status: 403, body: { error: 'O Caixa (PDV) está fechado! Abra o turno do caixa antes de fechar pedidos ou receber pagamentos.' } };
       }
 
+      // O abatimento nunca pode passar do saldo devedor (o troco em dinheiro é calculado no app, não entra aqui)
+      const remaining = Math.max(0, (order.total || 0) - (order.paidAmount || 0));
+      const requestedTotal = payments.reduce((acc: number, p: any) => acc + Math.max(0, Number(p.amount) || 0), 0);
+      if (requestedTotal > remaining + 0.05) {
+        return {
+          status: 400,
+          body: { error: `Valor informado (R$ ${requestedTotal.toFixed(2)}) é maior que o saldo restante da conta (R$ ${remaining.toFixed(2)}).` }
+        };
+      }
 
       let addedPaidAmount = 0;
       for (const p of payments) {
@@ -719,15 +748,55 @@ export function createOrdersRouter(io: SocketIOServer) {
       io.emit('order:updated', { orderId: order.id, action: 'paid' });
       io.emit('cash:updated');
 
-      res.json({
-        success: true,
-        order: updatedOrder,
-        isFullyPaid: updatedOrder.status === 'PAID'
-      });
+      return {
+        status: 200,
+        body: {
+          success: true,
+          order: updatedOrder,
+          isFullyPaid: updatedOrder.status === 'PAID'
+        }
+      };
     } catch (error) {
       console.error('Erro ao processar pagamento:', error);
-      res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao processar pagamento' });
+      return { status: 500, body: { error: error instanceof Error ? error.message : 'Erro ao processar pagamento' } };
     }
+  };
+
+  // O celular reenvia o POST quando o Wi-Fi oscila (fetchWithRetry). Sem isso, o mesmo
+  // abatimento seria lançado duas vezes no caixa. Cada clique gera um requestId novo.
+  const PAY_REQUEST_TTL_MS = 5 * 60 * 1000;
+  const payRequests = new Map<string, { at: number; result: Promise<PayResult> }>();
+
+  // Pagamentos da mesma comanda rodam em fila: caixa e celular cobrando juntos não podem
+  // passar os dois pela checagem de saldo antes de gravar
+  const orderPayQueues = new Map<string, Promise<PayResult>>();
+  const processPaymentQueued = (id: string, body: any): Promise<PayResult> => {
+    const previous = orderPayQueues.get(id) || Promise.resolve(null as unknown as PayResult);
+    const next = previous.then(() => processPayment(id, body));
+    orderPayQueues.set(id, next);
+    next.then(() => { if (orderPayQueues.get(id) === next) orderPayQueues.delete(id); });
+    return next;
+  };
+
+  router.post('/:id/pay', async (req, res) => {
+    const requestId = typeof req.body?.requestId === 'string' ? req.body.requestId : '';
+    if (!requestId) {
+      const result = await processPaymentQueued(req.params.id, req.body);
+      return res.status(result.status).json(result.body);
+    }
+
+    const now = Date.now();
+    for (const [key, entry] of payRequests) {
+      if (now - entry.at > PAY_REQUEST_TTL_MS) payRequests.delete(key);
+    }
+
+    let entry = payRequests.get(requestId);
+    if (!entry) {
+      entry = { at: now, result: processPaymentQueued(req.params.id, req.body) };
+      payRequests.set(requestId, entry);
+    }
+    const result = await entry.result;
+    res.status(result.status).json(result.body);
   });
 
   return router;

@@ -129,6 +129,12 @@
 | `client/src/views/FiscalSettingsView.tsx` | Configuração de dados fiscais, certificado A1, CSC, Token Focus NFe e Nome Fantasia. |
 | `client/src/views/NfeReprintView.tsx` | Consulta e reimpressão de 2ª via da NF-e (A4) com diálogo do sistema. |
 | `client/src/views/NfceReprintView.tsx` | Consulta e reimpressão de 2ª via do Cupom Fiscal NFC-e (térmica direta). |
+| `client/src/views/ManualNfceView.tsx` | Emissor de NFC-e: validação de CPF/CNPJ, limite de R$ 10.000, modal de NCM pendente. |
+| `client/src/utils/fiscalDoc.ts` / `server/src/services/fiscalDoc.ts` | Validadores de CPF/CNPJ (módulo 11), `NFCE_LIMITE_SEM_IDENTIFICACAO` e `sanitizeCest` (server). Manter as duas cópias em sincronia. |
+| `client/src/components/ThermalReceipt.tsx` | Comprovante não fiscal (conferência / consumo) com dados reais do bar. |
+| `client/src/services/printService.ts` | `printOrderReceipt`, `triggerPrint`, `isPrintStation` — ponto único de impressão de recibos. |
+| `server/src/printStations.ts` | Nome da sala Socket.IO das estações de impressão (`print-stations`). |
+| `server/src/routes/orders.ts` | Inclui `POST /:id/print-receipt` (recibo pedido pelo celular). |
 
 ---
 
@@ -179,6 +185,11 @@
 3. **Preservar a tolerância de esquemas no SQLite:** Sempre manter os métodos `*Safe` com fallback para SQL bruto ao lidar com configurações fiscais e de impressão.
 4. **Respeitar as diretrizes da SEFAZ:** O QR Code padrão deve permanecer entre 75px e 115px (padrão 100px) e o cabeçalho deve conter o Nome Fantasia + Razão Social + CNPJ.
 5. **Preservar o fluxo não destrutivo do instalador NSIS:** O instalador deve continuar instalando sobre a versão anterior mantendo o diretório `userData` intacto.
+6. **Recibos sempre via `printOrderReceipt(order)`:** nunca chamar `printSilent()`/`window.print()` direto para comprovante, nem montar outro `ThermalReceipt` fora do `App.tsx`/`WaiterApp.tsx`.
+7. **Nunca descartar dado fiscal em silêncio:** CPF/CNPJ inválido, NCM ausente ou status não autorizado da Focus devem bloquear com mensagem clara — nunca usar valores genéricos (NCM `22030000`/`21069090`, CNPJ fictício, data fixa).
+8. **Só `autorizado` é sucesso na emissão:** `processando` é gravado e sincronizado depois; qualquer outro status retorna erro.
+9. **Nunca expor `apiToken`/`cscSecret` em rotas usadas por celular/recibo:** usar `GET /api/fiscal/establishment` (só dados públicos). Atenção: `GET /api/fiscal/settings` devolve tudo — não usar fora da tela de Configurações Fiscais.
+10. **Typecheck manual antes de commit:** o build do servidor (`scripts/build.mjs`) NÃO roda `tsc`, então erros de tipo vão para produção sem aviso. Rodar `npx tsc --noEmit -p .` em `server/` e `npx tsc --noEmit -p tsconfig.app.json` em `client/` (o `tsconfig.json` do client tem `files: []` e não checa nada sozinho).
 
 ---
 
@@ -295,4 +306,50 @@
 
 ## 18. 🎨 IDENTIDADE VISUAL
 - Ícones oficiais do Windows (`.exe`) e Android (APKs Garçom/Cozinha) usam o ícone **Beer** do Lucide sobre fundo **âmbar** (cor primária do app).
+
+---
+
+## 19. 📜 HISTÓRICO DE VERSÕES (sessão de 15/10/2026)
+
+### v1.8.0 — Validações fiscais da NFC-e e correções gerais (commit `e7301ce`)
+- **NFC-e:** CPF/CNPJ validado (tamanho + módulo 11) no client e no backend; identificação obrigatória a partir de R$ 10.000,00; NCM obrigatório com modal que salva o NCM no cadastro do produto; CEST enviado (`codigo_cest`); status diferente de `autorizado` vira erro; nota `processando` gravada e sincronizada em `/recent-notes?tipo=nfce` com aviso para não reemitir.
+- **Cancelamento de NF-e:** corrigido `ReferenceError` (`localNota` fora do escopo) que ocorria depois da SEFAZ aceitar o cancelamento e deixava a nota como autorizada no banco.
+- **Cofre de XML:** `archiveAuthorizedXml()` grava o XML autorizado real (antes era um XML falso só com CNPJ) — NFC-e e NF-e.
+- **Datas:** `persistNfeRecord` respeita `dataEmissao`; recuperação de NF-e extrai número/série/mês da chave (removida data fixa `2026-09-11`).
+- **Auto-reparo da NF-e nº 1 série 2:** restrito ao CNPJ `36275163000124`.
+- **Tipagem:** zerados os erros de `tsc` em server, client e dev-panel.
+
+### v1.8.1 — Comprovante de pedido (commit `67814eb`)
+- Botões de impressão imprimiam o pedido da **primeira mesa aberta**, não o da mesa selecionada; histórico tinha dois cupons sobrepostos. Agora tudo passa por `printOrderReceipt(order)`.
+- Cabeçalho com dados reais via `GET /api/fiscal/establishment` (antes "BAR & CHOPERIA PRO" e CNPJ `00.000.000/0001-00`).
+- CSS de impressão não força mais `display: block` nos filhos (quebrava o alinhamento); largura desconta margens; fundo branco.
+- Layout térmico: item em linha própria + "qtd x unit ... total"; data real de fechamento; % real da taxa de serviço; pagamentos em português. Validado em 80mm e 58mm via Chrome headless.
+
+### v1.8.2 — Recibo pelo celular na impressora do caixa (commit `43fce1b`)
+- `POST /api/orders/:id/print-receipt` → Socket.IO `print:receipt` para uma estação Electron (`print-stations`) com ack de 8s. Detalhes na seção 3 › A3.
+- Requer o BarERP aberto no PC e o APK novo nos celulares.
+
+### v1.8.3 — Abater valor (haver) e atualização do APK sem Play Store (sessão de 17/10/2026)
+- **Haver:** aba **"Abater Valor"** no `CheckoutModal` (PC e celular), com atalhos R$ 10/20/50/100, lista do que já foi abatido e "Haver R$ X · Falta R$ Y" nos cards de mesa e no detalhe da mesa. O pagamento grava a nota `Haver (abatimento parcial)` e a mesa continua aberta.
+- **`POST /api/orders/:id/pay`:** recusa valor acima do saldo (400) e comanda que não está `OPEN` (409); pagamentos da mesma comanda rodam em fila (caixa e celular cobrando juntos); `requestId` (gerado em `api.payOrder`) evita lançamento duplicado quando o `fetchWithRetry` reenvia.
+- **Juntar mesas** leva os pagamentos e o `paidAmount` da mesa secundária (antes o haver se perdia). Remover item, desconto e desligar os 10% são recusados se o total ficar abaixo do já pago.
+- **Atualização do APK:** plugin nativo `AppUpdaterPlugin.java` (baixa o APK e abre o instalador do Android) + `services/appUpdate.ts` + `AppUpdateBanner` no `WaiterApp`/`KdsApp`. Lê `version.json` da release `latest` (a cada 30 min e ao voltar para o app) e baixa `BarERP-Garcom.apk` ou `BarERP-Cozinha.apk` conforme o `packageName`. O `versionCode` vem do `client/package.json` (`maior*1000000 + menor*1000 + patch`). Depende da `release.keystore` versionada: trocar a chave quebra a atualização por cima.
+- **Primeira vez:** celulares com APK anterior à v1.8.3 precisam instalar a v1.8.3 manualmente; dali em diante o próprio app avisa. Na primeira atualização o Android pede para liberar "Instalar apps desconhecidos" para o BarERP.
+
+---
+
+## 20. 📌 PENDÊNCIAS & DECISÕES
+
+### Pendências
+- **IBS/CBS (Reforma Tributária):** não implementado. Obrigatório para Simples Nacional previsto para jan/2027 (confirmar na NT 2025.002-RTC). Plano: `cClassTrib` no produto (padrão `000001`), alíquotas CBS/IBS-UF/IBS-Mun nas Configurações Fiscais, cálculo no payload da NFC-e e no `nfeService.ts`. Campos Focus na seção 4.
+- **GitHub Actions:** `checkout`/`setup-node`/`upload-artifact`/`download-artifact` v4 usam Node 20 (depreciado); `setup-java@v4` sem atualizações (migrar para v5); `ubuntu-latest` migra para Ubuntu 26 a partir de 19/10/2026.
+- **Typecheck no CI:** sugerido fazer o build falhar com erro de `tsc` no servidor (ainda não adotado).
+- **Várias estações de impressão:** com mais de um PC Electron aberto, o recibo do celular sai no conectado há mais tempo; se necessário, criar opção "Este PC imprime os recibos do celular".
+
+### Decisões
+- **Sem reescrita em Rust/nativo (15/10/2026):** o projeto segue em Electron + React + Node. Motivo: os bugs reais eram de lógica/regra fiscal, a impressão depende do motor do Chromium e os APKs compartilham o código React.
+
+### Ambiente de desenvolvimento
+- A pasta `~/Documents/ERP` tem I/O lento (provável sincronização): `tsc`, `git diff` e `npx` podem levar minutos — rodar em segundo plano.
+- Não subir o servidor completo para testes locais: o agendador de NF-e recebidas consulta a Focus com o token do `dev.db`.
 

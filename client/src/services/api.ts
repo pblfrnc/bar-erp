@@ -198,7 +198,8 @@ export const api = {
     fetchWithRetry(`${getApiUrl()}/orders/${orderId}/pay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      // requestId: as novas tentativas do fetchWithRetry não lançam o mesmo pagamento duas vezes
+      body: JSON.stringify({ ...data, requestId: `${Date.now()}-${Math.random().toString(36).slice(2)}` })
     }).then(handleResponse<{ success: boolean; order: Order; isFullyPaid: boolean }>),
 
   getOrderHistory: (limit = 100, date?: string): Promise<Order[]> => {

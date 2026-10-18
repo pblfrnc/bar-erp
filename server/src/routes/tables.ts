@@ -364,10 +364,16 @@ export function createTablesRouter(io: SocketIOServer) {
           data: { orderId: mainOrder.id }
         });
 
+        // Levar junto o que já foi abatido (haver) da segunda mesa, senão o cliente pagaria de novo
+        await prisma.payment.updateMany({
+          where: { orderId: secondOrder.id },
+          data: { orderId: mainOrder.id }
+        });
+
         // Cancelar pedido antigo da segunda mesa
         await prisma.order.update({
           where: { id: secondOrder.id },
-          data: { status: 'CANCELLED' }
+          data: { status: 'CANCELLED', paidAmount: 0 }
         });
 
         // Recalcular totais da mesa principal
@@ -381,7 +387,7 @@ export function createTablesRouter(io: SocketIOServer) {
 
         await prisma.order.update({
           where: { id: mainOrder.id },
-          data: { subtotal, serviceFee, total }
+          data: { subtotal, serviceFee, total, paidAmount: (mainOrder.paidAmount || 0) + (secondOrder.paidAmount || 0) }
         });
       }
 

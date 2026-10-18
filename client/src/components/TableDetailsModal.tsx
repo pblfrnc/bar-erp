@@ -310,6 +310,11 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
               <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                 R$ {order.total.toFixed(2)}
               </span>
+              {(order.paidAmount || 0) > 0 && (
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-400 block">
+                  Haver R$ {order.paidAmount.toFixed(2)} · Falta R$ {Math.max(0, order.total - order.paidAmount).toFixed(2)}
+                </span>
+              )}
             </div>
 
             <button

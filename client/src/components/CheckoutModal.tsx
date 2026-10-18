@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Table, Order, PaymentMethod, OrderItem } from '../types';
 import { api } from '../services/api';
 import { printOrderReceipt, printButtonLabel } from '../services/printService';
+import { PAYMENT_LABELS } from './ThermalReceipt';
 import {
   X,
   Printer,
@@ -13,7 +14,7 @@ import {
   Tag, BookDown,
   Percent,
   Users, ListChecks, Plus, Minus,
-  AlertCircle
+  AlertCircle, HandCoins
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -34,9 +35,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const remainingBalance = Math.max(0, (order?.total || 0) - (order?.paidAmount || 0));
 
   // Estados de divisão
+  // 'amount' = Abater Valor (haver): o cliente paga só parte da conta, sem escolher itens
 
   // Estados de Divisão por Itens
-  const [splitMode, setSplitMode] = useState<'simple' | 'items'>('simple');
+  const [splitMode, setSplitMode] = useState<'simple' | 'items' | 'amount'>('simple');
+  const payAmountInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [splitCount, setSplitCount] = useState<number>(table?.customerCount || 2);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
@@ -85,9 +88,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Atualizar payAmount quando trocar os itens selecionados
   React.useEffect(() => {
     if (splitMode === 'items') {
-      setPayAmount(selectedItemsTotal.toFixed(2));
+      // Com desconto na conta, a soma dos itens pode passar do saldo restante
+      setPayAmount(Math.min(selectedItemsTotal, remainingBalance).toFixed(2));
     }
-  }, [selectedItemsTotal, splitMode]);
+  }, [selectedItemsTotal, splitMode, remainingBalance]);
+
+  const handleSelectAmountMode = () => {
+    setSplitMode('amount');
+    setPayAmount('');
+    setTimeout(() => payAmountInputRef.current?.focus(), 50);
+  };
 
   if (!table || !order) return null;
 
@@ -179,6 +189,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       alert('Informe um valor válido para pagamento');
       return;
     }
+    if (amt > remainingBalance + 0.05) {
+      alert(`O valor informado é maior que o saldo restante (R$ ${remainingBalance.toFixed(2)}).`);
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -198,7 +212,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             method: paymentMethod,
             notes: splitMode === 'items'
               ? 'Itens: ' + Object.entries(selectedItems).filter(([_, q]) => q > 0).map(([id, q]) => `${q}x ${order.items.find(i => i.id === id)?.product?.name}`).join(', ')
-              : (splitCount > 1 ? `Divisão (${splitCount}p)` : undefined)
+              : splitMode === 'amount'
+                ? (isClosing ? 'Haver (quitação)' : 'Haver (abatimento parcial)')
+                : (splitCount > 1 ? `Divisão (${splitCount}p)` : undefined)
           }
         ],
         closeOrder: isClosing,
@@ -355,11 +371,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Valores já abatidos (haver) nesta comanda */}
+            {(order.paidAmount || 0) > 0 && (
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-blue-700 dark:text-blue-400">
+                  <span className="uppercase tracking-wider">Já Abatido (Haver)</span>
+                  <span className="font-mono">- R$ {order.paidAmount.toFixed(2)}</span>
+                </div>
+                {order.payments?.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    <span className="truncate">
+                      {new Date(p.receivedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      {' · '}{PAYMENT_LABELS[p.method] || p.method}
+                      {p.notes ? ` · ${p.notes}` : ''}
+                    </span>
+                    <span className="font-mono shrink-0">R$ {p.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Seção de Divisão de Conta (Racha-Conta) */}
           <div className="bg-slate-50/80 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800/80 p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 Racha-Conta
@@ -368,7 +404,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="flex bg-slate-200/80 dark:bg-slate-950 rounded-lg p-0.5 border border-slate-300 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setSplitMode('simple')}
+                  onClick={() => {
+                    if (splitMode === 'amount') setPayAmount(remainingBalance.toFixed(2));
+                    setSplitMode('simple');
+                  }}
                   className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition cursor-pointer ${splitMode === 'simple' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
                   Divisão Igual
@@ -381,10 +420,45 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <ListChecks className="w-3 h-3" />
                   Por Itens
                 </button>
+                <button
+                  type="button"
+                  onClick={handleSelectAmountMode}
+                  className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition flex items-center gap-1 cursor-pointer ${splitMode === 'amount' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                  <HandCoins className="w-3 h-3" />
+                  Abater Valor
+                </button>
               </div>
             </div>
 
-            {splitMode === 'simple' ? (
+            {splitMode === 'amount' ? (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200 mt-2 space-y-2">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  O cliente paga só uma parte da conta (haver). Digite o valor em <strong>Valor deste Pagamento</strong> ou use um atalho:
+                </p>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {[10, 20, 50, 100].filter((v) => v < remainingBalance).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setPayAmount(v.toFixed(2))}
+                      className={`flex-1 min-w-[64px] py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        toPayNum === v
+                          ? 'bg-amber-500 text-slate-950 font-black shadow'
+                          : 'bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      R$ {v}
+                    </button>
+                  ))}
+                </div>
+                {toPayNum > 0 && toPayNum <= remainingBalance + 0.05 && (
+                  <div className="text-right text-xs font-bold text-amber-600 dark:text-amber-400 font-mono">
+                    Abatendo R$ {toPayNum.toFixed(2)} → restará R$ {Math.max(0, remainingBalance - toPayNum).toFixed(2)}
+                  </div>
+                )}
+              </div>
+            ) : splitMode === 'simple' ? (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mt-2">
                   {[1, 2, 3, 4, 5, 6, 8].map((num) => (
@@ -531,8 +605,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </label>
               <div className="flex gap-2">
                 <input
+                  ref={payAmountInputRef}
                   type="text"
                   inputMode="decimal"
+                  placeholder="0,00"
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value.replace(',', '.'))}
                   onFocus={(e) => e.target.select()}
@@ -575,6 +651,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             )}
           </div>
 
+          {toPayNum > remainingBalance + 0.05 && (
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 flex items-center gap-2 text-xs text-red-800 dark:text-red-300">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500 dark:text-red-400" />
+              <span>
+                O valor é maior que o saldo restante (<strong>R$ {remainingBalance.toFixed(2)}</strong>). Para dinheiro, informe o troco em "Valor Entregue".
+              </span>
+            </div>
+          )}
+
           {/* Alerta de Pagamento Parcial */}
           {toPayNum < remainingBalance - 0.05 && (
             <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 flex items-center gap-2 text-xs text-blue-800 dark:text-blue-300">
@@ -600,16 +685,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {toPayNum < remainingBalance - 0.05 ? (
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || paymentSuccess}
               onClick={() => handleExecutePayment(false)}
               className="flex-1 py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide bg-blue-600 hover:bg-blue-500 text-white transition shadow-lg shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
             >
-              Registrar Pagamento Parcial (R$ {toPayNum.toFixed(2)})
+              {paymentSuccess
+                ? 'Valor Abatido!'
+                : splitMode === 'amount'
+                  ? `Abater R$ ${toPayNum.toFixed(2)} da Conta`
+                  : `Registrar Pagamento Parcial (R$ ${toPayNum.toFixed(2)})`}
             </button>
           ) : (
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || paymentSuccess}
               onClick={() => handleExecutePayment(true)}
               className="flex-1 py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 transition shadow-lg shadow-emerald-500/20 active:scale-[0.98] cursor-pointer"
             >

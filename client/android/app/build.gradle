@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// Versão do APK = versão do client/package.json (o CI aplica `npm version` antes do build).
+// O versionCode precisa crescer a cada release para o Android aceitar a atualização.
+def appVersionName = new groovy.json.JsonSlurper().parse(file('../../package.json')).version
+def appVersionParts = appVersionName.tokenize('.-')
+def appVersionCode = (appVersionParts[0] as int) * 1000000 + (appVersionParts[1] as int) * 1000 + (appVersionParts[2] as int)
+
 android {
     namespace = "com.barerp.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +13,8 @@ android {
         applicationId "com.barerp.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

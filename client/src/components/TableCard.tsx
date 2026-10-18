@@ -36,6 +36,7 @@ export const TableCard: React.FC<TableCardProps> = ({
 
   const elapsed = getElapsedMinutes();
   const orderTotal = table.activeOrder?.total || 0;
+  const orderPaid = table.activeOrder?.paidAmount || 0;
   const itemsCount = table.activeOrder?.items?.length || 0;
 
   // Status de cor e borda
@@ -113,6 +114,11 @@ export const TableCard: React.FC<TableCardProps> = ({
                 <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
                   R$ {orderTotal.toFixed(2)}
                 </span>
+                {orderPaid > 0 && (
+                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 block">
+                    Haver R$ {orderPaid.toFixed(2)} · Falta R$ {Math.max(0, orderTotal - orderPaid).toFixed(2)}
+                  </span>
+                )}
               </div>
 
               {table.activeOrder?.isServiceFeeActive && (

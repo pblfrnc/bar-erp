@@ -4,6 +4,7 @@ import { api } from './services/api';
 import { socket } from './services/socket';
 import { KitchenTicketReceipt, KitchenTicketData } from './components/KitchenTicketReceipt';
 import { playKitchenChime } from './utils/sound';
+import { AppUpdateBanner } from './components/AppUpdateBanner';
 import {
   ChefHat,
   Volume2,
@@ -172,6 +173,9 @@ export function KdsApp() {
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col select-none transition-colors duration-200">
       {/* Ticket de Impressão Térmica (visível na impressora) */}
       <KitchenTicketReceipt ticket={printTicket} />
+
+      {/* Aviso de nova versão do APK (atualização sem Play Store) */}
+      <AppUpdateBanner />
 
       {/* Cabeçalho da Cozinha / KDS */}
       <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">

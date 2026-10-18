@@ -4,6 +4,7 @@ import { api } from './services/api';
 import { socket } from './services/socket';
 import { WaiterView } from './views/WaiterView';
 import { ThermalReceipt } from './components/ThermalReceipt';
+import { AppUpdateBanner } from './components/AppUpdateBanner';
 import { PRINT_RECEIPT_EVENT, triggerPrint } from './services/printService';
 
 export function WaiterApp() {
@@ -90,6 +91,9 @@ export function WaiterApp() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col select-none">
       {/* Componente para Impressão Térmica de Pré-conta */}
       <ThermalReceipt order={printOrder} />
+
+      {/* Aviso de nova versão do APK (atualização sem Play Store) */}
+      <AppUpdateBanner />
 
       {/* Interface 100% Exclusiva do Garçom: Mesas, Pedidos, Juntar, Fechar e Cobrar */}
       <WaiterView
