@@ -375,6 +375,11 @@
 - Site mostra uma categoria por vez (abas com contagem); a busca procura em todas.
 - **Esgotado:** itens `KITCHEN` nunca ficam esgotados; `DigitalMenuSettings.ignoreStock` ("Ignorar o estoque") desliga o esgotado de vez.
 
+### v1.9.0 — Grupos do cardápio e folha de balanço em PDF (sessão de 18/10/2026)
+- **Grupos compartilhados:** `client/src/utils/menuGroups.ts` (`menuGroupOf`, `MENU_GROUP_ORDER`, `NOT_FOR_MENU_GROUPS`) é usado pelo site (`menu/src/menuLayout.ts`) e pela tela de itens do ERP. Regras testadas nos 677 itens reais do JUBAR (só "DIVERSOS" cai em Outros); conveniência (Salgadinhos, Mercearia e insumos, Tabacaria, Conveniência e limpeza) é testada antes da comida.
+- **Tela "Itens do Cardápio":** itens separados por grupo com marcar/desmarcar por grupo e aviso "N itens parecem ser estoque da loja" com botão para desmarcar todos (precisa Salvar).
+- **Folha de Balanço (PDF):** botão em Produtos → `StockSheetModal` (categoria ou todas; ordem alfabética ou por categoria; mostrar custo opcional). `utils/stockSheet.ts` gera A4 com Cód., Produto (categoria/caixa embaixo), Un., Estoque ("—" sem controle), **Contagem** em branco, Custo, Preço e **Novo preço** em branco. PDF por `utils/pdfExport.ts` (`exportHtmlAsPdf`, também usado pelos QR das mesas).
+
 ---
 
 ## 20. 📌 PENDÊNCIAS & DECISÕES

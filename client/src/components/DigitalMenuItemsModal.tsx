@@ -3,6 +3,7 @@ import { Beer, Check, ChevronDown, ImageOff, Loader2, QrCode, Search, UtensilsCr
 import { Category, Product } from '../types';
 import { api } from '../services/api';
 import { ProductPhotoField } from './ProductPhotoField';
+import { menuGroupOf, NOT_FOR_MENU_GROUPS, sortByMenuGroup } from '../utils/menuGroups';
 
 type Filter = 'all' | 'in' | 'out' | 'nophoto';
 
@@ -77,15 +78,31 @@ export const DigitalMenuItemsModal: React.FC<{ onClose: () => void }> = ({ onClo
       .map((category) => {
         const all = products.filter((p) => p.categoryId === category.id);
         const kitchen = all.filter((p) => p.kdsStation === 'KITCHEN').length;
+        const list = visible.filter((p) => p.categoryId === category.id);
+        const buckets = new Map<string, Product[]>();
+        for (const p of list) {
+          const g = menuGroupOf(p.name);
+          buckets.set(g, [...(buckets.get(g) || []), p]);
+        }
         return {
           category,
           food: kitchen * 2 > all.length,
-          products: visible.filter((p) => p.categoryId === category.id)
+          products: list,
+          subgroups:
+            buckets.size > 1
+              ? sortByMenuGroup([...buckets.entries()]).map(([name, items]) => ({ name: name as string | null, products: items }))
+              : [{ name: null as string | null, products: list }]
         };
       })
       .filter((s) => s.products.length > 0);
     return { food: sections.filter((s) => s.food), drink: sections.filter((s) => !s.food) };
   }, [products, categories, query, filter, selected]);
+
+  // Estoque da loja que não costuma ir ao cardápio (cigarro, limpeza, conservas, insumos)
+  const notForMenu = useMemo(
+    () => products.filter((p) => selected.has(p.id) && NOT_FOR_MENU_GROUPS.includes(menuGroupOf(p.name))).map((p) => p.id),
+    [products, selected]
+  );
 
   const toggle = (id: string) =>
     setSelected((cur) => {
@@ -172,6 +189,98 @@ export const DigitalMenuItemsModal: React.FC<{ onClose: () => void }> = ({ onClo
     onClose();
   };
 
+  const renderRow = (p: Product) => {
+    const on = selected.has(p.id);
+    const editing = editingId === p.id;
+    const noPrice = !(p.price > 0);
+    return (
+      <li key={p.id} className={on ? '' : 'bg-slate-50/60 dark:bg-slate-950/40'}>
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            aria-label={`Mostrar ${p.name} no cardápio`}
+            onClick={() => toggle(p.id)}
+            className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition cursor-pointer ${
+              on ? 'bg-amber-500 border-amber-500 text-slate-950' : 'border-slate-300 dark:border-slate-600'
+            }`}
+          >
+            {on && <Check className="w-4 h-4" strokeWidth={3} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => startEdit(p)}
+            className="w-12 h-12 shrink-0 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 cursor-pointer"
+            title="Foto e descrição"
+          >
+            {p.imageHash ? (
+              <img src={api.productImageUrl(p.id, p.imageHash)} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <ImageOff className="w-4 h-4" />
+            )}
+          </button>
+          <button type="button" onClick={() => toggle(p.id)} className="min-w-0 flex-1 text-left cursor-pointer">
+            <p className={`text-sm font-bold truncate ${on ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+              {p.name}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {noPrice ? (
+                <span className="font-semibold text-red-600 dark:text-red-400">Sem preço de venda: não aparece no cardápio</span>
+              ) : (
+                <>
+                  <span className="font-mono font-bold">{brl(p.price)}</span>
+                  {p.description && <> · {p.description}</>}
+                </>
+              )}
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => startEdit(p)}
+            aria-expanded={editing}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          >
+            Foto e descrição
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${editing ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+        {editing && (
+          <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:pl-[3.25rem]">
+            <ProductPhotoField
+              size="sm"
+              imageUrl={p.imageHash ? api.productImageUrl(p.id, p.imageHash) : null}
+              busy={photoBusyId === p.id}
+              onPick={(image) => uploadPhoto(p, image)}
+              onRemove={() => removePhoto(p)}
+            />
+            <div className="space-y-2">
+              <textarea
+                rows={2}
+                maxLength={500}
+                value={descDraft}
+                onChange={(e) => setDescDraft(e.target.value)}
+                placeholder="Descrição para o cliente (ingredientes, tamanho, quantas pessoas serve...)"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => saveDescription(p)}
+                  disabled={savingDesc || descDraft.trim() === (p.description || '').trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-black transition disabled:opacity-40 cursor-pointer"
+                >
+                  {savingDesc && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Salvar descrição
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </li>
+    );
+  };
+
   const renderGroup = (title: string, Icon: typeof Beer, sections: typeof groups.food) =>
     sections.length > 0 && (
       <div className="space-y-4">
@@ -181,7 +290,7 @@ export const DigitalMenuItemsModal: React.FC<{ onClose: () => void }> = ({ onClo
           </span>
           {title}
         </h3>
-        {sections.map(({ category, products: list }) => {
+        {sections.map(({ category, products: list, subgroups }) => {
           const ids = list.map((p) => p.id);
           const allOn = ids.every((id) => selected.has(id));
           const categoryHidden = hiddenCategoryIds.includes(category.id);
@@ -204,99 +313,32 @@ export const DigitalMenuItemsModal: React.FC<{ onClose: () => void }> = ({ onClo
                   {allOn ? 'Desmarcar todos' : 'Marcar todos'}
                 </button>
               </div>
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                {list.map((p) => {
-                  const on = selected.has(p.id);
-                  const editing = editingId === p.id;
-                  const noPrice = !(p.price > 0);
-                  return (
-                    <li key={p.id} className={on ? '' : 'bg-slate-50/60 dark:bg-slate-950/40'}>
-                      <div className="flex items-center gap-3 px-4 py-2.5">
+              {subgroups.map((g) => {
+                const subIds = g.products.map((p) => p.id);
+                const subOn = subIds.filter((id) => selected.has(id)).length;
+                return (
+                  <div key={g.name || 'all'}>
+                    {g.name && (
+                      <div className="flex items-center justify-between gap-3 px-4 py-1.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900">
+                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          {g.name}{' '}
+                          <span className="font-semibold normal-case tracking-normal">
+                            ({subOn} de {subIds.length} no cardápio)
+                          </span>
+                        </p>
                         <button
                           type="button"
-                          role="checkbox"
-                          aria-checked={on}
-                          aria-label={`Mostrar ${p.name} no cardápio`}
-                          onClick={() => toggle(p.id)}
-                          className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition cursor-pointer ${
-                            on ? 'bg-amber-500 border-amber-500 text-slate-950' : 'border-slate-300 dark:border-slate-600'
-                          }`}
+                          onClick={() => setMany(subIds, subOn < subIds.length)}
+                          className="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
                         >
-                          {on && <Check className="w-4 h-4" strokeWidth={3} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(p)}
-                          className="w-12 h-12 shrink-0 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 cursor-pointer"
-                          title="Foto e descrição"
-                        >
-                          {p.imageHash ? (
-                            <img src={api.productImageUrl(p.id, p.imageHash)} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <ImageOff className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button type="button" onClick={() => toggle(p.id)} className="min-w-0 flex-1 text-left cursor-pointer">
-                          <p className={`text-sm font-bold truncate ${on ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {p.name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {noPrice ? (
-                              <span className="font-semibold text-red-600 dark:text-red-400">Sem preço de venda: não aparece no cardápio</span>
-                            ) : (
-                              <>
-                                <span className="font-mono font-bold">{brl(p.price)}</span>
-                                {p.description && <> · {p.description}</>}
-                              </>
-                            )}
-                          </p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(p)}
-                          aria-expanded={editing}
-                          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                        >
-                          Foto e descrição
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${editing ? 'rotate-180' : ''}`} />
+                          {subOn < subIds.length ? 'Marcar todos' : 'Desmarcar todos'}
                         </button>
                       </div>
-                      {editing && (
-                        <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:pl-[3.25rem]">
-                          <ProductPhotoField
-                            size="sm"
-                            imageUrl={p.imageHash ? api.productImageUrl(p.id, p.imageHash) : null}
-                            busy={photoBusyId === p.id}
-                            onPick={(image) => uploadPhoto(p, image)}
-                            onRemove={() => removePhoto(p)}
-                          />
-                          <div className="space-y-2">
-                            <textarea
-                              rows={2}
-                              maxLength={500}
-                              value={descDraft}
-                              onChange={(e) => setDescDraft(e.target.value)}
-                              placeholder="Descrição para o cliente (ingredientes, tamanho, quantas pessoas serve...)"
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none"
-                            />
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() => saveDescription(p)}
-                                disabled={savingDesc || descDraft.trim() === (p.description || '').trim()}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-black transition disabled:opacity-40 cursor-pointer"
-                              >
-                                {savingDesc && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                                Salvar descrição
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
+                    )}
+                    <ul className="divide-y divide-slate-100 dark:divide-slate-800">{g.products.map(renderRow)}</ul>
+                  </div>
+                );
+              })}
             </section>
           );
         })}
@@ -364,6 +406,21 @@ export const DigitalMenuItemsModal: React.FC<{ onClose: () => void }> = ({ onClo
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {!loading && notForMenu.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 px-4 py-3">
+              <p className="flex-1 text-xs text-amber-900 dark:text-amber-200">
+                <span className="font-black">{notForMenu.length} itens parecem ser estoque da loja</span> ({NOT_FOR_MENU_GROUPS.join(', ')}) e
+                estão no cardápio. Confira e tire do cardápio de uma vez; depois clique em Salvar.
+              </p>
+              <button
+                type="button"
+                onClick={() => setMany(notForMenu, false)}
+                className="shrink-0 px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer"
+              >
+                Desmarcar esses {notForMenu.length}
+              </button>
+            </div>
+          )}
           {loading && (
             <div className="py-16 flex justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-amber-500" />

@@ -1,10 +1,9 @@
 import QRCode from 'qrcode';
 import { Table } from '../types';
+import { escapeHtml, exportHtmlAsPdf } from './pdfExport';
 
 // Folha A4 com o QR Code do cardápio digital de cada mesa (6 por página, com linha de recorte)
 
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 export const tableMenuUrl = (menuUrl: string, tableNumber?: number) =>
   tableNumber ? `${menuUrl}?mesa=${tableNumber}` : menuUrl;
@@ -67,23 +66,4 @@ export async function buildTableQrSheetHtml(menuUrl: string, storeName: string, 
 </html>`;
 }
 
-// Electron: salva o PDF e abre no leitor (window.print() iria direto para a térmica).
-// Navegador: imprime por um iframe oculto.
-export async function exportTableQrSheet(html: string): Promise<{ success: boolean; canceled?: boolean; error?: string }> {
-  const electron = (window as any).electronAPI;
-  if (typeof electron?.saveHtmlAsPdf === 'function') {
-    return electron.saveHtmlAsPdf({ html, defaultName: 'QR Codes das mesas.pdf' });
-  }
-  const frame = document.createElement('iframe');
-  frame.style.position = 'fixed';
-  frame.style.width = '0';
-  frame.style.height = '0';
-  frame.style.border = '0';
-  document.body.appendChild(frame);
-  frame.srcdoc = html;
-  await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
-  frame.contentWindow?.focus();
-  frame.contentWindow?.print();
-  setTimeout(() => frame.remove(), 60_000);
-  return { success: true };
-}
+export const exportTableQrSheet = (html: string) => exportHtmlAsPdf(html, 'QR Codes das mesas.pdf');

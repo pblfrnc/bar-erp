@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import {
   UtensilsCrossed,
   QrCode,
+  ClipboardList,
   Search,
   Plus,
   Edit2,
@@ -53,6 +54,7 @@ import { ModifierGroupsManager, describeModifierRule } from '../components/Modif
 import { PromotionsManager } from '../components/PromotionsManager';
 import { ProductPhotoField } from '../components/ProductPhotoField';
 import { DigitalMenuItemsModal } from '../components/DigitalMenuItemsModal';
+import { StockSheetModal } from '../components/StockSheetModal';
 
 const productGroupIds = (p: Product) =>
   [...(p.modifierGroups || [])].sort((a, b) => a.sortOrder - b.sortOrder).map((link) => link.groupId);
@@ -123,6 +125,7 @@ export const ProductsView: React.FC = () => {
   const [showModifierManager, setShowModifierManager] = useState<boolean>(false);
   const [showPromotionsManager, setShowPromotionsManager] = useState<boolean>(false);
   const [showMenuItems, setShowMenuItems] = useState<boolean>(false);
+  const [showStockSheet, setShowStockSheet] = useState<boolean>(false);
 
   // Modal Histórico de Preços
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
@@ -2392,6 +2395,15 @@ export const ProductsView: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setShowStockSheet(true)}
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="PDF para imprimir e anotar contagem de estoque e novos preços"
+          >
+            <ClipboardList className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+            <span>Folha de Balanço (PDF)</span>
+          </button>
+
+          <button
             onClick={openCreateCategoryModal}
             className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
             title="Cadastrar nova categoria de produtos"
@@ -3374,6 +3386,10 @@ export const ProductsView: React.FC = () => {
 
       {showPromotionsManager && (
         <PromotionsManager products={products} categories={categories} onClose={() => setShowPromotionsManager(false)} />
+      )}
+
+      {showStockSheet && (
+        <StockSheetModal products={products} categories={categories} onClose={() => setShowStockSheet(false)} />
       )}
 
       {showMenuItems && (
