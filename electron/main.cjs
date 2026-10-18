@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, dialog, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, globalShortcut, dialog, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -685,6 +685,42 @@ function createWindow() {
       properties: ['openDirectory', 'createDirectory']
     });
     return result.canceled ? null : result.filePaths[0] || null;
+  });
+
+  // Gera um PDF A4 a partir de HTML (ex.: QR Codes das mesas), pergunta onde salvar e abre no leitor de PDF.
+  // Não usa window.print(): com kiosk-printing ele iria direto para a térmica.
+  ipcMain.handle('save-html-as-pdf', async (event, { html, defaultName } = {}) => {
+    if (typeof html !== 'string' || !html) return { success: false, error: 'Nada para gerar.' };
+    const pdfWin = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
+    // Arquivo temporário em vez de data: URL (muitas mesas passariam do limite de tamanho da URL)
+    const tmpHtml = path.join(app.getPath('temp'), `barerp-pdf-${Date.now()}.html`);
+    try {
+      fs.writeFileSync(tmpHtml, html, 'utf-8');
+      await pdfWin.loadFile(tmpHtml);
+      const pdf = await pdfWin.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
+      const safeName = String(defaultName || 'documento.pdf').replace(/[\\/:*?"<>|]/g, '-');
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Salvar PDF',
+        defaultPath: path.join(app.getPath('documents'), safeName),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      });
+      if (result.canceled || !result.filePath) return { success: false, canceled: true };
+      fs.writeFileSync(result.filePath, pdf);
+      shell.openPath(result.filePath);
+      return { success: true, filePath: result.filePath };
+    } catch (err) {
+      return { success: false, error: err?.message || 'Erro ao gerar o PDF.' };
+    } finally {
+      if (!pdfWin.isDestroyed()) pdfWin.destroy();
+      try { fs.unlinkSync(tmpHtml); } catch {}
+    }
+  });
+
+  // Abre links da internet no navegador padrão (ex.: cardápio digital)
+  ipcMain.handle('open-external', async (event, url) => {
+    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) return false;
+    await shell.openExternal(url);
+    return true;
   });
 
   // Diálogo de confirmação síncrono nativo e seguro (evita o bug de teclado do window.confirm)

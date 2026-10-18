@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   focusWindow: () => ipcRenderer.send('focus-window'),
   showConfirm: (message, title) => ipcRenderer.sendSync('show-confirm-dialog', { message, title }),
   chooseBackupFolder: () => ipcRenderer.invoke('choose-backup-folder'),
+  saveHtmlAsPdf: (payload) => ipcRenderer.invoke('save-html-as-pdf', payload),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // Auto-Updater
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

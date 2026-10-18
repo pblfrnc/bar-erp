@@ -57,11 +57,13 @@ export function applyBestPromotion(
 export const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function describePromotion(promo: Promotion): string {
-  const days = String(promo.daysOfWeek || '').split(',').filter(Boolean).map((d) => WEEKDAY_LABELS[Number(d)]).join(', ');
+  const dayList = String(promo.daysOfWeek || '').split(',').filter(Boolean);
+  const days = dayList.length === 7 ? 'todos os dias' : dayList.map((d) => WEEKDAY_LABELS[Number(d)]).join(', ');
+  const hours = promo.startTime === '00:00' && promo.endTime === '23:59' ? 'o dia todo' : `${promo.startTime}–${promo.endTime}`;
   const value = promo.discountType === 'FIXED_PRICE'
     ? `por R$ ${Number(promo.value).toFixed(2)}`
     : `${Number(promo.value).toLocaleString('pt-BR')}% off`;
-  return `${value} · ${days} · ${promo.startTime}–${promo.endTime}`;
+  return `${value} · ${days} · ${hours}`;
 }
 
 // ---------- Adicionais ----------

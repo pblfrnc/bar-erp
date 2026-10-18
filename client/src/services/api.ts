@@ -17,7 +17,8 @@ import {
   PrinterSettings,
   PriceHistory,
   ModifierGroup,
-  Promotion
+  Promotion,
+  DigitalMenuStatus
 } from '../types';
 
 
@@ -604,6 +605,20 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     }).then(handleResponse<any>),
+
+  // Cardápio digital por QR na mesa
+  getDigitalMenu: () => fetchWithRetry(`${getApiUrl()}/system/digital-menu`).then(handleResponse<DigitalMenuStatus>),
+
+  // fetch direto: a publicação depende da internet e pode passar dos 8s do fetchWithRetry
+  saveDigitalMenu: (settings: Partial<Pick<DigitalMenuStatus, 'enabled' | 'title' | 'message' | 'hiddenCategoryIds' | 'hideSoldOut'>> & { siteUrl?: string }) =>
+    fetch(`${getApiUrl()}/system/digital-menu`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    }).then(handleResponse<{ status: DigitalMenuStatus; publishError: string | null }>),
+
+  publishDigitalMenu: () =>
+    fetch(`${getApiUrl()}/system/digital-menu/publish`, { method: 'POST' }).then(handleResponse<DigitalMenuStatus>),
 
   // fetch direto: o backup pode passar dos 8s do fetchWithRetry e o reenvio não ajudaria
   runBackupNow: () =>

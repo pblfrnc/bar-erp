@@ -26,6 +26,7 @@ import {
 import { socket } from '../services/socket';
 import { api } from '../services/api';
 import { BackupSettingsCard } from '../components/BackupSettingsCard';
+import { DigitalMenuCard } from '../components/DigitalMenuCard';
 
 interface SettingsViewProps {
   onOpenWaitersModal: () => void;
@@ -318,6 +319,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Backup Automático (local + pasta externa) */}
       <BackupSettingsCard />
+
+      {/* Cardápio digital por QR na mesa (site no Netlify) */}
+      <DigitalMenuCard />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Equipe & Funcionários */}

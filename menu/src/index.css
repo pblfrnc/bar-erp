@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-padding-top: 8.5rem;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100 antialiased;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

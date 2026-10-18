@@ -1,0 +1,17 @@
+# Cardápio digital por QR (site único para todas as instalações do BarERP)
+# Publicar: cd menu && npx netlify-cli deploy --build --prod
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# /m/<loja>?mesa=5 abre o app
+[[redirects]]
+  from = "/m/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

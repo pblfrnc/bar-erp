@@ -330,3 +330,20 @@ export interface PrinterSettings {
   updatedAt?: string;
 }
 
+
+// Cardápio digital por QR na mesa (GET /system/digital-menu)
+export interface DigitalMenuStatus {
+  enabled: boolean;
+  siteUrl: string;
+  customSiteUrl: string;
+  storeId: string | null;
+  menuUrl: string | null;
+  title: string;
+  defaultTitle: string;
+  message: string;
+  hiddenCategoryIds: string[];
+  hideSoldOut: boolean;
+  lastPublishedAt: string | null;
+  lastError: string | null;
+  publishing: boolean;
+}

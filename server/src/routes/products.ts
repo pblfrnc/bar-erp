@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { lookupEanCatalog, getNextSequentialCode } from '../services/catalogService.js';
 import { isBarProduct } from './importXml.js';
 import { isPromotionActiveAt } from '../services/pricing.js';
+import { scheduleMenuPublish } from '../services/digitalMenu.js';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -66,6 +67,16 @@ function parsePromotionBody(body: any) {
 
 export function createProductsRouter() {
   const router = Router();
+
+  // Qualquer alteração no cadastro (produtos, categorias, adicionais, promoções) atualiza o cardápio digital
+  router.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        if (res.statusCode < 400) scheduleMenuPublish();
+      });
+    }
+    next();
+  });
 
   // Reorganizar produtos entre Bar (volume em ml) e Cozinha sob demanda
   router.post('/organize-bar-kitchen', async (_req, res) => {

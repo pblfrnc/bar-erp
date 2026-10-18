@@ -381,3 +381,20 @@ model Promotion {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+// Cardápio digital por QR na mesa (publicado no site do Netlify; ver menu/ e server/src/services/digitalMenu.ts)
+model DigitalMenuSettings {
+  id                String    @id @default("default")
+  enabled           Boolean   @default(false)
+  siteUrl           String?   // vazio = site padrão do BarERP
+  storeId           String?   // identificador público da loja na URL do QR (gerado na 1ª publicação)
+  publishSecret     String?   // chave de publicação da loja (nunca sai do servidor)
+  title             String?   // nome exibido no cardápio (vazio = nome do bar)
+  message           String?   // recado no topo (ex: horário, Wi-Fi)
+  hiddenCategoryIds String    @default("[]") // JSON com categorias fora do cardápio
+  hideSoldOut       Boolean   @default(false) // false = mostra "Esgotado"; true = esconde o produto
+  lastPublishedAt   DateTime?
+  lastHash          String?
+  lastError         String?
+  updatedAt         DateTime  @updatedAt
+}

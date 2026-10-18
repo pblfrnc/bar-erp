@@ -24,6 +24,7 @@ import { createStaffRouter } from './routes/staff.js';
 import { createImportXmlRouter } from './routes/importXml.js';
 import { setupNfeAutoSyncScheduler } from './services/nfeRecebidasScheduler.js';
 import { setupBackupScheduler } from './services/backupService.js';
+import { setupDigitalMenuScheduler } from './services/digitalMenu.js';
 
 
 
@@ -202,6 +203,9 @@ const start = async () => {
 
     // Backup do banco: na inicialização (se ainda não houver hoje), a cada 6h e após fechar o caixa
     setupBackupScheduler();
+
+    // Cardápio digital por QR: publica no site quando o cadastro muda (só se estiver ligado)
+    setupDigitalMenuScheduler();
   });
 };
 

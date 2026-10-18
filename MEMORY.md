@@ -354,6 +354,14 @@
 - **DevTools do Electron:** passou de F12 (globalShortcut, prendia a tecla no Windows inteiro) para **Ctrl+Shift+I**, só com a janela em foco.
 - **Pendência:** o emissor manual de NFC-e usa o preço de cadastro, não o preço com promoção/adicionais da comanda.
 
+### v1.8.7 — Cardápio digital por QR na mesa (sessão de 18/10/2026)
+- **Site único no Netlify** (`menu/`, Vite + React + Tailwind): `https://cardapio-barerp.netlify.app/m/<storeId>?mesa=N`, só visualização (pedido continua com o garçom). Publicar o site: `cd menu && npm run build && npx netlify deploy --prod` (conta Netlify do Pablo, CLI já logada no Mac). O ERP **não** faz deploy: cada deploy gasta cota do plano gratuito.
+- **Dados:** função `menu/netlify/functions/menu.mts` em `/api/menu/:storeId` guarda o cardápio de cada instalação no Netlify Blobs (store `menus`, chave `stores/<id>`). Primeiro PUT registra o SHA-256 da chave da loja; depois só ela altera (403 para outra). DELETE tira do ar mas mantém a loja reservada. GET tem cache na CDN de 60 s (tag `menu-<id>`, limpa a cada PUT). Limite 512 KB.
+- **ERP:** tabela `DigitalMenuSettings` (`storeId` e `publishSecret` gerados na 1ª publicação; a chave nunca sai do servidor). `services/digitalMenu.ts` monta o cardápio (nome, descrição, preço, caixa fechada, adicionais, promoções ativas, esgotado; nada de custo/estoque/fiscal), publica 8 s após qualquer POST/PUT/DELETE em `/api/products` (middleware no router) e confere a cada 5 min; só envia se o hash mudou. Rotas `GET/PUT /api/system/digital-menu` e `POST /api/system/digital-menu/publish`.
+- **Promoções no site:** usa `client/src/utils/pricing.ts` (importado pelo `menu/`) no fuso do PC do bar (`store.timezoneOffset`).
+- **Tela:** `DigitalMenuCard` em Configurações (ligar, nome, recado, categorias escondidas, esconder esgotados, site alternativo em Avançado, link + QR, "QR Codes das mesas (PDF)"). O PDF A4 (6 por folha, 1º cartão geral sem mesa) sai pelo IPC `save-html-as-pdf` do Electron (não usar `window.print()`: com `kiosk-printing` vai direto para a térmica). Links externos abrem pelo IPC `open-external`.
+- **Atenção:** trocar o endereço do site ou perder o banco (sem backup) gera novos links → reimprimir os QR Codes.
+
 ---
 
 ## 20. 📌 PENDÊNCIAS & DECISÕES

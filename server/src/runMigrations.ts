@@ -358,6 +358,29 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       console.error('[Migrations] Erro ao criar tabelas de adicionais/promoções:', e.message);
     }
 
+    // Cardápio digital por QR na mesa
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "DigitalMenuSettings" (
+          "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+          "enabled" BOOLEAN NOT NULL DEFAULT false,
+          "siteUrl" TEXT,
+          "storeId" TEXT,
+          "publishSecret" TEXT,
+          "title" TEXT,
+          "message" TEXT,
+          "hiddenCategoryIds" TEXT NOT NULL DEFAULT '[]',
+          "hideSoldOut" BOOLEAN NOT NULL DEFAULT false,
+          "lastPublishedAt" DATETIME,
+          "lastHash" TEXT,
+          "lastError" TEXT,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+    } catch (e: any) {
+      console.error('[Migrations] Erro ao criar a tabela do cardápio digital:', e.message);
+    }
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {
