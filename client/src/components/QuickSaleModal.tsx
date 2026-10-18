@@ -49,6 +49,9 @@ interface NfceSaleStatus {
   retry?: () => void;
 }
 
+// Etiqueta das teclas de atalho: legível nos temas claro e escuro
+const KBD_CLASS = 'inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-[10px] leading-none font-black font-mono shadow-sm bg-white text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600';
+
 const cartKey = (productId: string, unitType: 'UNIT' | 'BOX', options: ModifierOption[]) =>
   `${productId}|${unitType}|${options.map((o) => o.id).sort().join(',')}`;
 
@@ -80,7 +83,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
   const { priceFor } = useActivePromotions();
 
-  // Atalhos do balcão: F8 liga/desliga NFC-e, F12 conclui a venda, Shift+A..D escolhe a forma de pagamento.
+  // Atalhos do balcão: Ctrl+L vai para a busca, F8 liga/desliga NFC-e, F12 conclui a venda, Shift+A..D escolhe a forma de pagamento.
   // Refs para o handler (registrado uma vez) sempre enxergar o carrinho e o estado atuais.
   const finishSaleRef = useRef<() => void>(() => {});
   const pickerOpenRef = useRef<boolean>(false);
@@ -94,6 +97,14 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       KeyD: 'DEBIT_CARD'
     };
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl+L: volta o cursor para a busca de produtos (sem mouse), selecionando o que estiver digitado
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyL') {
+        e.preventDefault();
+        if (pickerOpenRef.current) return;
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'F8') {
         e.preventDefault();
@@ -507,8 +518,11 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text select-text"
+                  className="w-full pl-10 pr-20 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-amber-500 focus:outline-none transition font-medium cursor-text select-text"
                 />
+                {!search && (
+                  <kbd className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${KBD_CLASS}`} title="Ir para a busca">Ctrl+L</kbd>
+                )}
                 {search && (
                   <button
                     type="button"
@@ -834,7 +848,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('PIX')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
+                    className={`relative pt-5 pb-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'PIX'
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50'
                         : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -842,13 +856,13 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <QrCode className="w-3.5 h-3.5" />
                     <span>PIX</span>
-                    <span className="text-[9px] font-mono opacity-60">⇧A</span>
+                    <kbd className={`absolute top-1 right-1 ${KBD_CLASS}`} title="Shift+A">⇧A</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('CASH')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
+                    className={`relative pt-5 pb-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'CASH'
                         ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/50'
                         : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -856,13 +870,13 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <Banknote className="w-3.5 h-3.5" />
                     <span>Dinheiro</span>
-                    <span className="text-[9px] font-mono opacity-60">⇧B</span>
+                    <kbd className={`absolute top-1 right-1 ${KBD_CLASS}`} title="Shift+B">⇧B</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('CREDIT_CARD')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
+                    className={`relative pt-5 pb-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'CREDIT_CARD'
                         ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/50'
                         : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -870,13 +884,13 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Crédito</span>
-                    <span className="text-[9px] font-mono opacity-60">⇧C</span>
+                    <kbd className={`absolute top-1 right-1 ${KBD_CLASS}`} title="Shift+C">⇧C</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('DEBIT_CARD')}
-                    className={`py-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
+                    className={`relative pt-5 pb-2 px-1 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border transition cursor-pointer ${
                       paymentMethod === 'DEBIT_CARD'
                         ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/50'
                         : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -884,7 +898,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Débito</span>
-                    <span className="text-[9px] font-mono opacity-60">⇧D</span>
+                    <kbd className={`absolute top-1 right-1 ${KBD_CLASS}`} title="Shift+D">⇧D</kbd>
                   </button>
                 </div>
               </div>
@@ -962,10 +976,11 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-200">
                     <FileText className={`w-4 h-4 ${emitNfce ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
                     Emitir NFC-e
-                    <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 text-[9px] font-mono text-slate-500 dark:text-slate-400">F8</kbd>
+                    <kbd className={KBD_CLASS}>F8</kbd>
                   </span>
-                  <span className={`w-10 h-5 rounded-full relative transition-colors ${emitNfce ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${emitNfce ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  {/* shrink-0: sem ele o trilho encolhia com o texto ao lado e a bolinha saía para fora */}
+                  <span className={`relative inline-block w-10 h-5 shrink-0 rounded-full transition-colors ${emitNfce ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${emitNfce ? 'translate-x-5' : 'translate-x-0'}`} />
                   </span>
                 </button>
                 {emitNfce && (
@@ -1010,7 +1025,9 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   <Zap className="w-4 h-4 fill-slate-950" />
                 )}
                 {submitting ? 'Finalizando...' : `Concluir Venda${emitNfce ? ' + NFC-e' : ''} (R$ ${total.toFixed(2)})`}
-                {!submitting && <kbd className="px-1.5 py-0.5 rounded border border-slate-950/30 text-[9px] font-mono">F12</kbd>}
+                {!submitting && (
+                  <kbd className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] leading-none font-black font-mono bg-slate-950/85 text-white shadow-sm">F12</kbd>
+                )}
               </button>
             </div>
           </div>
