@@ -36,6 +36,7 @@ export const DigitalMenuCard: React.FC = () => {
   const [messageText, setMessageText] = useState('');
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [hideSoldOut, setHideSoldOut] = useState(false);
+  const [ignoreStock, setIgnoreStock] = useState(false);
   const [siteUrl, setSiteUrl] = useState('');
   const [qrPreview, setQrPreview] = useState('');
   const [busy, setBusy] = useState<'save' | 'publish' | 'qr' | null>(null);
@@ -50,6 +51,7 @@ export const DigitalMenuCard: React.FC = () => {
     setMessageText(st.message);
     setHiddenIds(st.hiddenCategoryIds);
     setHideSoldOut(st.hideSoldOut);
+    setIgnoreStock(st.ignoreStock);
     setSiteUrl(st.customSiteUrl);
   };
 
@@ -91,6 +93,7 @@ export const DigitalMenuCard: React.FC = () => {
         message: messageText,
         hiddenCategoryIds: hiddenIds,
         hideSoldOut,
+        ignoreStock,
         siteUrl
       });
       setStatus(st);
@@ -309,10 +312,19 @@ export const DigitalMenuCard: React.FC = () => {
         )}
 
         <Switch
-          checked={hideSoldOut}
-          onChange={() => setHideSoldOut((v) => !v)}
-          label='Esconder produtos sem estoque (desligado: aparecem como "Esgotado")'
+          checked={ignoreStock}
+          onChange={() => setIgnoreStock((v) => !v)}
+          label='Ignorar o estoque (nada aparece como "Esgotado"; use se o estoque não é controlado)'
         />
+
+        {!ignoreStock && (
+          <Switch
+            checked={hideSoldOut}
+            onChange={() => setHideSoldOut((v) => !v)}
+            label='Esconder produtos sem estoque (desligado: aparecem como "Esgotado")'
+          />
+        )}
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 -mt-1">Itens da cozinha nunca aparecem como esgotados.</p>
 
         <details className="group">
           <summary className="text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer select-none">Avançado</summary>

@@ -404,6 +404,7 @@ model DigitalMenuSettings {
   message           String?   // recado no topo (ex: horário, Wi-Fi)
   hiddenCategoryIds String    @default("[]") // JSON com categorias fora do cardápio
   hideSoldOut       Boolean   @default(false) // false = mostra "Esgotado"; true = esconde o produto
+  ignoreStock       Boolean   @default(false) // true = nunca marca esgotado (estoque não é controlado)
   lastPublishedAt   DateTime?
   lastHash          String?
   lastError         String?

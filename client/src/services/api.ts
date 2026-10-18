@@ -636,7 +636,7 @@ export const api = {
   getDigitalMenu: () => fetchWithRetry(`${getApiUrl()}/system/digital-menu`).then(handleResponse<DigitalMenuStatus>),
 
   // fetch direto: a publicação depende da internet e pode passar dos 8s do fetchWithRetry
-  saveDigitalMenu: (settings: Partial<Pick<DigitalMenuStatus, 'enabled' | 'title' | 'message' | 'hiddenCategoryIds' | 'hideSoldOut'>> & { siteUrl?: string }) =>
+  saveDigitalMenu: (settings: Partial<Pick<DigitalMenuStatus, 'enabled' | 'title' | 'message' | 'hiddenCategoryIds' | 'hideSoldOut' | 'ignoreStock'>> & { siteUrl?: string }) =>
     fetch(`${getApiUrl()}/system/digital-menu`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

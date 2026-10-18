@@ -347,6 +347,7 @@ export interface DigitalMenuStatus {
   message: string;
   hiddenCategoryIds: string[];
   hideSoldOut: boolean;
+  ignoreStock: boolean;
   lastPublishedAt: string | null;
   lastError: string | null;
   publishing: boolean;

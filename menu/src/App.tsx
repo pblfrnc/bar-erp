@@ -3,6 +3,7 @@ import {
   Beef,
   Beer,
   Cake,
+  ChevronRight,
   Clock,
   Coffee,
   CupSoda,
@@ -20,7 +21,9 @@ import {
   Wine,
   X
 } from 'lucide-react';
+import type { Promotion } from '../../client/src/types';
 import { applyBestPromotion, describePromotion, isPromotionActiveAt } from '../../client/src/utils/pricing';
+import { groupVariants, splitIntoSubgroups, type MenuItem } from './menuLayout';
 import type { MenuCategory, MenuProduct, PublishedMenu } from './types';
 
 // Ícones mais usados nas categorias do BarERP; os demais caem no talher
@@ -46,6 +49,9 @@ const TICK_MS = 30 * 1000;
 const MAX_HIGHLIGHTS = 10;
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Preço curto para a linha de tamanhos: "R$ 36" / "R$ 36,50"
+const brlShort = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: Number.isInteger(v) ? 0 : 2 });
 
 const normalize = (s: string) =>
   s
@@ -68,9 +74,12 @@ const storeNow = (timezoneOffset: number) =>
 
 type LoadState = { status: 'loading' } | { status: 'error'; notFound: boolean } | { status: 'ready'; menu: PublishedMenu };
 
-interface Section {
-  category: MenuCategory;
-  products: MenuProduct[];
+// Preço exibido de um item: com promoção, e o menor tamanho quando há vários ("a partir de")
+function itemPrice(item: MenuItem, promotions: Promotion[], now: Date) {
+  const options = (item.variants?.map((v) => v.product) || [item.product]).filter((p) => !p.soldOut);
+  const list = (options.length > 0 ? options : [item.product]).map((p) => ({ p, ...applyBestPromotion(p, promotions, now) }));
+  const best = list.reduce((a, b) => (b.price < a.price ? b : a));
+  return { price: best.price, original: best.promotion ? best.p.price : null, promotion: best.promotion, from: Boolean(item.variants) };
 }
 
 export default function App() {
@@ -79,7 +88,8 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [openProduct, setOpenProduct] = useState<MenuProduct | null>(null);
+  const [openItem, setOpenItem] = useState<MenuItem | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -122,61 +132,60 @@ export default function App() {
     [menu, localNow]
   );
 
-  const sections = useMemo<Section[]>(() => {
+  const items = useMemo(() => (menu ? groupVariants(menu.products) : []), [menu]);
+
+  // Abas: categorias com itens, comidas antes (o ERP já manda nessa ordem)
+  const tabs = useMemo(() => {
     if (!menu) return [];
-    const q = normalize(query.trim());
     return menu.categories
-      .map((category) => ({
-        category,
-        products: menu.products.filter(
-          (p) =>
-            p.categoryId === category.id &&
-            (!q || normalize(p.name).includes(q) || normalize(p.description || '').includes(q))
-        )
-      }))
-      .filter((s) => s.products.length > 0);
-  }, [menu, query]);
+      .map((category) => ({ category, items: items.filter((i) => i.categoryId === category.id) }))
+      .filter((t) => t.items.length > 0);
+  }, [menu, items]);
 
-  // Cardápios publicados antes da separação não têm "kind": tudo vira uma lista só, sem títulos de grupo
-  const hasKinds = Boolean(menu?.categories.some((c) => c.kind));
-  const foodSections = hasKinds ? sections.filter((s) => s.category.kind === 'food') : sections;
-  const drinkSections = hasKinds ? sections.filter((s) => s.category.kind !== 'food') : [];
-
-  // Destaques: comidas com foto, primeiro as que estão em promoção agora
-  const highlights = useMemo(() => {
-    if (!menu || query) return [];
-    const foodCategoryIds = new Set(menu.categories.filter((c) => c.kind === 'food').map((c) => c.id));
-    return menu.products
-      .filter((p) => p.image && !p.soldOut && (!hasKinds || foodCategoryIds.has(p.categoryId)))
-      .map((p) => ({ p, promo: applyBestPromotion(p, menu.promotions, localNow).promotion ? 0 : 1 }))
-      .sort((a, b) => a.promo - b.promo)
-      .slice(0, MAX_HIGHLIGHTS)
-      .map(({ p }) => p);
-  }, [menu, query, localNow, hasKinds]);
-
-  // Destaca a categoria visível na lista de atalhos
   useEffect(() => {
-    if (sections.length === 0) return;
-    setActiveCategory((cur) => (cur && sections.some((s) => s.category.id === cur) ? cur : sections[0].category.id));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActiveCategory(visible[0].target.id.replace('cat-', ''));
-      },
-      { rootMargin: '-140px 0px -60% 0px' }
-    );
-    sections.forEach((s) => {
-      const el = document.getElementById(`cat-${s.category.id}`);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, [sections]);
+    if (tabs.length === 0) return;
+    setActiveCategory((cur) => (cur && tabs.some((t) => t.category.id === cur) ? cur : tabs[0].category.id));
+  }, [tabs]);
 
   useEffect(() => {
     if (!activeCategory) return;
     const chip = chipsRef.current?.querySelector<HTMLElement>(`[data-cat="${activeCategory}"]`);
     chip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }, [activeCategory]);
+
+  const q = normalize(query.trim());
+  const searchResults = useMemo(() => {
+    if (!q) return [];
+    return tabs
+      .map((t) => ({
+        category: t.category,
+        items: t.items.filter((i) => normalize(`${i.name} ${i.product.name} ${i.description || ''}`).includes(q))
+      }))
+      .filter((t) => t.items.length > 0);
+  }, [tabs, q]);
+
+  const activeTab = tabs.find((t) => t.category.id === activeCategory) || tabs[0];
+  const subgroups = useMemo(() => (activeTab ? splitIntoSubgroups(activeTab.items) : []), [activeTab]);
+
+  // Destaques: comidas com foto, primeiro as que estão em promoção agora
+  const highlights = useMemo(() => {
+    if (!menu || q) return [];
+    const hasKinds = menu.categories.some((c) => c.kind);
+    const food = new Set(menu.categories.filter((c) => c.kind === 'food').map((c) => c.id));
+    return items
+      .filter((i) => i.image && !i.soldOut && (!hasKinds || food.has(i.categoryId)))
+      .map((i) => ({ i, promo: itemPrice(i, menu.promotions, localNow).promotion ? 0 : 1 }))
+      .sort((a, b) => a.promo - b.promo)
+      .slice(0, MAX_HIGHLIGHTS)
+      .map(({ i }) => i);
+  }, [menu, items, q, localNow]);
+
+  const selectTab = (id: string) => {
+    setActiveCategory(id);
+    // Volta para o começo da lista se o cliente já tinha rolado
+    const bar = barRef.current;
+    if (bar && window.scrollY > bar.offsetTop) window.scrollTo({ top: bar.offsetTop, behavior: 'smooth' });
+  };
 
   if (!storeId) return <Landing />;
 
@@ -201,51 +210,22 @@ export default function App() {
 
   const { menu: m } = state;
   const updatedAt = new Date(m.updatedAt);
+  const firstDrinkIndex = tabs.findIndex((t) => t.category.kind && t.category.kind !== 'food');
 
-  const renderChip = ({ category }: Section) => {
-    const Icon = categoryIcon(category);
-    const active = activeCategory === category.id;
-    return (
-      <a
-        key={category.id}
-        href={`#cat-${category.id}`}
-        data-cat={category.id}
-        className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
-          active
-            ? 'bg-stone-900 text-white border-stone-900 dark:bg-amber-500 dark:text-stone-950 dark:border-amber-500'
-            : 'bg-white text-stone-700 border-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:border-stone-800'
-        }`}
-      >
-        <Icon className="w-4 h-4" />
-        {category.name}
-      </a>
-    );
-  };
-
-  const renderSection = ({ category, products }: Section, variant: 'food' | 'drink') => {
-    const Icon = categoryIcon(category);
-    return (
-      <section key={category.id} id={`cat-${category.id}`}>
-        <h3 className="flex items-center gap-2 text-base font-black mb-2">
-          <Icon className="w-[18px] h-[18px] text-amber-600 dark:text-amber-400" />
-          {category.name}
-        </h3>
-        {variant === 'food' ? (
-          <ul className="space-y-2.5">
-            {products.map((product) => (
-              <FoodCard key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
-            ))}
-          </ul>
-        ) : (
-          <ul className="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden">
-            {products.map((product) => (
-              <DrinkRow key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
-            ))}
-          </ul>
-        )}
-      </section>
-    );
-  };
+  const renderList = (list: MenuItem[], category: MenuCategory) => (
+    <ul className="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden">
+      {list.map((item) => (
+        <ItemRow
+          key={item.key}
+          item={item}
+          food={category.kind === 'food'}
+          promotions={m.promotions}
+          now={localNow}
+          onOpen={() => setOpenItem(item)}
+        />
+      ))}
+    </ul>
+  );
 
   return (
     <div className="min-h-screen pb-[env(safe-area-inset-bottom)]">
@@ -267,7 +247,38 @@ export default function App() {
         </div>
       </header>
 
-      <div className="sticky top-0 z-20 bg-stone-50/95 dark:bg-stone-950/95 backdrop-blur border-b border-stone-200 dark:border-stone-800">
+      {!q && (activePromotions.length > 0 || highlights.length > 0) && (
+        <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
+          {activePromotions.length > 0 && (
+            <section className="rounded-2xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 p-4">
+              <h2 className="flex items-center gap-2 text-sm font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">
+                <Sparkles className="w-4 h-4" />
+                Promoções de agora
+              </h2>
+              <ul className="mt-2 space-y-1.5">
+                {activePromotions.map((p) => (
+                  <li key={p.id} className="text-sm">
+                    <span className="font-bold text-stone-900 dark:text-white">{p.name}</span>
+                    <span className="text-stone-600 dark:text-stone-300"> · {describePromotion(p)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {highlights.length > 0 && (
+            <section>
+              <h2 className="text-lg font-black mb-2">Destaques</h2>
+              <ul className="no-scrollbar flex gap-3 overflow-x-auto -mx-4 px-4 pb-1 snap-x snap-mandatory">
+                {highlights.map((item) => (
+                  <HighlightCard key={item.key} item={item} promotions={m.promotions} now={localNow} onOpen={() => setOpenItem(item)} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
+
+      <div ref={barRef} className="sticky top-0 z-20 mt-3 bg-stone-50/95 dark:bg-stone-950/95 backdrop-blur border-b border-stone-200 dark:border-stone-800">
         <div className="max-w-2xl mx-auto px-4 pt-3">
           <label className="relative block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
@@ -276,7 +287,7 @@ export default function App() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar no cardápio"
-              className="w-full rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 pl-9 pr-9 py-2.5 text-[15px] outline-none focus:border-amber-500 placeholder:text-stone-400"
+              className="w-full rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 pl-9 pr-9 py-2.5 text-[15px] outline-none focus:border-amber-500 placeholder:text-stone-400 [&::-webkit-search-cancel-button]:hidden"
             />
             {query && (
               <button
@@ -289,63 +300,88 @@ export default function App() {
               </button>
             )}
           </label>
-          <div ref={chipsRef} className="no-scrollbar flex items-center gap-2 overflow-x-auto py-3 -mx-4 px-4">
-            {foodSections.map(renderChip)}
-            {foodSections.length > 0 && drinkSections.length > 0 && (
-              <span aria-hidden className="shrink-0 w-px h-6 bg-stone-300 dark:bg-stone-700" />
-            )}
-            {drinkSections.map(renderChip)}
-          </div>
+          {!q && (
+            <div ref={chipsRef} role="tablist" className="no-scrollbar flex items-center gap-2 overflow-x-auto py-3 -mx-4 px-4">
+              {tabs.map(({ category, items: list }, index) => {
+                const Icon = categoryIcon(category);
+                const active = activeTab?.category.id === category.id;
+                return (
+                  <span key={category.id} className="contents">
+                    {index === firstDrinkIndex && index > 0 && (
+                      <span aria-hidden className="shrink-0 w-px h-6 bg-stone-300 dark:bg-stone-700" />
+                    )}
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      data-cat={category.id}
+                      onClick={() => selectTab(category.id)}
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                        active
+                          ? 'bg-stone-900 text-white border-stone-900 dark:bg-amber-500 dark:text-stone-950 dark:border-amber-500'
+                          : 'bg-white text-stone-700 border-stone-200 dark:bg-stone-900 dark:text-stone-200 dark:border-stone-800'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {category.name}
+                      <span className={`text-xs font-bold ${active ? 'opacity-70' : 'text-stone-400'}`}>{list.length}</span>
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {q && <div className="h-3" />}
         </div>
       </div>
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-6">
-        {activePromotions.length > 0 && !query && (
-          <section className="rounded-2xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 p-4">
-            <h2 className="flex items-center gap-2 text-sm font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">
-              <Sparkles className="w-4 h-4" />
-              Promoções de agora
+        {q ? (
+          searchResults.length === 0 ? (
+            <p className="py-12 text-center text-sm text-stone-500">Nada encontrado para "{query}".</p>
+          ) : (
+            searchResults.map(({ category, items: list }) => (
+              <section key={category.id}>
+                <h2 className="text-sm font-black uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">{category.name}</h2>
+                {renderList(list, category)}
+              </section>
+            ))
+          )
+        ) : activeTab ? (
+          <>
+            <h2 className="flex items-center gap-2 text-xl font-black">
+              {(() => {
+                const Icon = categoryIcon(activeTab.category);
+                return (
+                  <span className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center">
+                    <Icon className="w-[18px] h-[18px]" />
+                  </span>
+                );
+              })()}
+              {activeTab.category.name}
             </h2>
-            <ul className="mt-2 space-y-1.5">
-              {activePromotions.map((p) => (
-                <li key={p.id} className="text-sm">
-                  <span className="font-bold text-stone-900 dark:text-white">{p.name}</span>
-                  <span className="text-stone-600 dark:text-stone-300"> · {describePromotion(p)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {highlights.length > 0 && (
-          <section>
-            <h2 className="text-lg font-black mb-2">Destaques</h2>
-            <ul className="no-scrollbar flex gap-3 overflow-x-auto -mx-4 px-4 pb-1 snap-x snap-mandatory">
-              {highlights.map((product) => (
-                <HighlightCard key={product.id} product={product} menu={m} now={localNow} onOpen={() => setOpenProduct(product)} />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {sections.length === 0 && (
-          <p className="py-12 text-center text-sm text-stone-500">
-            {query ? `Nada encontrado para "${query}".` : 'Nenhum produto no cardápio ainda.'}
-          </p>
-        )}
-
-        {foodSections.length > 0 && (
-          <div className="space-y-5">
-            {hasKinds && <GroupTitle icon={UtensilsCrossed} title="Comidas" />}
-            {foodSections.map((s) => renderSection(s, 'food'))}
-          </div>
-        )}
-
-        {drinkSections.length > 0 && (
-          <div className="space-y-5">
-            <GroupTitle icon={Beer} title="Bebidas" />
-            {drinkSections.map((s) => renderSection(s, 'drink'))}
-          </div>
+            {subgroups.length > 1 && (
+              <nav className="no-scrollbar flex gap-2 overflow-x-auto -mx-4 px-4 -mt-2" aria-label="Seções">
+                {subgroups.map((g) => (
+                  <a
+                    key={g.name}
+                    href={`#sub-${g.name}`}
+                    className="shrink-0 rounded-lg bg-stone-200/70 dark:bg-stone-800 px-2.5 py-1 text-xs font-bold text-stone-700 dark:text-stone-200"
+                  >
+                    {g.name} <span className="text-stone-400">{g.items.length}</span>
+                  </a>
+                ))}
+              </nav>
+            )}
+            {subgroups.map((g) => (
+              <section key={g.name || 'all'} id={g.name ? `sub-${g.name}` : undefined} className="scroll-mt-36">
+                {g.name && <h3 className="text-sm font-black uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">{g.name}</h3>}
+                {renderList(g.items, activeTab.category)}
+              </section>
+            ))}
+          </>
+        ) : (
+          <p className="py-12 text-center text-sm text-stone-500">Nenhum produto no cardápio ainda.</p>
         )}
 
         <footer className="pt-2 pb-8 text-center text-xs text-stone-500 dark:text-stone-400 space-y-1">
@@ -358,19 +394,8 @@ export default function App() {
         </footer>
       </main>
 
-      {openProduct && <ProductSheet product={openProduct} menu={m} now={localNow} onClose={() => setOpenProduct(null)} />}
+      {openItem && <ProductSheet item={openItem} promotions={m.promotions} now={localNow} onClose={() => setOpenItem(null)} />}
     </div>
-  );
-}
-
-function GroupTitle({ icon: Icon, title }: { icon: typeof Beer; title: string }) {
-  return (
-    <h2 className="flex items-center gap-2 pt-1 text-xl font-black">
-      <span className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center">
-        <Icon className="w-[18px] h-[18px]" />
-      </span>
-      {title}
-    </h2>
   );
 }
 
@@ -389,78 +414,75 @@ function SoldOutBadge() {
   );
 }
 
-function PriceTag({ product, menu, now, size = 'md' }: { product: MenuProduct; menu: PublishedMenu; now: Date; size?: 'md' | 'lg' }) {
-  const { price, promotion } = applyBestPromotion(product, menu.promotions, now);
-  return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <span className={`font-black ${size === 'lg' ? 'text-xl' : 'text-[15px]'} ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>
-        {brl(price)}
-      </span>
-      {promotion && <span className="text-xs text-stone-400 line-through">{brl(product.price)}</span>}
-    </span>
-  );
-}
-
-function PriceColumn({ product, menu, now }: { product: MenuProduct; menu: PublishedMenu; now: Date }) {
-  const { price, promotion } = applyBestPromotion(product, menu.promotions, now);
+// Preço em destaque à direita (como no iFood); "a partir de" quando há tamanhos
+function PriceColumn({ item, promotions, now }: { item: MenuItem; promotions: Promotion[]; now: Date }) {
+  const { price, original, promotion, from } = itemPrice(item, promotions, now);
   return (
     <div className="shrink-0 flex flex-col items-end text-right leading-tight">
+      {from && <span className="text-[10px] font-semibold text-stone-400">a partir de</span>}
       <span className={`text-[17px] font-black whitespace-nowrap ${promotion ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-900 dark:text-white'}`}>
         {brl(price)}
       </span>
-      {promotion && <span className="text-xs text-stone-400 line-through whitespace-nowrap">{brl(product.price)}</span>}
+      {original !== null && <span className="text-xs text-stone-400 line-through whitespace-nowrap">{brl(original)}</span>}
     </div>
   );
 }
 
-function HighlightCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
-  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+// Linha de tamanhos: "P R$ 36 · M R$ 48 · G R$ 60"
+function SizesLine({ item, promotions, now }: { item: MenuItem; promotions: Promotion[]; now: Date }) {
+  if (!item.variants) return null;
   return (
-    <li className="snap-start shrink-0 w-44">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full text-left rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden"
-      >
-        <div className="relative aspect-[4/3] bg-stone-100 dark:bg-stone-800">
-          <ProductImage src={product.image} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
-          {promotion && (
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
-              <Sparkles className="w-3 h-3" />
-              Promoção
-            </span>
-          )}
-        </div>
-        <div className="p-2.5">
-          <p className="font-bold text-sm leading-snug line-clamp-2 min-h-[2.5em]">{product.name}</p>
-          <div className="mt-1">
-            <PriceTag product={product} menu={menu} now={now} />
-          </div>
-        </div>
-      </button>
-    </li>
+    <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+      {item.variants.map(({ label, product }) => {
+        const { price, promotion } = applyBestPromotion(product, promotions, now);
+        return (
+          <span key={product.id} className={product.soldOut ? 'line-through opacity-60' : ''}>
+            <span className="font-black text-stone-700 dark:text-stone-200">{label}</span>{' '}
+            <span className={promotion ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : ''}>{brlShort(price)}</span>
+          </span>
+        );
+      })}
+    </p>
   );
 }
 
-// Comidas: card com foto à esquerda, nome e descrição no meio e o preço em destaque à direita
-function FoodCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
-  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+function ItemRow({
+  item,
+  food,
+  promotions,
+  now,
+  onOpen
+}: {
+  item: MenuItem;
+  food: boolean;
+  promotions: Promotion[];
+  now: Date;
+  onOpen: () => void;
+}) {
+  const { promotion } = itemPrice(item, promotions, now);
+  const box = item.variants ? null : item.product.box;
   return (
-    <li className={product.soldOut ? 'opacity-55' : ''}>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full flex items-start gap-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-3 text-left"
-      >
-        <ProductImage src={product.image} alt={product.name} className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl object-cover bg-stone-100 dark:bg-stone-800" />
+    <li className={item.soldOut ? 'opacity-55' : ''}>
+      <button type="button" onClick={onOpen} className="w-full flex items-start gap-3 px-3 py-2.5 text-left">
+        <ProductImage
+          src={item.image}
+          alt={item.name}
+          className={`${food ? 'w-16 h-16' : 'w-12 h-12'} shrink-0 rounded-xl object-cover bg-stone-100 dark:bg-stone-800`}
+        />
         <div className="min-w-0 flex-1">
-          <h4 className="font-bold text-[15px] leading-snug">{product.name}</h4>
-          {product.description && (
-            <p className="mt-1 text-[13px] leading-snug text-stone-500 dark:text-stone-400 line-clamp-2">{product.description}</p>
+          <h4 className="font-bold text-[15px] leading-snug">{item.name}</h4>
+          {item.description && (
+            <p className="mt-0.5 text-[13px] leading-snug text-stone-500 dark:text-stone-400 line-clamp-2">{item.description}</p>
           )}
-          {(product.soldOut || promotion) && (
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {product.soldOut && <SoldOutBadge />}
+          <SizesLine item={item} promotions={promotions} now={now} />
+          {box && (
+            <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+              Caixa c/ {box.quantity}: <span className="font-semibold text-stone-700 dark:text-stone-200">{brl(box.price)}</span>
+            </p>
+          )}
+          {(item.soldOut || promotion) && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {item.soldOut && <SoldOutBadge />}
               {promotion && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                   <Sparkles className="w-3 h-3" />
@@ -470,41 +492,49 @@ function FoodCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: 
             </div>
           )}
         </div>
-        <PriceColumn product={product} menu={menu} now={now} />
+        <PriceColumn item={item} promotions={promotions} now={now} />
+        {(item.product.groups.length > 0 || item.variants) && (
+          <ChevronRight className="w-4 h-4 shrink-0 self-center text-stone-300 dark:text-stone-600" />
+        )}
       </button>
     </li>
   );
 }
 
-// Bebidas: linha compacta, foto pequena quando houver
-function DrinkRow({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
-  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+function HighlightCard({ item, promotions, now, onOpen }: { item: MenuItem; promotions: Promotion[]; now: Date; onOpen: () => void }) {
+  const { price, original, promotion, from } = itemPrice(item, promotions, now);
   return (
-    <li className={product.soldOut ? 'opacity-55' : ''}>
-      <button type="button" onClick={onOpen} className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
-        <ProductImage src={product.image} alt={product.name} className="w-12 h-12 shrink-0 rounded-lg object-cover bg-stone-100 dark:bg-stone-800" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-semibold text-[15px] leading-snug">{product.name}</h4>
-            {product.soldOut && <SoldOutBadge />}
-            {promotion && <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-label={promotion.name} />}
-          </div>
-          {product.description && <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-1">{product.description}</p>}
-          {product.box && (
-            <p className="text-xs text-stone-500 dark:text-stone-400">
-              Caixa c/ {product.box.quantity}: <span className="font-semibold text-stone-700 dark:text-stone-200">{brl(product.box.price)}</span>
-            </p>
+    <li className="snap-start shrink-0 w-44">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full text-left rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden"
+      >
+        <div className="relative aspect-[4/3] bg-stone-100 dark:bg-stone-800">
+          <ProductImage src={item.image} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+          {promotion && (
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
+              <Sparkles className="w-3 h-3" />
+              Promoção
+            </span>
           )}
         </div>
-        <PriceColumn product={product} menu={menu} now={now} />
+        <div className="p-2.5">
+          <p className="font-bold text-sm leading-snug line-clamp-2 min-h-[2.5em]">{item.name}</p>
+          <p className="mt-1 flex items-baseline gap-1.5">
+            {from && <span className="text-[10px] font-semibold text-stone-400">a partir de</span>}
+            <span className={`font-black text-[15px] ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>{brl(price)}</span>
+            {original !== null && <span className="text-xs text-stone-400 line-through">{brl(original)}</span>}
+          </p>
+        </div>
       </button>
     </li>
   );
 }
 
-// Detalhe do produto: foto grande, descrição completa, caixa fechada e adicionais
-function ProductSheet({ product, menu, now, onClose }: { product: MenuProduct; menu: PublishedMenu; now: Date; onClose: () => void }) {
-  const { promotion } = applyBestPromotion(product, menu.promotions, now);
+// Detalhe do produto: foto grande, descrição completa, tamanhos, caixa fechada e adicionais
+function ProductSheet({ item, promotions, now, onClose }: { item: MenuItem; promotions: Promotion[]; now: Date; onClose: () => void }) {
+  const product: MenuProduct = item.product;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -518,7 +548,7 @@ function ProductSheet({ product, menu, now, onClose }: { product: MenuProduct; m
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={product.name}>
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={item.name}>
       <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-stone-950/60" />
       <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-stone-900 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <button
@@ -529,31 +559,59 @@ function ProductSheet({ product, menu, now, onClose }: { product: MenuProduct; m
         >
           <X className="w-5 h-5" />
         </button>
-        {product.image ? (
-          <ProductImage src={product.image} alt={product.name} className="w-full aspect-[4/3] object-cover bg-stone-100 dark:bg-stone-800" />
+        {item.image ? (
+          <ProductImage src={item.image} alt={item.name} className="w-full aspect-[4/3] object-cover bg-stone-100 dark:bg-stone-800" />
         ) : (
           <div className="h-14" />
         )}
         <div className="px-5 pt-4 space-y-3">
           <div>
             <div className="flex items-center gap-2 flex-wrap pr-10">
-              <h2 className="text-xl font-black leading-tight">{product.name}</h2>
-              {product.soldOut && <SoldOutBadge />}
+              <h2 className="text-xl font-black leading-tight">{item.name}</h2>
+              {item.soldOut && <SoldOutBadge />}
             </div>
-            {product.description && (
-              <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-300 whitespace-pre-line">{product.description}</p>
+            {item.description && (
+              <p className="mt-1.5 text-sm leading-relaxed text-stone-600 dark:text-stone-300 whitespace-pre-line">{item.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <PriceTag product={product} menu={menu} now={now} size="lg" />
-            {promotion && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                <Sparkles className="w-3 h-3" />
-                {promotion.name}
-              </span>
-            )}
-          </div>
-          {product.box && (
+
+          {item.variants ? (
+            <ul className="rounded-xl border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800">
+              {item.variants.map(({ label, product: v }) => {
+                const { price, promotion } = applyBestPromotion(v, promotions, now);
+                return (
+                  <li key={v.id} className={`flex items-center justify-between gap-3 px-3 py-2.5 ${v.soldOut ? 'opacity-55' : ''}`}>
+                    <span className="font-bold">
+                      Tamanho {label}
+                      {v.soldOut && <span className="ml-2 align-middle"><SoldOutBadge /></span>}
+                    </span>
+                    <span className="text-right leading-tight">
+                      <span className={`block font-black text-[17px] ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>{brl(price)}</span>
+                      {promotion && <span className="block text-xs text-stone-400 line-through">{brl(v.price)}</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            (() => {
+              const { price, original, promotion } = itemPrice(item, promotions, now);
+              return (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xl font-black ${promotion ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>{brl(price)}</span>
+                  {original !== null && <span className="text-sm text-stone-400 line-through">{brl(original)}</span>}
+                  {promotion && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                      <Sparkles className="w-3 h-3" />
+                      {promotion.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })()
+          )}
+
+          {!item.variants && product.box && (
             <p className="text-sm text-stone-600 dark:text-stone-300">
               Caixa com {product.box.quantity}: <span className="font-bold text-stone-900 dark:text-white">{brl(product.box.price)}</span>
             </p>
@@ -580,7 +638,6 @@ function ProductSheet({ product, menu, now, onClose }: { product: MenuProduct; m
     </div>
   );
 }
-
 
 function groupRule(min: number, max: number) {
   if (min >= 1 && max === 1) return 'escolha 1';

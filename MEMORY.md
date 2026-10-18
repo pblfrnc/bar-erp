@@ -370,6 +370,11 @@
 - **Site no estilo Consumer:** categorias com `kind` (comida quando a maioria dos itens é `KITCHEN`), comidas antes das bebidas; carrossel "Destaques" (comidas com foto, promoção primeiro), comidas em card com foto grande, bebidas em lista compacta, detalhe do produto em janela com foto grande.
 - **Caixa fechada:** não aparece no cardápio quando `boxPrice <= boxCostPrice` (ou custo unitário × quantidade).
 
+### v1.8.9 — Cardápio organizado (sessão de 18/10/2026)
+- Cardápio real do JUBAR tinha 329 itens, 302 "Esgotado", pizzas repetidas por tamanho e "Bar" com 248 itens. `menu/src/menuLayout.ts` organiza no site: `groupVariants` junta "X TAMANHO P/M/G/F" (ou só "X P/M/G") da mesma categoria num item com tamanhos ("a partir de"); `splitIntoSubgroups` divide categorias com 20+ itens por palavras-chave (Cervejas, Torres, Doses, Drinks prontos, Destilados, Whiskies, Vinhos, Refrigerantes, Energéticos, Tabacaria, Outros; ordem de teste ≠ ordem de exibição); `prettyName` tira o caixa alta.
+- Site mostra uma categoria por vez (abas com contagem); a busca procura em todas.
+- **Esgotado:** itens `KITCHEN` nunca ficam esgotados; `DigitalMenuSettings.ignoreStock` ("Ignorar o estoque") desliga o esgotado de vez.
+
 ---
 
 ## 20. 📌 PENDÊNCIAS & DECISÕES

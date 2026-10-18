@@ -382,6 +382,7 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
     }
 
     // Cardápio digital: escolha dos itens e fotos dos produtos
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "DigitalMenuSettings" ADD COLUMN "ignoreStock" BOOLEAN NOT NULL DEFAULT false;`); } catch (e) {}
     try { await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN "showInMenu" BOOLEAN NOT NULL DEFAULT true;`); } catch (e) {}
     try {
       await prisma.$executeRawUnsafe(`

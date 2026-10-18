@@ -56,3 +56,6 @@ server/prisma/backup-settings.json
 
 # Local Netlify folder
 .netlify
+
+# Configuração pessoal do Claude Code
+.claude/settings.local.json

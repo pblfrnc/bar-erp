@@ -26,6 +26,7 @@ export interface DigitalMenuStatus {
   message: string;
   hiddenCategoryIds: string[];
   hideSoldOut: boolean;
+  ignoreStock: boolean;
   lastPublishedAt: string | null;
   lastError: string | null;
   publishing: boolean;
@@ -89,7 +90,8 @@ export async function buildMenu(row: SettingsRow) {
       name: p.name,
       description: p.description?.trim() || null,
       price: p.price,
-      soldOut: p.trackStock && p.stock <= 0,
+      // Comida da cozinha é feita na hora: estoque zerado não quer dizer que acabou
+      soldOut: !row.ignoreStock && p.kdsStation !== 'KITCHEN' && p.trackStock && p.stock <= 0,
       image: imageHashes.has(p.id) ? `/api/menu/${row.storeId}/img/${imageHashes.get(p.id)}` : null,
       kitchen: p.kdsStation === 'KITCHEN',
       box: menuBox(p),
@@ -300,6 +302,7 @@ export async function getDigitalMenuStatus(): Promise<DigitalMenuStatus> {
     message: row.message || '',
     hiddenCategoryIds: parseIds(row.hiddenCategoryIds),
     hideSoldOut: row.hideSoldOut,
+    ignoreStock: row.ignoreStock,
     lastPublishedAt: row.lastPublishedAt ? row.lastPublishedAt.toISOString() : null,
     lastError: row.lastError,
     publishing: Boolean(running)
@@ -318,6 +321,7 @@ export async function saveDigitalMenuSettings(body: any) {
     : before.hiddenCategoryIds;
   const enabled = typeof body?.enabled === 'boolean' ? body.enabled : before.enabled;
   const hideSoldOut = typeof body?.hideSoldOut === 'boolean' ? body.hideSoldOut : before.hideSoldOut;
+  const ignoreStock = typeof body?.ignoreStock === 'boolean' ? body.ignoreStock : before.ignoreStock;
 
   // Trocou de site: o cardápio antigo sai do ar antes (best effort) e o novo recebe tudo
   const siteChanged = (siteUrl || DEFAULT_MENU_SITE_URL) !== effectiveSiteUrl(before);
@@ -336,6 +340,7 @@ export async function saveDigitalMenuSettings(body: any) {
       hiddenCategoryIds,
       enabled,
       hideSoldOut,
+      ignoreStock,
       lastError: null,
       ...(siteChanged || !enabled ? { lastHash: null } : {})
     }
