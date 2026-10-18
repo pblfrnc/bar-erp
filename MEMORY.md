@@ -344,6 +344,14 @@
 - **Telas:** `ModifierGroupsManager` e `PromotionsManager` (botões no topo de Cardápio & Estoque; adicionais por produto no formulário), `ModifierPickerModal` ao lançar no `AddOrderModal`/`QuickSaleModal` (na venda rápida, pelo leitor de código de barras, só abre se houver pergunta obrigatória). Recibo, detalhe da mesa, histórico e conferência mostram as opções via `modifiersLabel`.
 - **Cozinha/KDS:** o servidor manda o campo `notes` já com "opções | obs" (`kitchenNote`/`withKitchenNote` em `services/pricing.ts`) em `GET /api/kds` e nos eventos `kds:*`; as telas do KDS e a comanda da cozinha só exibem `notes` (assim funciona também no APK antigo do KDS).
 - **Implantação:** atualizar os celulares dos garçons antes de marcar pergunta obrigatória em produtos — o APK antigo recebe erro ao lançar esses produtos.
+
+### v1.8.5 — NFC-e na venda de balcão (sessão de 17/10/2026)
+- **`QuickSaleModal`:** chave "Emitir NFC-e" acima do Concluir, desligada sempre que a tela abre e mantida entre vendas; atalho **F8**; campo CPF/CNPJ só com a chave ligada. Conferências antes de gravar a venda (documento, total > 0, limite de R$ 10 mil, NCM dos produtos). A venda é gravada primeiro e a nota sai em segundo plano (`services/nfce.ts` → `emitNfceForOrder`), com a situação de cada venda na faixa do topo (Reimprimir / Tentar de novo). O DANFE substitui o comprovante não fiscal; o comprovante só sai se a nota falhar.
+- **Preço na nota:** usa o `unitPrice` cobrado pelo servidor (promoção + adicionais) e rateia o desconto da venda por item (`valor_desconto`), arredondando para baixo e distribuindo a sobra — o total da nota bate com o pago.
+- **`POST /api/fiscal/emit-nfce`:** com `saleKey` (id da venda) a ref é fixa (`nfce_<id>`) e o servidor consulta a Focus antes de enviar (autorizada → devolve; processando → avisa; rejeitada/inexistente → reenvia com a mesma ref). Sem `saleKey` (Emissor manual) continua como antes. `CREDIT_CARD`/`DEBIT_CARD` agora viram 03/04 (antes caíam em 01 Dinheiro); `CREDIT_TAB` → 05. `nome_destinatario` só vai com CPF/CNPJ.
+- **Conferir em homologação:** reenvio com a mesma ref depois de rejeição na Focus.
+- **Atalhos do PC** (`App.tsx` → prop `shortcut` do `CashView`; só com permissão de caixa): **Ctrl+A** abrir caixa (leva o cursor ao fundo de troco; dentro de campo de texto continua "selecionar tudo"), e com turno aberto **F2** venda de balcão, **Ctrl+S** sangria, **Ctrl+Shift+S** suprimento, **Ctrl+F** fechar turno. Dentro da venda de balcão: **F8** NFC-e, **F12** concluir, **Shift+A/B/C/D** = PIX/Dinheiro/Crédito/Débito (não vale dentro de campo de texto, exceto a busca vazia).
+- **DevTools do Electron:** passou de F12 (globalShortcut, prendia a tecla no Windows inteiro) para **Ctrl+Shift+I**, só com a janela em foco.
 - **Pendência:** o emissor manual de NFC-e usa o preço de cadastro, não o preço com promoção/adicionais da comanda.
 
 ---

@@ -6,7 +6,7 @@ import { socket, getServerBaseUrl } from './services/socket';
 import { Navbar } from './components/Navbar';
 import { TablesView } from './views/TablesView';
 import { KdsView } from './views/KdsView';
-import { CashView } from './views/CashView';
+import { CashView, CashShortcut } from './views/CashView';
 import { ProductsView } from './views/ProductsView';
 import { SuppliersView } from './views/SuppliersView';
 import { DashboardView } from './views/DashboardView';
@@ -147,6 +147,33 @@ export function App() {
       }
     }
   }, [currentUser, currentView]);
+
+  // Atalhos do caixa (PC): Ctrl+A abrir caixa, F2 venda de balcão, Ctrl+S sangria, Ctrl+Shift+S suprimento, Ctrl+F fechar turno
+  const [cashShortcut, setCashShortcut] = useState<CashShortcut | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!currentUser || e.altKey || e.metaKey) return;
+      let action: CashShortcut['action'] | null = null;
+      if (e.key === 'F2' && !e.ctrlKey && !e.shiftKey) action = 'quickSale';
+      else if (e.ctrlKey && e.code === 'KeyS') action = e.shiftKey ? 'supply' : 'withdrawal';
+      else if (e.ctrlKey && !e.shiftKey && e.code === 'KeyF') action = 'closeShift';
+      else if (e.ctrlKey && !e.shiftKey && e.code === 'KeyA') {
+        // Dentro de campo de texto o Ctrl+A continua sendo "selecionar tudo"
+        const el = document.activeElement as HTMLElement | null;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+        action = 'openShift';
+      }
+      if (!action) return;
+      e.preventDefault();
+
+      const canUseCash = currentUser.role === 'ADMIN' || !currentUser.permissions?.length || currentUser.permissions.includes('cash');
+      if (!canUseCash) return;
+      setCurrentView('cash');
+      setCashShortcut({ action, id: Date.now() });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [currentUser]);
 
   // Inicializa variáveis CSS de impressão térmica (bobina e margens)
   useEffect(() => {
@@ -594,7 +621,7 @@ export function App() {
         )}
 
         {currentView === 'cash' && (
-          <CashView onRefreshStatus={loadCashStatus} />
+          <CashView onRefreshStatus={loadCashStatus} shortcut={cashShortcut} />
         )}
 
         {currentView === 'products' && (

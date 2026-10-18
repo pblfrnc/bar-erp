@@ -154,10 +154,12 @@ function createWindow() {
     }
   });
 
-  // Atalho F12 para abrir DevTools caso necessário
-  globalShortcut.register('F12', () => {
-    if (mainWindow) {
+  // DevTools em Ctrl+Shift+I, só com a janela do BarERP em foco. O F12 ficou para "Concluir venda" no balcão
+  // (globalShortcut prendia o F12 do Windows inteiro e a tela nunca recebia a tecla).
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.control && input.shift && String(input.key).toLowerCase() === 'i') {
       mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
     }
   });
 

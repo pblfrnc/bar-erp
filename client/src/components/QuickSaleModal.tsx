@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import { useActivePromotions } from '../services/promotions';
 import { productModifierGroups } from '../utils/pricing';
 import { ModifierPickerModal } from './ModifierPickerModal';
+import { emitNfceForOrder, isValidNcm, printNfceDanfe } from '../services/nfce';
+import { getCpfCnpjError, NFCE_LIMITE_SEM_IDENTIFICACAO } from '../utils/fiscalDoc';
 import { printOrderReceipt } from '../services/printService';
 import {
   X,
@@ -18,7 +20,10 @@ import {
   CheckCircle,
   Printer,
   Package,
-  Loader2
+  Loader2,
+  FileText,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 
 interface QuickSaleModalProps {
@@ -33,6 +38,15 @@ interface CartItem {
   unitType: 'UNIT' | 'BOX';
   options: ModifierOption[];
   notes?: string;
+}
+
+// Situação da NFC-e de cada venda (a emissão roda depois da venda gravada e não trava o próximo atendimento)
+interface NfceSaleStatus {
+  orderNumber: number;
+  status: 'emitting' | 'authorized' | 'processing' | 'error';
+  message?: string;
+  danfeUrl?: string | null;
+  retry?: () => void;
 }
 
 const cartKey = (productId: string, unitType: 'UNIT' | 'BOX', options: ModifierOption[]) =>
@@ -52,6 +66,11 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   const [customerName, setCustomerName] = useState<string>('');
   const [printReceipt, setPrintReceipt] = useState<boolean>(true);
 
+  // NFC-e: desligada por padrão sempre que a tela abre; entre uma venda e outra fica como o operador deixou (F8 alterna)
+  const [emitNfce, setEmitNfce] = useState<boolean>(false);
+  const [nfceDoc, setNfceDoc] = useState<string>('');
+  const [nfceStatuses, setNfceStatuses] = useState<NfceSaleStatus[]>([]);
+
   // Estados de controle
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -60,6 +79,84 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
   const { priceFor } = useActivePromotions();
+
+  // Atalhos do balcão: F8 liga/desliga NFC-e, F12 conclui a venda, Shift+A..D escolhe a forma de pagamento.
+  // Refs para o handler (registrado uma vez) sempre enxergar o carrinho e o estado atuais.
+  const finishSaleRef = useRef<() => void>(() => {});
+  const pickerOpenRef = useRef<boolean>(false);
+  pickerOpenRef.current = pickerProduct !== null;
+
+  useEffect(() => {
+    const PAYMENT_KEYS: Record<string, 'PIX' | 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD'> = {
+      KeyA: 'PIX',
+      KeyB: 'CASH',
+      KeyC: 'CREDIT_CARD',
+      KeyD: 'DEBIT_CARD'
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'F8') {
+        e.preventDefault();
+        setEmitNfce(v => !v);
+        return;
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        if (!pickerOpenRef.current) finishSaleRef.current();
+        return;
+      }
+      const method = e.shiftKey ? PAYMENT_KEYS[e.code] : undefined;
+      if (!method || pickerOpenRef.current) return;
+      // Num campo de texto o Shift+letra digita a maiúscula; na busca vazia (logo após bipar) vale o atalho
+      const el = document.activeElement as HTMLInputElement | null;
+      const isTextField = !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT'
+        && !['decimal', 'numeric'].includes(el.inputMode) && ['text', 'search', 'email', ''].includes(el.type)));
+      const isEmptySearch = el === searchInputRef.current && !el?.value;
+      if (isTextField && !isEmptySearch) return;
+      e.preventDefault();
+      setPaymentMethod(method);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Fechar com NFC-e ainda sendo emitida: a emissão continua, mas o aviso de erro some com a tela
+  const handleClose = () => {
+    if (nfceStatuses.some(st => st.status === 'emitting')
+      && !window.confirm('Ainda há NFC-e sendo emitida. Se fechar agora, um erro na emissão não vai aparecer aqui (confira depois em Reimpressão de NFC-e). Fechar mesmo assim?')) {
+      return;
+    }
+    onClose();
+  };
+
+  const updateNfceStatus = (next: NfceSaleStatus) =>
+    setNfceStatuses(prev => [next, ...prev.filter(s => s.orderNumber !== next.orderNumber)].slice(0, 4));
+
+  // Emite a NFC-e da venda já gravada; falha da SEFAZ não desfaz a venda (dá para tentar de novo)
+  const runNfceEmission = async (order: Order, customerDoc: string, method: string, fallbackReceipt: boolean) => {
+    updateNfceStatus({ orderNumber: order.orderNumber, status: 'emitting' });
+    try {
+      const result = await emitNfceForOrder(order, { customerDoc, paymentMethod: method });
+      if (result.status === 'authorized') {
+        printNfceDanfe(result.danfeUrl);
+        updateNfceStatus({ orderNumber: order.orderNumber, status: 'authorized', danfeUrl: result.danfeUrl });
+      } else {
+        updateNfceStatus({
+          orderNumber: order.orderNumber,
+          status: 'processing',
+          message: `Em processamento na SEFAZ (ref: ${result.referencia}). NÃO emita de novo: consulte em Reimpressão de NFC-e.`
+        });
+      }
+    } catch (err: any) {
+      if (fallbackReceipt) printOrderReceipt(order);
+      updateNfceStatus({
+        orderNumber: order.orderNumber,
+        status: 'error',
+        message: err?.message || 'Falha ao emitir a NFC-e.',
+        retry: () => runNfceEmission(order, customerDoc, method, false)
+      });
+    }
+  };
 
   // Preço calculado na hora: se a promoção do dia começar/terminar com o carrinho aberto, o total acompanha
   const linePrice = (item: CartItem) =>
@@ -228,6 +325,29 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
     if (cart.length === 0) return;
     if (submitting) return;
 
+    // Conferências da NFC-e antes de gravar a venda (depois de gravada, só a nota poderia falhar)
+    const customerDoc = nfceDoc.replace(/\D/g, '');
+    if (emitNfce) {
+      const docError = getCpfCnpjError(nfceDoc);
+      if (docError) {
+        alert(`${docError} Corrija o CPF/CNPJ da nota ou deixe em branco.`);
+        return;
+      }
+      if (total <= 0) {
+        alert('Venda com total zero não pode ter NFC-e. Desligue a NFC-e (F8) para concluir.');
+        return;
+      }
+      if (!customerDoc && total >= NFCE_LIMITE_SEM_IDENTIFICACAO) {
+        alert('Para NFC-e a partir de R$ 10.000,00 a SEFAZ exige o CPF ou CNPJ do consumidor.');
+        return;
+      }
+      const semNcm = Array.from(new Set(cart.filter(i => !isValidNcm(i.product.ncm)).map(i => i.product.name)));
+      if (semNcm.length > 0) {
+        alert(`Sem NCM no cadastro: ${semNcm.join(', ')}.\n\nCadastre o NCM (8 dígitos) em Cardápio & Estoque ou desligue a NFC-e (F8) para concluir sem nota.`);
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const res = await api.quickSale({
@@ -250,8 +370,10 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       setLastSuccess({ order: res.order, change: res.change });
       onSuccess(res.order);
 
-      // Impressão opcional
-      if (printReceipt) {
+      // Com NFC-e o cupom fiscal substitui o comprovante; se a nota falhar, sai o comprovante (se marcado)
+      if (emitNfce) {
+        runNfceEmission(res.order, customerDoc, paymentMethod, printReceipt);
+      } else if (printReceipt) {
         printOrderReceipt(res.order);
       }
 
@@ -260,12 +382,15 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       setDiscountValue('');
       setCashTendered('');
       setCustomerName('');
+      setNfceDoc('');
     } catch (err: any) {
       alert(err.error || err.message || 'Erro ao concluir venda');
     } finally {
       setSubmitting(false);
     }
   };
+
+  finishSaleRef.current = handleFinishSale;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 dark:bg-slate-950 animate-in fade-in duration-150 overflow-hidden">
@@ -289,7 +414,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -314,6 +439,50 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
             >
               Dispensar
             </button>
+          </div>
+        )}
+
+        {/* Situação das NFC-e das últimas vendas */}
+        {nfceStatuses.length > 0 && (
+          <div className="px-6 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 space-y-1">
+            {nfceStatuses.map(st => (
+              <div key={st.orderNumber} className="flex items-center justify-between gap-3 text-xs">
+                <div className={`flex items-center gap-2 font-bold min-w-0 ${
+                  st.status === 'authorized' ? 'text-emerald-600 dark:text-emerald-400'
+                    : st.status === 'error' ? 'text-red-600 dark:text-red-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  {st.status === 'emitting' ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    : st.status === 'authorized' ? <FileText className="w-3.5 h-3.5 shrink-0" />
+                    : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="truncate">
+                    Venda #{st.orderNumber} · NFC-e {
+                      st.status === 'emitting' ? 'sendo emitida...'
+                        : st.status === 'authorized' ? 'autorizada'
+                        : st.status === 'processing' ? 'em processamento'
+                        : 'não emitida'
+                    }{st.message ? `: ${st.message}` : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {st.status === 'authorized' && st.danfeUrl && (
+                    <button type="button" onClick={() => printNfceDanfe(st.danfeUrl || null)} className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300 hover:underline cursor-pointer">
+                      <Printer className="w-3 h-3" /> Reimprimir
+                    </button>
+                  )}
+                  {st.status === 'error' && st.retry && (
+                    <button type="button" onClick={st.retry} className="flex items-center gap-1 font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer">
+                      <RotateCcw className="w-3 h-3" /> Tentar de novo
+                    </button>
+                  )}
+                  {st.status !== 'emitting' && (
+                    <button type="button" onClick={() => setNfceStatuses(prev => prev.filter(x => x.orderNumber !== st.orderNumber))} className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer" title="Dispensar">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -673,6 +842,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <QrCode className="w-3.5 h-3.5" />
                     <span>PIX</span>
+                    <span className="text-[9px] font-mono opacity-60">⇧A</span>
                   </button>
 
                   <button
@@ -686,6 +856,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <Banknote className="w-3.5 h-3.5" />
                     <span>Dinheiro</span>
+                    <span className="text-[9px] font-mono opacity-60">⇧B</span>
                   </button>
 
                   <button
@@ -699,6 +870,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Crédito</span>
+                    <span className="text-[9px] font-mono opacity-60">⇧C</span>
                   </button>
 
                   <button
@@ -712,6 +884,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>Débito</span>
+                    <span className="text-[9px] font-mono opacity-60">⇧D</span>
                   </button>
                 </div>
               </div>
@@ -776,6 +949,42 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                 </span>
               </div>
 
+              {/* NFC-e: liga/desliga rápido (F8) */}
+              <div className={`rounded-xl border p-2.5 space-y-2 transition ${emitNfce ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60'}`}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={emitNfce}
+                  onClick={() => setEmitNfce(v => !v)}
+                  className="w-full flex items-center justify-between gap-2 cursor-pointer select-none"
+                  title="Emitir NFC-e nesta venda (atalho F8)"
+                >
+                  <span className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-200">
+                    <FileText className={`w-4 h-4 ${emitNfce ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+                    Emitir NFC-e
+                    <kbd className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 text-[9px] font-mono text-slate-500 dark:text-slate-400">F8</kbd>
+                  </span>
+                  <span className={`w-10 h-5 rounded-full relative transition-colors ${emitNfce ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${emitNfce ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </span>
+                </button>
+                {emitNfce && (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="CPF/CNPJ na nota (opcional)"
+                    value={nfceDoc}
+                    onChange={e => setNfceDoc(e.target.value)}
+                    className={`w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border rounded-lg text-xs text-slate-900 dark:text-white font-mono focus:outline-none placeholder-slate-400 dark:placeholder-slate-600 ${
+                      getCpfCnpjError(nfceDoc) ? 'border-red-400 focus:border-red-500' : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
+                    }`}
+                  />
+                )}
+                {emitNfce && getCpfCnpjError(nfceDoc) && nfceDoc.replace(/\D/g, '').length > 0 && (
+                  <p className="text-[10px] font-bold text-red-600 dark:text-red-400">{getCpfCnpjError(nfceDoc)}</p>
+                )}
+              </div>
+
               {/* Opção de Impressão */}
               <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
                 <input
@@ -785,7 +994,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                   className="rounded bg-slate-100 dark:bg-slate-950 border-slate-300 dark:border-slate-800 text-amber-500 focus:ring-0"
                 />
                 <Printer className="w-3.5 h-3.5" />
-                <span>Imprimir comprovante térmico</span>
+                <span>{emitNfce ? 'Imprimir comprovante se a NFC-e falhar' : 'Imprimir comprovante térmico'}</span>
               </label>
 
               {/* Botão de Conclusão */}
@@ -800,7 +1009,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                 ) : (
                   <Zap className="w-4 h-4 fill-slate-950" />
                 )}
-                {submitting ? 'Finalizando...' : `Concluir Venda (R$ ${total.toFixed(2)})`}
+                {submitting ? 'Finalizando...' : `Concluir Venda${emitNfce ? ' + NFC-e' : ''} (R$ ${total.toFixed(2)})`}
+                {!submitting && <kbd className="px-1.5 py-0.5 rounded border border-slate-950/30 text-[9px] font-mono">F12</kbd>}
               </button>
             </div>
           </div>

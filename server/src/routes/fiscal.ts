@@ -2010,7 +2010,7 @@ export function createFiscalRouter() {
   // Emitir NFC-e (Mock / Homologação Inicial)
   router.post('/emit-nfce', async (req, res) => {
     try {
-      const { items, customerCpf, paymentMethod, orderId } = req.body;
+      const { items, customerCpf, paymentMethod, orderId, saleKey } = req.body;
       
       // Validações básicas
       if (!items || items.length === 0) {
@@ -2030,9 +2030,13 @@ export function createFiscalRouter() {
       // Formato: nfce_<orderId ou timestamp>_<random>
       const ts = Date.now();
       const rnd = Math.floor(Math.random() * 9000) + 1000;
-      const ref = orderId
-        ? `nfce_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
-        : `nfce_${ts}_${rnd}`;
+      // saleKey (id da venda): ref fixa por venda, para "tentar de novo" nunca gerar uma segunda nota da mesma venda
+      const cleanSaleKey = saleKey ? String(saleKey).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) : '';
+      const ref = cleanSaleKey
+        ? `nfce_${cleanSaleKey}`
+        : orderId
+          ? `nfce_${String(orderId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)}_${rnd}`
+          : `nfce_${ts}_${rnd}`;
 
       // Mapeamento para requisição na Focus NFe
       const baseURL = settings.environment === 'producao' 
@@ -2070,7 +2074,14 @@ export function createFiscalRouter() {
       const isCpfDest = cleanDestDoc.length === 11;
       const isCnpjDest = cleanDestDoc.length === 14;
 
-      const totalItemsValue = items.reduce((acc: number, i: any) => acc + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+      // Desconto por item (ex.: desconto da venda de balcão rateado nos itens). O total da nota é o valor líquido pago.
+      const itemDiscount = (i: any) => {
+        const gross = Number((Number(i.price || 0) * Number(i.quantity || 1)).toFixed(2));
+        return Math.round(Math.min(gross, Math.max(0, Number(i.discount) || 0)) * 100) / 100;
+      };
+      // Mesmo arredondamento por item que vai na nota (vNF = soma dos vProd arredondados - vDesc)
+      const itemNetValue = (i: any) => Number((Number(i.price || 0) * Number(i.quantity || 1)).toFixed(2)) - itemDiscount(i);
+      const totalItemsValue = items.reduce((acc: number, i: any) => acc + itemNetValue(i), 0);
 
       // Documento informado deve estar completo e com dígitos verificadores válidos (nunca descartar em silêncio)
       const docError = getCpfCnpjError(cleanDestDoc);
@@ -2114,6 +2125,7 @@ export function createFiscalRouter() {
           const codigoInterno = String(i.code || '').trim();
           const codigoProduto = (eanValido || codigoInterno || String(index + 1)).slice(0, 60);
           const cleanCest = sanitizeCest(i.cest);
+          const discount = itemDiscount(i);
 
           return {
             numero_item: String(index + 1),
@@ -2130,6 +2142,7 @@ export function createFiscalRouter() {
             unidade_tributavel: unit,
             quantidade_tributavel: qty.toFixed(4),
             valor_unitario_tributavel: price.toFixed(2),
+            ...(discount > 0 ? { valor_desconto: discount.toFixed(2) } : {}),
             inclui_no_total: '1',
             icms_origem: '0',
             icms_situacao_tributaria: (settings.crt === '3') 
@@ -2145,9 +2158,11 @@ export function createFiscalRouter() {
             forma_pagamento: (() => {
                const pm = (paymentMethod || '').toUpperCase();
                if (pm === 'PIX') return '17';
-               if (pm === 'CREDITO' || pm === 'CARTÃO DE CRÉDITO') return '03';
-               if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO') return '04';
+               // CREDIT_CARD/DEBIT_CARD são os códigos do caixa/venda de balcão (antes caíam em "01 Dinheiro")
+               if (pm === 'CREDITO' || pm === 'CARTÃO DE CRÉDITO' || pm === 'CREDIT_CARD') return '03';
+               if (pm === 'DEBITO' || pm === 'CARTÃO DE DÉBITO' || pm === 'DEBIT_CARD') return '04';
                if (pm === 'DINHEIRO' || pm === 'CASH') return '01';
+               if (pm === 'CREDIT_TAB') return '05'; // Crédito loja (fiado)
                return '01';
             })(),
             valor_pagamento: totalItemsValue.toFixed(2)
@@ -2161,8 +2176,9 @@ export function createFiscalRouter() {
       } else if (isCnpjDest) {
         focusPayload.cnpj_destinatario = cleanDestDoc;
       }
+      // Nome só junto com CPF/CNPJ: destinatário sem documento é rejeitado pelo schema da SEFAZ
       const customerName = req.body.customerName;
-      if (customerName && String(customerName).trim()) {
+      if ((isCpfDest || isCnpjDest) && customerName && String(customerName).trim()) {
         focusPayload.nome_destinatario = String(customerName).trim().slice(0, 60);
       }
 
@@ -2174,6 +2190,56 @@ export function createFiscalRouter() {
       const cleanToken = (settings.apiToken || '').trim();
       const focusRoot = settings.environment === 'producao' ? 'https://api.focusnfe.com.br' : 'https://homologacao.focusnfe.com.br';
       const focusAuthHeader = 'Basic ' + Buffer.from(cleanToken + ':').toString('base64');
+
+      // Venda que já teve tentativa (ref fixa): consulta antes de reenviar. A nota pode ter sido autorizada
+      // mesmo com a primeira tentativa dando erro do nosso lado (queda de rede, timeout da Focus).
+      if (cleanSaleKey) {
+        try {
+          const prevRes = await fetch(`${baseURL}/${ref}?cnpj_emitente=${cleanCnpj}`, { headers: { 'Authorization': focusAuthHeader } });
+          if (prevRes.ok) {
+            const prev = await prevRes.json();
+            const host = req.get('host');
+            const danfeUrlPrev = `${req.protocol}://${host}/api/fiscal/danfe/${encodeURIComponent(prev.ref || ref)}`;
+            if (prev.status === 'autorizado') {
+              try {
+                const NotaEmitida = (prisma as any).notaEmitida;
+                const exists = NotaEmitida ? await NotaEmitida.findFirst({ where: { referencia: prev.ref || ref } }) : true;
+                if (!exists) {
+                  void archiveAuthorizedXml(focusRoot, focusAuthHeader, prev.caminho_xml_nota_fiscal, prev.chave_nfe || ref);
+                  await NotaEmitida.create({
+                    data: {
+                      referencia: prev.ref || ref,
+                      chave: prev.chave_nfe,
+                      numero: prev.numero,
+                      serie: prev.serie,
+                      dataEmissao: new Date().toISOString(),
+                      valorTotal: totalItemsValue,
+                      status: prev.status,
+                      xmlUrl: prev.caminho_xml_nota_fiscal || baseURL + '/' + (prev.ref || ref) + '.xml',
+                      pdfUrl: danfeUrlPrev
+                    }
+                  });
+                }
+              } catch (e) {
+                console.error('Erro ao salvar NotaEmitida (consulta prévia)', e);
+              }
+              return res.json({ success: true, status: 'autorizado', referencia: prev.ref || ref, chaveAcesso: prev.chave_nfe, caminhoDanfe: danfeUrlPrev });
+            }
+            if (String(prev.status || '').startsWith('processando')) {
+              return res.json({ success: true, status: 'processando', referencia: prev.ref || ref });
+            }
+            if (prev.status === 'cancelado') {
+              return res.status(400).json({ error: 'A NFC-e desta venda foi cancelada. Emita uma nova pelo Emissor de NFC-e, se necessário.' });
+            }
+            if (prev.status === 'denegado') {
+              return res.status(400).json({ error: 'A SEFAZ denegou a NFC-e desta venda (situação fiscal do emitente ou do destinatário). Não é possível reenviar; fale com a contabilidade.' });
+            }
+            // erro_autorizacao: segue e reenvia com a mesma ref
+          }
+        } catch (e) {
+          console.warn('[emit-nfce] Consulta prévia da ref falhou, seguindo com o envio:', e);
+        }
+      }
       const focusRes = await fetch(focusUrl, {
         method: 'POST',
         headers: {
@@ -2207,7 +2273,7 @@ export function createFiscalRouter() {
       const focusDataChave = data.chave_nfe;
       const focusDataNumero = data.numero;
       const focusDataSerie = data.serie;
-      const focusDataValor = items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+      const focusDataValor = totalItemsValue;
       const focusDataStatus = data.status;
 
       if (data.status === 'autorizado') {
@@ -2230,7 +2296,7 @@ export function createFiscalRouter() {
                 numero: data.numero,
                 serie: data.serie,
                 dataEmissao: new Date().toISOString(),
-                valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
+                valorTotal: totalItemsValue,
                 status: data.status,
                 xmlUrl: data.caminho_xml_nota_fiscal || baseURL + '/' + data.ref + '.xml',
                 pdfUrl: danfeUrl
@@ -2277,7 +2343,7 @@ export function createFiscalRouter() {
                   numero: checkData.numero,
                   serie: checkData.serie,
                   dataEmissao: new Date().toISOString(),
-                  valorTotal: items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0),
+                  valorTotal: totalItemsValue,
                   status: checkData.status,
                   xmlUrl: checkData.caminho_xml_nota_fiscal || baseURL + '/' + checkData.ref + '.xml',
                   pdfUrl: authorizedDanfeUrl

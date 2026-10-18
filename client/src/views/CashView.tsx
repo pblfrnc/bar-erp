@@ -28,11 +28,22 @@ import {
 import { QuickSaleModal } from '../components/QuickSaleModal';
 import { OrderHistoryModal } from '../components/OrderHistoryModal';
 
-interface CashViewProps {
-  onRefreshStatus: () => void;
+// Atalho de teclado pedido pelo App (id muda a cada tecla para repetir a mesma ação)
+export interface CashShortcut {
+  action: 'openShift' | 'quickSale' | 'withdrawal' | 'supply' | 'closeShift';
+  id: number;
 }
 
-export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
+interface CashViewProps {
+  onRefreshStatus: () => void;
+  shortcut?: CashShortcut | null;
+}
+
+const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <kbd className="ml-1 px-1.5 py-0.5 rounded border border-current/30 text-[9px] font-mono font-bold opacity-70">{children}</kbd>
+);
+
+export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus, shortcut }) => {
   const [shiftData, setShiftData] = useState<{
     isOpen: boolean;
     shift: CashShift | null;
@@ -87,6 +98,47 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
   useEffect(() => {
     loadCashData();
   }, []);
+
+  const openTransaction = (type: 'SUPPLY' | 'WITHDRAWAL') => {
+    setTxType(type);
+    setShowTxModal(true);
+  };
+
+  const openCloseShift = () => {
+    setClosingStep('COUNT');
+    setPreviewCheck(null);
+    setCloseReport(null);
+    setShowCloseModal(true);
+  };
+
+  // Atalhos do App (F2, Ctrl+S, Ctrl+Shift+S, Ctrl+F): espera o turno carregar e não abre por cima de outra janela
+  const handledShortcutRef = React.useRef<number | null>(null);
+  useEffect(() => {
+    if (!shortcut || loading || handledShortcutRef.current === shortcut.id) return;
+    handledShortcutRef.current = shortcut.id;
+    if (showQuickSale || showTxModal || showCloseModal) return;
+    if (shortcut.action === 'openShift') {
+      if (shiftData.isOpen) {
+        alert('O caixa já está aberto.');
+        return;
+      }
+      // Abrir exige conferir o fundo de troco: leva o cursor ao campo (Enter confirma a abertura)
+      setTimeout(() => {
+        const input = document.getElementById('cash-initial-balance') as HTMLInputElement | null;
+        input?.focus();
+        input?.select();
+      }, 50);
+      return;
+    }
+    if (!shiftData.isOpen) {
+      alert('O caixa está fechado. Abra o turno antes de usar este atalho.');
+      return;
+    }
+    if (shortcut.action === 'quickSale') setShowQuickSale(true);
+    else if (shortcut.action === 'withdrawal') openTransaction('WITHDRAWAL');
+    else if (shortcut.action === 'supply') openTransaction('SUPPLY');
+    else openCloseShift();
+  }, [shortcut, loading]);
 
   const handleOpenShift = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,6 +269,7 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
             >
               <Zap className="w-4 h-4 fill-slate-950" />
               <span>Venda Rápida (Balcão)</span>
+              <Kbd>F2</Kbd>
             </button>
           )}
 
@@ -301,6 +354,7 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
               className="w-full py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/20 active:scale-95 mt-2 cursor-pointer"
             >
               Confirmar Abertura de Caixa
+              <Kbd>Ctrl+A</Kbd>
             </button>
           </form>
 
@@ -436,43 +490,36 @@ export const CashView: React.FC<CashViewProps> = ({ onRefreshStatus }) => {
                   >
                     <Zap className="w-4 h-4 fill-slate-950" />
                     ⚡ Nova Venda de Balcão
+                    <Kbd>F2</Kbd>
                   </button>
 
                   <button
-                    onClick={() => {
-                      setTxType('WITHDRAWAL');
-                      setShowTxModal(true);
-                    }}
+                    onClick={() => openTransaction('WITHDRAWAL')}
                     className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-red-500/10 text-red-600 dark:text-red-300 hover:bg-red-600 hover:text-white border border-red-500/20 transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                   >
                     <ArrowDownRight className="w-4 h-4" />
                     Efetuar Sangria (Retirada)
+                    <Kbd>Ctrl+S</Kbd>
                   </button>
 
                   <button
-                    onClick={() => {
-                      setTxType('SUPPLY');
-                      setShowTxModal(true);
-                    }}
+                    onClick={() => openTransaction('SUPPLY')}
                     className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 hover:bg-blue-600 hover:text-white border border-blue-500/20 transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                   >
                     <ArrowUpRight className="w-4 h-4" />
                     Efetuar Suprimento (Entrada)
+                    <Kbd>Ctrl+Shift+S</Kbd>
                   </button>
                 </div>
               </div>
 
               <button
-                onClick={() => {
-                  setClosingStep('COUNT');
-                  setPreviewCheck(null);
-                  setCloseReport(null);
-                  setShowCloseModal(true);
-                }}
+                onClick={openCloseShift}
                 className="w-full py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
               >
                 <Lock className="w-4 h-4" />
                 Fechar Turno de Caixa
+                <Kbd>Ctrl+F</Kbd>
               </button>
             </div>
           </div>
