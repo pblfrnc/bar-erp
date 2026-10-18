@@ -1,39 +1,30 @@
 import { Router } from 'express';
-import * as fs from 'fs';
-import * as path from 'path';
+import { getBackupStatus, runBackup, saveBackupSettings } from '../services/backupService.js';
 
 export function createSystemRouter() {
   const router = Router();
 
-  router.get('/backup-status', (req, res) => {
+  router.get('/backup-status', async (req, res) => {
     try {
-      // O DB URL tem o formato file:C:/Users/.../bar.db
-      const dbUrl = process.env.DATABASE_URL || '';
-      const dbPath = dbUrl.replace('file:', '');
-      
-      let lastBackup = null;
-      let totalBackups = 0;
-      
-      if (dbPath && fs.existsSync(dbPath)) {
-        const userDataPath = path.dirname(dbPath);
-        const backupsDir = path.join(userDataPath, 'backups');
-        
-        if (fs.existsSync(backupsDir)) {
-          const files = fs.readdirSync(backupsDir).filter(f => f.endsWith('.db'));
-          totalBackups = files.length;
-          
-          if (files.length > 0) {
-            // Sort to get newest
-            files.sort((a, b) => b.localeCompare(a));
-            lastBackup = files[0];
-          }
-        }
-      }
-      
-      res.json({ success: true, lastBackup, totalBackups });
+      res.json(await getBackupStatus());
     } catch (err: any) {
-      res.json({ success: false, error: err.message });
+      res.status(500).json({ error: err?.message || 'Erro ao consultar o backup' });
     }
+  });
+
+  router.put('/backup-settings', async (req, res) => {
+    try {
+      const { externalFolder, enabled, keep } = req.body || {};
+      const settings = await saveBackupSettings({ externalFolder, enabled, keep });
+      res.json({ success: true, settings });
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || 'Erro ao salvar a configuração de backup' });
+    }
+  });
+
+  router.post('/backup-now', async (req, res) => {
+    const result = await runBackup('manual');
+    res.status(result.error ? 500 : 200).json(result);
   });
 
   return router;

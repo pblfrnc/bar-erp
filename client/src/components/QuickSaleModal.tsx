@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Product, Category, Order } from '../types';
+import { Product, Category, Order, ModifierOption } from '../types';
 import { api } from '../services/api';
+import { useActivePromotions } from '../services/promotions';
+import { productModifierGroups } from '../utils/pricing';
+import { ModifierPickerModal } from './ModifierPickerModal';
 import { printOrderReceipt } from '../services/printService';
 import {
   X,
@@ -24,12 +27,16 @@ interface QuickSaleModalProps {
 }
 
 interface CartItem {
+  key: string; // produto + unidade/caixa + opções escolhidas
   product: Product;
   quantity: number;
   unitType: 'UNIT' | 'BOX';
-  unitPrice: number;
+  options: ModifierOption[];
   notes?: string;
 }
+
+const cartKey = (productId: string, unitType: 'UNIT' | 'BOX', options: ModifierOption[]) =>
+  `${productId}|${unitType}|${options.map((o) => o.id).sort().join(',')}`;
 
 export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSuccess }) => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,6 +58,14 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   const [lastSuccess, setLastSuccess] = useState<{ order: Order; change: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const { priceFor } = useActivePromotions();
+
+  // Preço calculado na hora: se a promoção do dia começar/terminar com o carrinho aberto, o total acompanha
+  const linePrice = (item: CartItem) =>
+    item.unitType === 'BOX'
+      ? Number(item.product.boxPrice)
+      : priceFor(item.product).price + item.options.reduce((acc, o) => acc + o.price, 0);
 
   useEffect(() => {
     loadCatalog();
@@ -65,6 +80,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       ]);
       setCategories(cats);
       setProducts(prods.filter(p => p.isActive));
+      // Mostra o cache na hora e atualiza em seguida: adicionais/preços novos cadastrados no PC
+      api.getProducts(undefined, undefined, true).then(fresh => setProducts(fresh.filter(p => p.isActive))).catch(() => {});
     } catch (err) {
       console.error('Erro ao carregar cardápio:', err);
     } finally {
@@ -74,32 +91,48 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   };
 
   // Funções do Carrinho
-  const handleAddToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+  const addLine = (product: Product, unitType: 'UNIT' | 'BOX', options: ModifierOption[] = []) => {
     const isBox = unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
-    const price = isBox ? Number(product.boxPrice) : Number(product.price || 0);
+    const finalType: 'UNIT' | 'BOX' = isBox ? 'BOX' : 'UNIT';
+    const key = cartKey(product.id, finalType, isBox ? [] : options);
 
     setCart(prev => {
-      const idx = prev.findIndex(item => item.product.id === product.id && item.unitType === unitType);
+      const idx = prev.findIndex(item => item.key === key);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
       return [...prev, {
+        key,
         product,
         quantity: 1,
-        unitType,
-        unitPrice: price,
+        unitType: finalType,
+        options: isBox ? [] : options,
         notes: isBox ? `Caixa Fechada (${product.boxQuantity || 24} un)` : undefined
       }];
     });
   };
 
-  const handleUpdateQuantity = (productId: string, unitType: 'UNIT' | 'BOX', delta: number) => {
+  // Produto com perguntas/adicionais abre a escolha antes de entrar no carrinho. Pelo leitor de código de barras
+  // só abre se houver pergunta obrigatória, para não travar a venda rápida (opcionais: tocar no produto).
+  const handleAddToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT', fromScanner = false) => {
+    const groups = unitType === 'UNIT' ? productModifierGroups(product) : [];
+    const needsPicker = fromScanner ? groups.some(g => g.minSelect > 0) : groups.length > 0;
+    if (needsPicker) setPickerProduct(product);
+    else addLine(product, unitType);
+  };
+
+  const closePicker = () => {
+    setPickerProduct(null);
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  };
+
+  const handleUpdateQuantity = (key: string, delta: number) => {
     setCart(prev => {
       return prev
         .map(item => {
-          if (item.product.id === productId && item.unitType === unitType) {
+          if (item.key === key) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
@@ -109,12 +142,12 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
     });
   };
 
-  const handleRemoveFromCart = (productId: string, unitType: 'UNIT' | 'BOX') => {
-    setCart(prev => prev.filter(item => !(item.product.id === productId && item.unitType === unitType)));
+  const handleRemoveFromCart = (key: string) => {
+    setCart(prev => prev.filter(item => item.key !== key));
   };
 
   // Cálculos
-  const subtotal = cart.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+  const subtotal = cart.reduce((acc, item) => acc + (linePrice(item) * item.quantity), 0);
   const discountNum = Math.min(parseFloat(discountValue.replace(',', '.')) || 0, subtotal);
   const total = Math.max(0, subtotal - discountNum);
 
@@ -149,6 +182,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      // Com a escolha de opções aberta, um novo bipe trocaria o produto em escolha e o primeiro sumiria
+      if (pickerProduct) return;
       const rawTerm = search.trim().toLowerCase();
       if (!rawTerm) return;
 
@@ -163,7 +198,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       );
 
       if (exactBox) {
-        handleAddToCart(exactBox, 'BOX');
+        handleAddToCart(exactBox, 'BOX', true);
         setSearch('');
         return;
       }
@@ -175,14 +210,14 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
       );
 
       if (exact) {
-        handleAddToCart(exact, 'UNIT');
+        handleAddToCart(exact, 'UNIT', true);
         setSearch('');
         return;
       }
 
       // 3. Se houver resultados filtrados, adiciona o primeiro item imediatamente
       if (filteredProducts.length > 0) {
-        handleAddToCart(filteredProducts[0], 'UNIT');
+        handleAddToCart(filteredProducts[0], 'UNIT', true);
         setSearch('');
       }
     }
@@ -200,7 +235,8 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
           productId: i.product.id,
           quantity: i.quantity,
           unitType: i.unitType,
-          notes: i.notes
+          notes: i.notes,
+          modifierOptionIds: i.options.map(o => o.id)
         })),
         payment: {
           method: paymentMethod,
@@ -362,8 +398,10 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                   {filteredProducts.map(product => {
-                    const cartUnits = cart.find(item => item.product.id === product.id && item.unitType === 'UNIT');
-                    const cartBoxes = cart.find(item => item.product.id === product.id && item.unitType === 'BOX');
+                    const sumQty = (unitType: 'UNIT' | 'BOX') =>
+                      cart.filter(item => item.product.id === product.id && item.unitType === unitType).reduce((acc, item) => acc + item.quantity, 0);
+                    const cartUnits = sumQty('UNIT') > 0 ? { quantity: sumQty('UNIT') } : undefined;
+                    const cartBoxes = sumQty('BOX') > 0 ? { quantity: sumQty('BOX') } : undefined;
                     const totalCartCount = (cartUnits?.quantity || 0) + (cartBoxes?.quantity || 0);
                     const isLowStock = product.trackStock && product.stock <= product.minStock;
 
@@ -415,7 +453,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                                   Unidade
                                 </span>
                                 <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-emerald-400 group-hover/btn:text-slate-950">
-                                  R$ {Number(product.price || 0).toFixed(2)}
+                                  R$ {priceFor(product).price.toFixed(2)}
                                 </span>
                                 {cartUnits && (
                                   <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 group-hover/btn:text-slate-950">
@@ -464,7 +502,10 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                             className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/50 w-full hover:text-amber-500 transition cursor-pointer"
                           >
                             <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                              R$ {Number(product.price || 0).toFixed(2)}
+                              {priceFor(product).promotion && (
+                                <span className="block text-[10px] font-bold text-slate-400 line-through">R$ {Number(product.price || 0).toFixed(2)}</span>
+                              )}
+                              R$ {priceFor(product).price.toFixed(2)}
                             </span>
 
                             {product.trackStock && (
@@ -515,7 +556,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
               ) : (
                 cart.map(item => (
                   <div
-                    key={`${item.product.id}-${item.unitType}`}
+                    key={item.key}
                     className="p-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-2 shadow-xs"
                   >
                     <div className="flex-1 min-w-0">
@@ -532,14 +573,24 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                        R$ {item.unitPrice.toFixed(2)} {item.unitType === 'BOX' ? 'cx' : 'un'}
+                        R$ {linePrice(item).toFixed(2)} {item.unitType === 'BOX' ? 'cx' : 'un'}
                       </div>
+                      {item.options.length > 0 && (
+                        <div className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold truncate">
+                          {item.options.map(o => o.name).join(' · ')}
+                        </div>
+                      )}
+                      {item.unitType === 'UNIT' && priceFor(item.product).promotion && (
+                        <div className="text-[10px] text-rose-600 dark:text-rose-300 font-bold truncate">
+                          {priceFor(item.product).promotion?.name}
+                        </div>
+                      )}
                     </div>
 
                     {/* Controles de Quantidade */}
                     <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
                       <button
-                        onClick={() => handleUpdateQuantity(item.product.id, item.unitType, -1)}
+                        onClick={() => handleUpdateQuantity(item.key, -1)}
                         className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-0.5 cursor-pointer"
                       >
                         <Minus className="w-3 h-3" />
@@ -548,7 +599,7 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => handleUpdateQuantity(item.product.id, item.unitType, 1)}
+                        onClick={() => handleUpdateQuantity(item.key, 1)}
                         className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-0.5 cursor-pointer"
                       >
                         <Plus className="w-3 h-3" />
@@ -557,10 +608,10 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
 
                     <div className="text-right min-w-[65px]">
                       <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                        R$ {(item.unitPrice * item.quantity).toFixed(2)}
+                        R$ {(linePrice(item) * item.quantity).toFixed(2)}
                       </div>
                       <button
-                        onClick={() => handleRemoveFromCart(item.product.id, item.unitType)}
+                        onClick={() => handleRemoveFromCart(item.key)}
                         className="text-slate-400 hover:text-rose-500 p-0.5 transition cursor-pointer"
                         title="Remover item do carrinho"
                       >
@@ -755,6 +806,18 @@ export const QuickSaleModal: React.FC<QuickSaleModalProps> = ({ onClose, onSucce
           </div>
         </div>
       </div>
+
+      {pickerProduct && (
+        <ModifierPickerModal
+          product={pickerProduct}
+          basePrice={priceFor(pickerProduct).price}
+          onClose={closePicker}
+          onConfirm={(options) => {
+            addLine(pickerProduct, 'UNIT', options);
+            closePicker();
+          }}
+        />
+      )}
     </div>
   );
 };

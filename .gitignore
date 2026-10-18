@@ -50,3 +50,6 @@ client/android/.gradle/
 client/android/local.properties
 client/android/app/src/main/assets/public/
 scripts/generate-license.js
+
+# Configuração local do backup externo (gerada em dev ao salvar em Configurações)
+server/prisma/backup-settings.json

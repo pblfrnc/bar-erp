@@ -64,6 +64,9 @@ model OrderItem {
   unitType   String?  @default("UNIT") // "UNIT" ou "BOX"
   notes      String?  // Ex: "Sem gelo", "Com limão espremido"
   paidQuantity Int      @default(0)
+  modifiers     String?  // JSON: [{ group, name, price }] escolhidos no pedido (preço já somado ao unitPrice)
+  basePrice     Float?   // Preço unitário de tabela antes da promoção do dia
+  promotionName String?  // Promoção do dia aplicada ao item
 
   kdsStatus  String   @default("PENDING") // PENDING, PREPARING, READY, DELIVERED
   kdsStation String   @default("BAR") // BAR, KITCHEN, NONE
@@ -120,6 +123,7 @@ model Product {
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
   priceHistories PriceHistory[]
+  modifierGroups ProductModifierGroup[]
 }
 
 model PriceHistory {
@@ -328,3 +332,52 @@ model Staff {
   updatedAt      DateTime  @updatedAt
 }
 
+// Adicionais e perguntas do pedido (ex: "Ponto da carne", "Adicionais do lanche", "Gelo e limão")
+model ModifierGroup {
+  id        String                 @id @default(cuid())
+  name      String
+  minSelect Int                    @default(0) // >= 1 = pergunta obrigatória
+  maxSelect Int                    @default(1) // 0 = sem limite
+  sortOrder Int                    @default(0)
+  isActive  Boolean                @default(true)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  options   ModifierOption[]
+  products  ProductModifierGroup[]
+}
+
+model ModifierOption {
+  id        String        @id @default(cuid())
+  groupId   String
+  group     ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name      String
+  price     Float         @default(0) // Acréscimo no preço do item
+  sortOrder Int           @default(0)
+  isActive  Boolean       @default(true)
+}
+
+model ProductModifierGroup {
+  productId String
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sortOrder Int           @default(0)
+
+  @@id([productId, groupId])
+}
+
+// Promoções do dia / Happy Hour: preço especial por dia da semana e horário
+model Promotion {
+  id           String   @id @default(cuid())
+  name         String
+  isActive     Boolean  @default(true)
+  daysOfWeek   String   @default("0,1,2,3,4,5,6") // 0 = domingo ... 6 = sábado
+  startTime    String   @default("00:00") // HH:MM
+  endTime      String   @default("23:59") // HH:MM (menor que o início = atravessa a meia-noite)
+  discountType String   @default("PERCENT") // PERCENT (% de desconto) ou FIXED_PRICE (preço fixo)
+  value        Float
+  productIds   String   @default("[]") // JSON com ids de produtos
+  categoryIds  String   @default("[]") // JSON com ids de categorias
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

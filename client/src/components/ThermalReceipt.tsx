@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Order } from '../types';
 import { api, EstablishmentInfo } from '../services/api';
+import { parseModifiers } from '../utils/pricing';
 
 interface ThermalReceiptProps {
   order: Order | null;
@@ -110,6 +111,10 @@ export const ThermalReceipt: React.FC<ThermalReceiptProps> = ({ order }) => {
         {order.items?.map((item, idx) => (
           <div key={idx}>
             <div className="font-bold break-words">{item.product?.name}</div>
+            {parseModifiers(item.modifiers).map((m, i) => (
+              <div key={i} className="pl-[0.8em] text-[0.9em] break-words">+ {m.name}{m.price > 0 ? ` (${money(m.price)})` : ''}</div>
+            ))}
+            {item.promotionName && <div className="pl-[0.8em] text-[0.9em] break-words">* {item.promotionName}</div>}
             <Row left={`${item.quantity} x ${money(item.unitPrice)}`} right={money(item.totalPrice)} />
           </div>
         ))}

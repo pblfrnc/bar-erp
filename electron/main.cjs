@@ -2,7 +2,6 @@ const { app, BrowserWindow, globalShortcut, dialog, ipcMain, Menu } = require('e
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
-const { setupDailyBackup } = require('./backup.js');
 const { setupAutoUpdater } = require('./updater.cjs');
 
 // Desabilitar menu padrão do sistema para nunca prender o foco das teclas (ex: tecla Alt)
@@ -43,10 +42,8 @@ function setupDatabase() {
     // Configurar variável de ambiente para o Prisma usar o banco do AppData (usando forward slashes para Windows)
     const normalizedDbPath = dbPath.replace(/\\/g, '/');
     process.env.DATABASE_URL = `file:${normalizedDbPath}`;
-    // Executa o backup diário logo após definir o banco
-    setupDailyBackup(userDataPath, 'bar.db');
-    // Verifica a cada 6 horas se o dia virou (caso o PC fique ligado 24/7)
-    setInterval(() => setupDailyBackup(userDataPath, 'bar.db'), 6 * 60 * 60 * 1000);
+    // O backup é feito pelo servidor (server/src/services/backupService.ts) com VACUUM INTO:
+    // copiar o bar.db por aqui com o servidor gravando podia gerar uma cópia corrompida.
 
     console.log('DATABASE_URL configurada:', process.env.DATABASE_URL);
 
@@ -677,6 +674,15 @@ function createWindow() {
     } catch (err) {
       console.error('Erro ao imprimir página de teste térmica:', err);
     }
+  });
+
+  // Escolher a pasta do backup externo (Google Drive / OneDrive / pen drive)
+  ipcMain.handle('choose-backup-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Escolha a pasta do backup externo',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    return result.canceled ? null : result.filePaths[0] || null;
   });
 
   // Diálogo de confirmação síncrono nativo e seguro (evita o bug de teclado do window.confirm)

@@ -3,6 +3,7 @@ import { Table, Order, PaymentMethod, OrderItem } from '../types';
 import { api } from '../services/api';
 import { printOrderReceipt, printButtonLabel } from '../services/printService';
 import { PAYMENT_LABELS } from './ThermalReceipt';
+import { modifiersLabel } from '../utils/pricing';
 import {
   X,
   Printer,
@@ -498,6 +499,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             {item.product?.name || 'Item'}
                           </span>
                         </div>
+                        {item.modifiers && (
+                          <span className="block text-[10px] text-blue-700 dark:text-blue-300 font-semibold truncate">{modifiersLabel(item.modifiers)}</span>
+                        )}
                         <span className="text-[10px] text-slate-500">
                           {item.unpaidQty}x R$ {item.unitPrice.toFixed(2)}
                         </span>

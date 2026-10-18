@@ -23,6 +23,7 @@ import { createSuppliersRouter } from './routes/suppliers.js';
 import { createStaffRouter } from './routes/staff.js';
 import { createImportXmlRouter } from './routes/importXml.js';
 import { setupNfeAutoSyncScheduler } from './services/nfeRecebidasScheduler.js';
+import { setupBackupScheduler } from './services/backupService.js';
 
 
 
@@ -198,6 +199,9 @@ const start = async () => {
 
     // Inicializa o agendador automático de sincronização de NF-e da SEFAZ
     setupNfeAutoSyncScheduler(15);
+
+    // Backup do banco: na inicialização (se ainda não houver hoje), a cada 6h e após fechar o caixa
+    setupBackupScheduler();
   });
 };
 

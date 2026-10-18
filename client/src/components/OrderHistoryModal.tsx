@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Order } from '../types';
+import { modifiersLabel } from '../utils/pricing';
 import { api } from '../services/api';
 import { printOrderReceipt } from '../services/printService';
 import {
@@ -279,6 +280,9 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ onClose })
                           <div className="font-bold text-slate-900 dark:text-white truncate">
                             {item.product?.name || 'Produto'}
                           </div>
+                          {item.modifiers && (
+                            <div className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold">{modifiersLabel(item.modifiers)}</div>
+                          )}
                           {item.notes && (
                             <div className="text-[10px] text-amber-600 dark:text-amber-400/80 italic">
                               Obs: {item.notes}

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../prisma.js';
+import { runBackup } from '../services/backupService.js';
 
 export function createCashRouter(io: SocketIOServer) {
   const router = Router();
@@ -276,6 +277,9 @@ export function createCashRouter(io: SocketIOServer) {
           waiterCommissions
         }
       });
+
+      // Backup depois de responder: nunca atrasa nem derruba o fechamento do caixa
+      runBackup('fechamento de caixa').catch((err) => console.error('[Backup] Erro após fechar o caixa:', err));
     } catch (error) {
       console.error('Erro ao fechar caixa:', error);
       res.status(500).json({ error: 'Erro ao fechar caixa' });

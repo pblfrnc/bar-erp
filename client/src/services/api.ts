@@ -15,7 +15,9 @@ import {
   StaffMember,
   LoggedUser,
   PrinterSettings,
-  PriceHistory
+  PriceHistory,
+  ModifierGroup,
+  Promotion
 } from '../types';
 
 
@@ -141,7 +143,7 @@ export const api = {
 
   addOrderItems: (
     orderId: string,
-    items: { productId: string; quantity: number; notes?: string }[]
+    items: { productId: string; quantity: number; unitType?: 'UNIT' | 'BOX'; notes?: string; modifierOptionIds?: string[] }[]
   ): Promise<{ order: Order; addedItems: OrderItem[] }> =>
     fetchWithRetry(`${getApiUrl()}/orders/${orderId}/items`, {
       method: 'POST',
@@ -177,7 +179,7 @@ export const api = {
     }),
 
   quickSale: (data: {
-    items: { productId: string; quantity: number; notes?: string }[];
+    items: { productId: string; quantity: number; unitType?: 'UNIT' | 'BOX'; notes?: string; modifierOptionIds?: string[] }[];
     payment: { method: string; amount?: number; cashTendered?: number; notes?: string };
     customerName?: string;
     discount?: number;
@@ -536,6 +538,54 @@ export const api = {
   getEstablishment: (): Promise<EstablishmentInfo> =>
     fetchWithRetry(`${getApiUrl()}/fiscal/establishment`).then(handleResponse<EstablishmentInfo>),
 
+  // Adicionais / perguntas do pedido
+  getModifierGroups: (): Promise<ModifierGroup[]> =>
+    fetchWithRetry(`${getApiUrl()}/products/modifier-groups`).then(handleResponse<ModifierGroup[]>),
+
+  saveModifierGroup: (
+    group: { id?: string; name: string; minSelect: number; maxSelect: number; isActive?: boolean; options: { id?: string; name: string; price: number; isActive?: boolean }[] }
+  ): Promise<ModifierGroup> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/modifier-groups${group.id ? `/${group.id}` : ''}`, {
+      method: group.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(group)
+    }).then(handleResponse<ModifierGroup>);
+  },
+
+  deleteModifierGroup: (id: string): Promise<{ success: boolean }> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/modifier-groups/${id}`, { method: 'DELETE' }).then(handleResponse<{ success: boolean }>);
+  },
+
+  setProductModifierGroups: (productId: string, groupIds: string[]): Promise<{ success: boolean }> => {
+    cachedProducts = null;
+    return fetchWithRetry(`${getApiUrl()}/products/${productId}/modifier-groups`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupIds })
+    }).then(handleResponse<{ success: boolean }>);
+  },
+
+  // Promoções do dia / Happy Hour
+  getPromotions: (): Promise<Promotion[]> =>
+    fetchWithRetry(`${getApiUrl()}/products/promotions`).then(handleResponse<Promotion[]>),
+
+  getActivePromotions: (): Promise<{ serverTime: string; serverTimezoneOffset?: number; promotions: Promotion[] }> =>
+    fetchWithRetry(`${getApiUrl()}/products/promotions/active`).then(handleResponse<{ serverTime: string; serverTimezoneOffset?: number; promotions: Promotion[] }>),
+
+  savePromotion: (
+    promo: { id?: string; name: string; isActive: boolean; daysOfWeek: number[]; startTime: string; endTime: string; discountType: 'PERCENT' | 'FIXED_PRICE'; value: number; productIds: string[]; categoryIds: string[] }
+  ): Promise<Promotion> =>
+    fetchWithRetry(`${getApiUrl()}/products/promotions${promo.id ? `/${promo.id}` : ''}`, {
+      method: promo.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(promo)
+    }).then(handleResponse<Promotion>),
+
+  deletePromotion: (id: string): Promise<{ success: boolean }> =>
+    fetchWithRetry(`${getApiUrl()}/products/promotions/${id}`, { method: 'DELETE' }).then(handleResponse<{ success: boolean }>),
+
   // Configurações de Impressoras Térmicas
   getPrinterSettings: (): Promise<PrinterSettings> =>
     fetchWithRetry(`${getApiUrl()}/settings/printer`).then(handleResponse<PrinterSettings>),
@@ -545,6 +595,22 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
-    }).then(handleResponse<{ success: boolean; settings: PrinterSettings }>)
+    }).then(handleResponse<{ success: boolean; settings: PrinterSettings }>),
+
+  // Backup externo do banco (Google Drive / OneDrive / pen drive)
+  saveBackupSettings: (settings: { externalFolder?: string; enabled?: boolean; keep?: number }) =>
+    fetchWithRetry(`${getApiUrl()}/system/backup-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    }).then(handleResponse<any>),
+
+  // fetch direto: o backup pode passar dos 8s do fetchWithRetry e o reenvio não ajudaria
+  runBackupNow: () =>
+    fetch(`${getApiUrl()}/system/backup-now`, { method: 'POST' }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Erro HTTP ${res.status}`);
+      return data;
+    })
 };
 

@@ -2,6 +2,67 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { lookupEanCatalog, getNextSequentialCode } from '../services/catalogService.js';
 import { isBarProduct } from './importXml.js';
+import { isPromotionActiveAt } from '../services/pricing.js';
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Valida e normaliza o corpo de um grupo de adicionais; devolve mensagem de erro ou os dados
+function parseModifierGroupBody(body: any) {
+  const name = String(body?.name || '').trim();
+  const minSelect = Math.max(0, parseInt(body?.minSelect, 10) || 0);
+  const maxSelect = Math.max(0, parseInt(body?.maxSelect, 10) || 0);
+  const options = Array.isArray(body?.options) ? body.options : [];
+  if (!name) return { error: 'Informe o nome do grupo (ex: Ponto da carne).' };
+  if (maxSelect > 0 && minSelect > maxSelect) return { error: 'O mínimo de escolhas não pode ser maior que o máximo.' };
+  const cleanOptions = options
+    .map((o: any, i: number) => ({
+      id: o?.id ? String(o.id) : undefined,
+      name: String(o?.name || '').trim(),
+      price: Math.max(0, Number(String(o?.price ?? 0).replace(',', '.')) || 0),
+      isActive: o?.isActive !== false,
+      sortOrder: i
+    }))
+    .filter((o: any) => o.name);
+  if (cleanOptions.length === 0) return { error: 'Cadastre pelo menos uma opção.' };
+  if (minSelect > cleanOptions.filter((o: any) => o.isActive).length) {
+    return { error: 'O grupo exige mais escolhas do que opções ativas.' };
+  }
+  return { data: { name, minSelect, maxSelect, isActive: body?.isActive !== false, options: cleanOptions } };
+}
+
+function parsePromotionBody(body: any) {
+  const name = String(body?.name || '').trim();
+  const discountType = body?.discountType === 'FIXED_PRICE' ? 'FIXED_PRICE' : 'PERCENT';
+  const value = Number(String(body?.value ?? '').replace(',', '.'));
+  const days = Array.isArray(body?.daysOfWeek) ? body.daysOfWeek : String(body?.daysOfWeek || '').split(',');
+  const daysOfWeek = Array.from(new Set(days.map((d: any) => parseInt(d, 10)).filter((d: number) => d >= 0 && d <= 6))).sort().join(',');
+  const startTime = String(body?.startTime || '00:00');
+  const endTime = String(body?.endTime || '23:59');
+  const productIds = Array.isArray(body?.productIds) ? body.productIds.map(String) : [];
+  const categoryIds = Array.isArray(body?.categoryIds) ? body.categoryIds.map(String) : [];
+
+  if (!name) return { error: 'Informe o nome da promoção (ex: Happy Hour do Chopp).' };
+  if (!(value > 0)) return { error: 'Informe o valor da promoção.' };
+  if (discountType === 'PERCENT' && value >= 100) return { error: 'O desconto em % precisa ser menor que 100.' };
+  if (!daysOfWeek) return { error: 'Escolha pelo menos um dia da semana.' };
+  if (!HHMM.test(startTime) || !HHMM.test(endTime)) return { error: 'Horário inválido. Use o formato HH:MM.' };
+  if (startTime === endTime) return { error: 'Início e fim iguais. Para o dia todo, use 00:00 até 23:59.' };
+  if (productIds.length === 0 && categoryIds.length === 0) return { error: 'Escolha os produtos ou categorias da promoção.' };
+
+  return {
+    data: {
+      name,
+      discountType,
+      value,
+      daysOfWeek,
+      startTime,
+      endTime,
+      productIds: JSON.stringify(productIds),
+      categoryIds: JSON.stringify(categoryIds),
+      isActive: body?.isActive !== false
+    }
+  };
+}
 
 export function createProductsRouter() {
   const router = Router();
@@ -172,7 +233,17 @@ export function createProductsRouter() {
 
       const products = await prisma.product.findMany({
         where: whereClause,
-        include: { category: true, supplierRel: true, components: { include: { component: true } } },
+        include: {
+          category: true,
+          supplierRel: true,
+          components: { include: { component: true } },
+          // Inclui grupos inativos: o cadastro precisa deles para não perder o vínculo ao salvar;
+          // a tela de pedido filtra só os ativos (productModifierGroups)
+          modifierGroups: {
+            orderBy: { sortOrder: 'asc' },
+            include: { group: { include: { options: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } } } }
+          }
+        },
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }]
       });
 
@@ -840,6 +911,8 @@ export function createProductsRouter() {
         });
       }
 
+      await prisma.productModifierGroup.deleteMany({ where: { productId: id } });
+
       // Excluir pedidos históricos com este produto e o produto em si
       await prisma.orderItem.deleteMany({
         where: { productId: id }
@@ -902,6 +975,167 @@ export function createProductsRouter() {
     } catch (error) {
       console.error('Erro ao excluir categoria:', error);
       res.status(500).json({ error: 'Erro ao excluir categoria' });
+    }
+  });
+
+  // ============================================================
+  // Adicionais e perguntas do pedido (grupos de opções)
+  // ============================================================
+  const modifierGroupInclude = {
+    options: { orderBy: { sortOrder: 'asc' as const } },
+    _count: { select: { products: true } }
+  };
+
+  router.get('/modifier-groups', async (_req, res) => {
+    try {
+      const groups = await prisma.modifierGroup.findMany({
+        include: modifierGroupInclude,
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }]
+      });
+      res.json(groups);
+    } catch (error) {
+      console.error('Erro ao listar adicionais:', error);
+      res.status(500).json({ error: 'Erro ao listar adicionais' });
+    }
+  });
+
+  router.post('/modifier-groups', async (req, res) => {
+    try {
+      const parsed = parseModifierGroupBody(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const { options, ...data } = parsed.data!;
+      const group = await prisma.modifierGroup.create({
+        data: {
+          ...data,
+          options: { create: options.map(({ id: _id, ...o }: any) => o) }
+        },
+        include: modifierGroupInclude
+      });
+      res.status(201).json(group);
+    } catch (error) {
+      console.error('Erro ao criar grupo de adicionais:', error);
+      res.status(500).json({ error: 'Erro ao criar grupo de adicionais' });
+    }
+  });
+
+  router.put('/modifier-groups/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const parsed = parseModifierGroupBody(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const { options, ...data } = parsed.data!;
+
+      const existing = await prisma.modifierGroup.findUnique({ where: { id }, include: { options: true } });
+      if (!existing) return res.status(404).json({ error: 'Grupo não encontrado' });
+
+      // Itens já lançados guardam o nome/preço escolhidos, então dá para apagar opções removidas
+      const keptIds = options.filter((o: any) => o.id).map((o: any) => o.id);
+      await prisma.modifierOption.deleteMany({ where: { groupId: id, id: { notIn: keptIds } } });
+      for (const { id: optionId, ...o } of options as any[]) {
+        if (optionId && existing.options.some((eo) => eo.id === optionId)) {
+          await prisma.modifierOption.update({ where: { id: optionId }, data: o });
+        } else {
+          await prisma.modifierOption.create({ data: { ...o, groupId: id } });
+        }
+      }
+
+      const group = await prisma.modifierGroup.update({ where: { id }, data, include: modifierGroupInclude });
+      res.json(group);
+    } catch (error) {
+      console.error('Erro ao atualizar grupo de adicionais:', error);
+      res.status(500).json({ error: 'Erro ao atualizar grupo de adicionais' });
+    }
+  });
+
+  router.delete('/modifier-groups/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      await prisma.productModifierGroup.deleteMany({ where: { groupId: id } });
+      await prisma.modifierOption.deleteMany({ where: { groupId: id } });
+      await prisma.modifierGroup.delete({ where: { id } });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao excluir grupo de adicionais:', error);
+      res.status(500).json({ error: 'Erro ao excluir grupo de adicionais' });
+    }
+  });
+
+  // Define quais grupos de adicionais aparecem ao lançar o produto (na ordem enviada)
+  router.put('/:id/modifier-groups', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const groupIds: string[] = Array.isArray(req.body?.groupIds) ? Array.from(new Set(req.body.groupIds.map(String))) : [];
+      const product = await prisma.product.findUnique({ where: { id } });
+      if (!product) return res.status(404).json({ error: 'Produto não encontrado' });
+
+      await prisma.productModifierGroup.deleteMany({ where: { productId: id } });
+      for (let i = 0; i < groupIds.length; i++) {
+        await prisma.productModifierGroup.create({ data: { productId: id, groupId: groupIds[i], sortOrder: i } });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao vincular adicionais ao produto:', error);
+      res.status(500).json({ error: 'Erro ao vincular adicionais ao produto' });
+    }
+  });
+
+  // ============================================================
+  // Promoções do dia / Happy Hour
+  // ============================================================
+  router.get('/promotions', async (_req, res) => {
+    try {
+      const promotions = await prisma.promotion.findMany({ orderBy: [{ isActive: 'desc' }, { name: 'asc' }] });
+      const now = new Date();
+      res.json(promotions.map((p) => ({ ...p, isRunningNow: isPromotionActiveAt(p, now) })));
+    } catch (error) {
+      console.error('Erro ao listar promoções:', error);
+      res.status(500).json({ error: 'Erro ao listar promoções' });
+    }
+  });
+
+  // Promoções ativas (cadastro ligado); o app calcula o horário com a mesma regra do servidor
+  router.get('/promotions/active', async (_req, res) => {
+    try {
+      const promotions = await prisma.promotion.findMany({ where: { isActive: true } });
+      // Fuso do PC: o celular calcula o horário da promoção no fuso do servidor, não no dele
+      res.json({ serverTime: new Date().toISOString(), serverTimezoneOffset: new Date().getTimezoneOffset(), promotions });
+    } catch (error) {
+      console.error('Erro ao listar promoções ativas:', error);
+      res.status(500).json({ error: 'Erro ao listar promoções ativas' });
+    }
+  });
+
+  router.post('/promotions', async (req, res) => {
+    try {
+      const parsed = parsePromotionBody(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const promotion = await prisma.promotion.create({ data: parsed.data! });
+      res.status(201).json(promotion);
+    } catch (error) {
+      console.error('Erro ao criar promoção:', error);
+      res.status(500).json({ error: 'Erro ao criar promoção' });
+    }
+  });
+
+  router.put('/promotions/:id', async (req, res) => {
+    try {
+      const parsed = parsePromotionBody(req.body);
+      if (parsed.error) return res.status(400).json({ error: parsed.error });
+      const promotion = await prisma.promotion.update({ where: { id: req.params.id }, data: parsed.data! });
+      res.json(promotion);
+    } catch (error) {
+      console.error('Erro ao atualizar promoção:', error);
+      res.status(500).json({ error: 'Erro ao atualizar promoção' });
+    }
+  });
+
+  router.delete('/promotions/:id', async (req, res) => {
+    try {
+      await prisma.promotion.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Erro ao excluir promoção:', error);
+      res.status(500).json({ error: 'Erro ao excluir promoção' });
     }
   });
 

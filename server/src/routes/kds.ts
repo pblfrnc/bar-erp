@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../prisma.js';
+import { kitchenNote, withKitchenNote } from '../services/pricing.js';
 
 export function createKdsRouter(io: SocketIOServer) {
   const router = Router();
@@ -32,7 +33,7 @@ export function createKdsRouter(io: SocketIOServer) {
         orderBy: { addedAt: 'asc' }
       });
 
-      res.json(items);
+      res.json(items.map(withKitchenNote));
     } catch (error) {
       console.error('Erro ao buscar itens KDS:', error);
       res.status(500).json({ error: 'Erro ao buscar itens KDS' });
@@ -86,12 +87,12 @@ export function createKdsRouter(io: SocketIOServer) {
           station: updatedItem.kdsStation,
           productName: updatedItem.product.name,
           quantity: updatedItem.quantity,
-          notes: updatedItem.notes,
+          notes: kitchenNote(updatedItem),
           readyAt: new Date().toISOString()
         });
       }
 
-      res.json(updatedItem);
+      res.json(withKitchenNote(updatedItem));
     } catch (error) {
       console.error('Erro ao atualizar status KDS:', error);
       res.status(500).json({ error: 'Erro ao atualizar status KDS' });
@@ -145,7 +146,7 @@ export function createKdsRouter(io: SocketIOServer) {
           items: orderBefore.items.map((i) => ({
             name: i.product.name,
             quantity: i.quantity,
-            notes: i.notes
+            notes: kitchenNote(i)
           })),
           readyAt: new Date().toISOString()
         });
@@ -205,7 +206,7 @@ export function createKdsRouter(io: SocketIOServer) {
           items: orderBefore.items.map((i) => ({
             name: i.product.name,
             quantity: i.quantity,
-            notes: i.notes
+            notes: kitchenNote(i)
           })),
           readyAt: new Date().toISOString()
         });

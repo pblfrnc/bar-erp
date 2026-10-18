@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printTestTicket: (settings) => ipcRenderer.send('print-test-ticket', settings),
   focusWindow: () => ipcRenderer.send('focus-window'),
   showConfirm: (message, title) => ipcRenderer.sendSync('show-confirm-dialog', { message, title }),
+  chooseBackupFolder: () => ipcRenderer.invoke('choose-backup-folder'),
 
   // Auto-Updater
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

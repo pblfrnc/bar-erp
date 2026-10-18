@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { socket } from '../services/socket';
 import { api } from '../services/api';
+import { BackupSettingsCard } from '../components/BackupSettingsCard';
 
 interface SettingsViewProps {
   onOpenWaitersModal: () => void;
@@ -71,7 +72,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   updateInfo,
   onCheckForUpdates
 }) => {
-  const [backupInfo, setBackupInfo] = useState<any>(null);
   const [connectedDevices, setConnectedDevices] = useState<any[]>([]);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
@@ -114,7 +114,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isSavingMargin, setIsSavingMargin] = useState<boolean>(false);
 
   useEffect(() => {
-    api.getBackupStatus().then(setBackupInfo).catch(() => {});
     api.getSystemSettings().then(st => {
       if (st?.defaultProfitMargin !== undefined && st?.defaultProfitMargin !== null) {
         setDefaultMarginInput(String(st.defaultProfitMargin));
@@ -317,23 +316,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Grid de Opções - Backup Automático */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 dark:text-indigo-400">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Backup Automático do Banco</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {backupInfo?.totalBackups 
-                ? `${backupInfo.totalBackups} backups salvos. Último: ${backupInfo.lastBackup}` 
-                : "Ativado. Backups são salvos no AppData todos os dias."}
-            </p>
-          </div>
-        </div>
-        <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 px-2 py-1 rounded">Protegido</span>
-      </div>
+      {/* Backup Automático (local + pasta externa) */}
+      <BackupSettingsCard />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Equipe & Funcionários */}

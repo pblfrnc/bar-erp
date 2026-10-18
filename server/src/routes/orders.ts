@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../prisma.js';
 import { PRINT_STATIONS_ROOM } from '../printStations.js';
+import { PricingError, loadActivePromotions, priceOrderLine, withKitchenNote } from '../services/pricing.js';
 
 export function createOrdersRouter(io: SocketIOServer) {
   const router = Router();
@@ -99,6 +100,8 @@ export function createOrdersRouter(io: SocketIOServer) {
       // 3. Verificar produtos e calcular subtotal
       let subtotal = 0;
       const verifiedItems: any[] = [];
+      const promotions = await loadActivePromotions();
+      const now = new Date();
 
       for (const it of items) {
         const product = await prisma.product.findUnique({
@@ -106,9 +109,15 @@ export function createOrdersRouter(io: SocketIOServer) {
           include: { components: true }
         });
         if (!product) continue;
+        let pricing;
+        try {
+          pricing = await priceOrderLine(product, it, promotions, now);
+        } catch (e) {
+          if (e instanceof PricingError) return res.status(400).json({ error: e.message });
+          throw e;
+        }
         const qty = Math.max(1, Number(it.quantity) || 1);
-        const isBox = it.unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
-        const unitPrice = isBox ? Number(product.boxPrice) : product.price;
+        const unitPrice = pricing.unitPrice;
         const totalPrice = unitPrice * qty;
         subtotal += totalPrice;
         verifiedItems.push({
@@ -116,8 +125,11 @@ export function createOrdersRouter(io: SocketIOServer) {
           quantity: qty,
           unitPrice,
           totalPrice,
-          unitType: isBox ? 'BOX' : 'UNIT',
-          notes: it.notes
+          unitType: pricing.isBox ? 'BOX' : 'UNIT',
+          notes: it.notes,
+          modifiers: pricing.modifiers,
+          basePrice: pricing.basePrice,
+          promotionName: pricing.promotionName
         });
       }
 
@@ -127,6 +139,13 @@ export function createOrdersRouter(io: SocketIOServer) {
 
       const discountAmt = Math.min(Number(discount) || 0, subtotal);
       const finalTotal = Math.max(0, subtotal - discountAmt);
+
+      // A tela calculou o total com os preços que tinha; se a promoção do dia começou/terminou no meio, avisar
+      if (payment.amount != null && Math.abs(Number(payment.amount) - finalTotal) > 0.05) {
+        return res.status(409).json({
+          error: `Os preços mudaram (promoção do dia começou ou terminou). Novo total: R$ ${finalTotal.toFixed(2)}. Confira e conclua de novo.`
+        });
+      }
 
       // 4. Criar pedido já fechado (PAID) e sem mesa
       const order = await prisma.order.create({
@@ -158,6 +177,9 @@ export function createOrdersRouter(io: SocketIOServer) {
             totalPrice: vi.totalPrice,
             unitType: vi.unitType,
             notes: vi.notes || (vi.unitType === 'BOX' ? `📦 Caixa Fechada (${vi.product.boxQuantity || 24} un)` : null),
+            modifiers: vi.modifiers,
+            basePrice: vi.basePrice,
+            promotionName: vi.promotionName,
             kdsStatus: vi.product.kdsStation === 'NONE' ? 'DELIVERED' : 'PENDING',
             kdsStation: vi.product.kdsStation,
             paidQuantity: vi.quantity
@@ -211,7 +233,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       const kdsItems = createdOrderItems.filter(i => i.kdsStation !== 'NONE');
       if (kdsItems.length > 0) {
         io.emit('kds:new_order', {
-          items: kdsItems,
+          items: kdsItems.map(withKitchenNote),
           orderNumber: order.orderNumber,
           tableName: 'Balcão',
           waiterName: 'Balcão / Caixa'
@@ -374,19 +396,30 @@ export function createOrdersRouter(io: SocketIOServer) {
         return res.status(400).json({ error: 'Esta comanda já foi fechada ou cancelada' });
       }
 
-      const createdItems = [];
-
+      // Precificar e validar todas as linhas antes de gravar (adicionais obrigatórios, promoção do dia)
+      const promotions = await loadActivePromotions();
+      const now = new Date();
+      const pricedLines = [];
       for (const item of items) {
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
           include: { components: true }
         });
-
         if (!product) continue;
+        try {
+          pricedLines.push({ item, product, pricing: await priceOrderLine(product, item, promotions, now) });
+        } catch (e) {
+          if (e instanceof PricingError) return res.status(400).json({ error: e.message });
+          throw e;
+        }
+      }
 
+      const createdItems = [];
+
+      for (const { item, product, pricing } of pricedLines) {
         const qty = Number(item.quantity) || 1;
-        const isBox = item.unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
-        const unitPrice = isBox ? Number(product.boxPrice) : product.price;
+        const isBox = pricing.isBox;
+        const unitPrice = pricing.unitPrice;
         const totalPrice = unitPrice * qty;
 
         // Criar item do pedido
@@ -399,6 +432,9 @@ export function createOrdersRouter(io: SocketIOServer) {
             totalPrice,
             unitType: isBox ? 'BOX' : 'UNIT',
             notes: item.notes || (isBox ? `📦 Caixa Fechada (${product.boxQuantity || 24} un)` : null),
+            modifiers: pricing.modifiers,
+            basePrice: pricing.basePrice,
+            promotionName: pricing.promotionName,
             kdsStatus: 'PENDING',
             kdsStation: product.kdsStation
           },
@@ -458,7 +494,7 @@ export function createOrdersRouter(io: SocketIOServer) {
       // Emitir eventos em tempo real
       io.emit('order:updated', { orderId: updatedOrder.id, itemsCount: createdItems.length });
       io.emit('kds:new_order', {
-        items: createdItems,
+        items: createdItems.map(withKitchenNote),
         orderNumber: order.orderNumber,
         tableName: order.table?.name || (order.table ? `Mesa ${order.table.number}` : 'Balcão'),
         tableNumber: order.table?.number,

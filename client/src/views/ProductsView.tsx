@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Product, Category, KdsStation, Supplier } from '../types';
+import { Product, Category, KdsStation, Supplier, ModifierGroup } from '../types';
 import { api } from '../services/api';
 import {
   UtensilsCrossed,
@@ -42,10 +42,17 @@ import {
   ArrowRight,
   Scissors,
   Scale,
-  Undo2
+  Undo2,
+  ListChecks,
+  BadgePercent
 } from 'lucide-react';
 import { ImportXmlModal } from '../components/ImportXmlModal';
 import { NcmLookupModal } from '../components/NcmLookupModal';
+import { ModifierGroupsManager, describeModifierRule } from '../components/ModifierGroupsManager';
+import { PromotionsManager } from '../components/PromotionsManager';
+
+const productGroupIds = (p: Product) =>
+  [...(p.modifierGroups || [])].sort((a, b) => a.sortOrder - b.sortOrder).map((link) => link.groupId);
 
 export const ProductsView: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -105,6 +112,13 @@ export const ProductsView: React.FC = () => {
   const [formUnit, setFormUnit] = useState<string>('un');
   const [formComponents, setFormComponents] = useState<{ componentId: string; quantity: string }[]>([]);
   const [isComposed, setIsComposed] = useState<boolean>(false);
+
+  // Adicionais e perguntas (grupos marcados no produto, na ordem de exibição) e promoções
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
+  const [formModifierGroupIds, setFormModifierGroupIds] = useState<string[]>([]);
+  const [initialModifierGroupIds, setInitialModifierGroupIds] = useState<string[]>([]);
+  const [showModifierManager, setShowModifierManager] = useState<boolean>(false);
+  const [showPromotionsManager, setShowPromotionsManager] = useState<boolean>(false);
 
   // Modal Histórico de Preços
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
@@ -204,6 +218,7 @@ export const ProductsView: React.FC = () => {
       setProducts(prods);
       setCategories(cats);
       setSuppliers(sups);
+      loadModifierGroups();
       if (cats.length > 0 && !formCategoryId) {
         setFormCategoryId(cats[0].id);
       }
@@ -212,6 +227,15 @@ export const ProductsView: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadModifierGroups = () => {
+    api.getModifierGroups().then(setModifierGroups).catch((err) => console.error('Erro ao carregar adicionais:', err));
+  };
+
+  const setProductModifierSelection = (formIds: string[], initialIds: string[]) => {
+    setFormModifierGroupIds(formIds);
+    setInitialModifierGroupIds(initialIds);
   };
 
   const openPriceHistoryModal = async (p: Product) => {
@@ -319,6 +343,7 @@ export const ProductsView: React.FC = () => {
     setConversionBackup(null);
     setFormConvFactor('12');
     setFormConvMode('box');
+    setProductModifierSelection([], []);
     const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0]?.id || '');
     if (targetCat) {
       setFormCategoryId(targetCat);
@@ -371,6 +396,7 @@ export const ProductsView: React.FC = () => {
       type: 'info',
       message: `Item duplicado a partir de "${p.name}". Novo código interno sequencial gerado! Ajuste o nome e bipe o novo código de barras.`
     });
+    setProductModifierSelection(productGroupIds(p), []);
 
     setShowProductModal(true);
   };
@@ -436,6 +462,7 @@ export const ProductsView: React.FC = () => {
       setIsComposed(false);
       setFormComponents([]);
     }
+    setProductModifierSelection(productGroupIds(p), productGroupIds(p));
     setShowProductModal(true);
   };
 
@@ -576,10 +603,17 @@ export const ProductsView: React.FC = () => {
         })) : []
       };
 
-      if (editingProduct) {
-        await api.updateProduct(editingProduct.id, payload);
-      } else {
-        await api.createProduct(payload);
+      const saved = editingProduct
+        ? await api.updateProduct(editingProduct.id, payload)
+        : await api.createProduct(payload);
+
+      // Só regrava os grupos se mudaram: o GET /products não traz grupos inativos e eles se perderiam
+      if (formModifierGroupIds.join(',') !== initialModifierGroupIds.join(',')) {
+        try {
+          await api.setProductModifierGroups(editingProduct?.id || saved.id, formModifierGroupIds);
+        } catch (err: any) {
+          alert(`Produto salvo, mas os adicionais não foram gravados: ${err.message || err}`);
+        }
       }
 
       setShowProductModal(false);
@@ -1788,6 +1822,59 @@ export const ProductsView: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Card: Adicionais e perguntas (perguntados ao lançar o produto, na ordem marcada) */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <ListChecks className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">Adicionais e perguntas</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowModifierManager(true)}
+                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    >
+                      Gerenciar grupos
+                    </button>
+                  </div>
+                  {modifierGroups.length === 0 ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Nenhum grupo cadastrado. Crie grupos como "Ponto da carne" ou "Adicionais" em Gerenciar grupos.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {modifierGroups.map((g) => {
+                        const position = formModifierGroupIds.indexOf(g.id);
+                        return (
+                          <label
+                            key={g.id}
+                            className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${position >= 0 ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-amber-500/50'} ${g.isActive ? '' : 'opacity-60'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={position >= 0}
+                              onChange={() => setFormModifierGroupIds((ids) => (ids.includes(g.id) ? ids.filter((id) => id !== g.id) : [...ids, g.id]))}
+                              className="w-4 h-4 mt-0.5 accent-amber-500 shrink-0"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-bold text-slate-900 dark:text-white">
+                                {position >= 0 && <span className="text-amber-600 dark:text-amber-400 mr-1">{position + 1}.</span>}
+                                {g.name}
+                              </span>
+                              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                                {g.isActive ? describeModifierRule(g) : 'Grupo inativo'} · {g.options.filter((o) => o.isActive).length} opções
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {formModifierGroupIds.length > 1 && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Os grupos aparecem para o garçom na ordem em que foram marcados.</p>
+                  )}
+                </div>
               </div>
 
               {/* COLUNA DIREITA (5 colunas) */}
@@ -2189,6 +2276,24 @@ export const ProductsView: React.FC = () => {
                 {suppliers.length}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setShowModifierManager(true)}
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Ponto da carne, gelo e limão, adicionais pagos"
+          >
+            <ListChecks className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+            <span>Adicionais e Perguntas</span>
+          </button>
+
+          <button
+            onClick={() => setShowPromotionsManager(true)}
+            className="h-8 px-3 bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Happy hour e preços especiais por dia e horário"
+          >
+            <BadgePercent className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
+            <span>Promoções do Dia</span>
           </button>
 
           <button
@@ -3166,6 +3271,14 @@ export const ProductsView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showModifierManager && (
+        <ModifierGroupsManager onClose={() => setShowModifierManager(false)} onChanged={loadModifierGroups} />
+      )}
+
+      {showPromotionsManager && (
+        <PromotionsManager products={products} categories={categories} onClose={() => setShowPromotionsManager(false)} />
       )}
 
       {showImportXmlModal && (

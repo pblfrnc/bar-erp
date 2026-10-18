@@ -300,6 +300,64 @@ export async function runRuntimeMigrations(prisma: PrismaClient) {
       console.error('[Migrations] Erro ao reclassificar produtos de IMPORTADOS:', e.message);
     }
 
+    // Adicionais / perguntas do pedido e promoções do dia (v1.8.4)
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN "modifiers" TEXT;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN "basePrice" REAL;`); } catch (e) {}
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN "promotionName" TEXT;`); } catch (e) {}
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ModifierGroup" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "minSelect" INTEGER NOT NULL DEFAULT 0,
+          "maxSelect" INTEGER NOT NULL DEFAULT 1,
+          "sortOrder" INTEGER NOT NULL DEFAULT 0,
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ModifierOption" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "groupId" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "price" REAL NOT NULL DEFAULT 0,
+          "sortOrder" INTEGER NOT NULL DEFAULT 0,
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          CONSTRAINT "ModifierOption_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "ModifierGroup" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ProductModifierGroup" (
+          "productId" TEXT NOT NULL,
+          "groupId" TEXT NOT NULL,
+          "sortOrder" INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY ("productId", "groupId"),
+          CONSTRAINT "ProductModifierGroup_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          CONSTRAINT "ProductModifierGroup_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "ModifierGroup" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Promotion" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          "daysOfWeek" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+          "startTime" TEXT NOT NULL DEFAULT '00:00',
+          "endTime" TEXT NOT NULL DEFAULT '23:59',
+          "discountType" TEXT NOT NULL DEFAULT 'PERCENT',
+          "value" REAL NOT NULL,
+          "productIds" TEXT NOT NULL DEFAULT '[]',
+          "categoryIds" TEXT NOT NULL DEFAULT '[]',
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        )
+      `);
+    } catch (e: any) {
+      console.error('[Migrations] Erro ao criar tabelas de adicionais/promoções:', e.message);
+    }
+
     console.log('[Migrations] Banco de dados atualizado/verificado com sucesso.');
 
   } catch (error) {

@@ -73,6 +73,50 @@ export interface Product {
   boxPrice?: number | null;
   boxCostPrice?: number | null;
   boxEan?: string | null;
+
+  // Adicionais / perguntas exibidos ao lançar o produto
+  modifierGroups?: { groupId: string; sortOrder: number; group: ModifierGroup }[];
+}
+
+export interface ModifierOption {
+  id: string;
+  groupId: string;
+  name: string;
+  price: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  minSelect: number; // >= 1 = pergunta obrigatória
+  maxSelect: number; // 0 = sem limite
+  sortOrder: number;
+  isActive: boolean;
+  options: ModifierOption[];
+  _count?: { products: number };
+}
+
+// Opção escolhida, gravada no item do pedido (OrderItem.modifiers em JSON)
+export interface ModifierSnapshot {
+  group: string;
+  name: string;
+  price: number;
+}
+
+export interface Promotion {
+  id: string;
+  name: string;
+  isActive: boolean;
+  daysOfWeek: string; // "0,1,...,6" (0 = domingo)
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  discountType: 'PERCENT' | 'FIXED_PRICE';
+  value: number;
+  productIds: string; // JSON
+  categoryIds: string; // JSON
+  isRunningNow?: boolean;
 }
 
 export interface PriceHistory {
@@ -103,6 +147,9 @@ export interface OrderItem {
   totalPrice: number;
   unitType?: 'UNIT' | 'BOX';
   notes?: string | null;
+  modifiers?: string | null; // JSON de ModifierSnapshot[]
+  basePrice?: number | null; // Preço de tabela antes da promoção do dia
+  promotionName?: string | null;
   kdsStatus: KdsStatus;
   kdsStation: KdsStation;
   addedAt: string;

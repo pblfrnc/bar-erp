@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, OrderItem } from '../types';
+import { modifiersLabel } from '../utils/pricing';
 import { api } from '../services/api';
 import { printOrderReceipt, printButtonLabel } from '../services/printService';
 import {
@@ -263,6 +264,12 @@ export const TableDetailsModal: React.FC<TableDetailsModalProps> = ({
                       </span>
                       {getItemStatusBadge(item.kdsStatus)}
                     </div>
+                    {item.modifiers && (
+                      <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold mt-0.5">{modifiersLabel(item.modifiers)}</p>
+                    )}
+                    {item.promotionName && (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-300 font-bold">{item.promotionName}</p>
+                    )}
                     {item.notes && (
                       <p className="text-xs text-amber-700 dark:text-amber-300/90 font-medium italic mt-0.5">
                         Obs: {item.notes}

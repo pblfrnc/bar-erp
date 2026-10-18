@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Product, Category } from '../types';
+import { Table, Product, Category, ModifierOption } from '../types';
 import { api } from '../services/api';
+import { useActivePromotions } from '../services/promotions';
+import { productModifierGroups } from '../utils/pricing';
+import { ModifierPickerModal } from './ModifierPickerModal';
 import {
   X,
   Search,
@@ -16,7 +19,8 @@ import {
   GlassWater,
   Sparkles,
   Check,
-  Package
+  Package,
+  Tag
 } from 'lucide-react';
 
 interface AddOrderModalProps {
@@ -26,12 +30,16 @@ interface AddOrderModalProps {
 }
 
 interface CartItem {
+  key: string; // produto + unidade/caixa + opções escolhidas
   product: Product;
   quantity: number;
   unitType: 'UNIT' | 'BOX';
-  unitPrice: number;
+  options: ModifierOption[];
   notes: string;
 }
+
+const cartKey = (productId: string, unitType: 'UNIT' | 'BOX', options: ModifierOption[]) =>
+  `${productId}|${unitType}|${options.map((o) => o.id).sort().join(',')}`;
 
 export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   table,
@@ -45,6 +53,14 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const { priceFor } = useActivePromotions();
+
+  // Preço calculado na hora: se a promoção do dia começar/terminar com o carrinho aberto, a tela acompanha
+  const linePrice = (item: CartItem) =>
+    item.unitType === 'BOX'
+      ? Number(item.product.boxPrice)
+      : priceFor(item.product).price + item.options.reduce((acc, o) => acc + o.price, 0);
 
   // Chips de observações rápidas para agilizar o atendimento
   const quickObservationChips = [
@@ -67,6 +83,8 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
       ]);
       setCategories(cats);
       setProducts(prods);
+      // Mostra o cache na hora e atualiza em seguida: adicionais/preços novos cadastrados no PC
+      api.getProducts(undefined, undefined, true).then(setProducts).catch(() => {});
     } catch (err) {
       console.error('Erro ao carregar cardápio:', err);
     } finally {
@@ -88,34 +106,37 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   });
 
   // Funções do carrinho
-  const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT') => {
+  const addToCart = (product: Product, unitType: 'UNIT' | 'BOX' = 'UNIT', options: ModifierOption[] = []) => {
     const isBox = unitType === 'BOX' && product.hasBoxPrice && product.boxPrice;
-    const price = isBox ? Number(product.boxPrice) : product.price;
+    const finalType: 'UNIT' | 'BOX' = isBox ? 'BOX' : 'UNIT';
+    const key = cartKey(product.id, finalType, isBox ? [] : options);
 
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id && item.unitType === unitType);
-      if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id && item.unitType === unitType
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+      if (prev.some((item) => item.key === key)) {
+        return prev.map((item) => (item.key === key ? { ...item, quantity: item.quantity + 1 } : item));
       }
       return [...prev, {
+        key,
         product,
         quantity: 1,
-        unitType,
-        unitPrice: price,
+        unitType: finalType,
+        options: isBox ? [] : options,
         notes: isBox ? `Caixa Fechada (${product.boxQuantity || 24} un)` : ''
       }];
     });
   };
 
-  const updateQuantity = (productId: string, unitType: 'UNIT' | 'BOX', delta: number) => {
+  // Produto com perguntas/adicionais abre a escolha antes de entrar no carrinho
+  const handleAddUnit = (product: Product) => {
+    if (productModifierGroups(product).length > 0) setPickerProduct(product);
+    else addToCart(product, 'UNIT');
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.product.id === productId && item.unitType === unitType) {
+          if (item.key === key) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
@@ -125,18 +146,14 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
     );
   };
 
-  const updateNotes = (productId: string, unitType: 'UNIT' | 'BOX', notes: string) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId && item.unitType === unitType ? { ...item, notes } : item
-      )
-    );
+  const updateNotes = (key: string, notes: string) => {
+    setCart((prev) => prev.map((item) => (item.key === key ? { ...item, notes } : item)));
   };
 
-  const appendQuickNote = (productId: string, unitType: 'UNIT' | 'BOX', chip: string) => {
+  const appendQuickNote = (key: string, chip: string) => {
     setCart((prev) =>
       prev.map((item) => {
-        if (item.product.id === productId && item.unitType === unitType) {
+        if (item.key === key) {
           const current = item.notes ? `${item.notes}, ${chip}` : chip;
           return { ...item, notes: current };
         }
@@ -146,7 +163,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
+    (sum, item) => sum + linePrice(item) * item.quantity,
     0
   );
 
@@ -159,7 +176,8 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
         productId: item.product.id,
         quantity: item.quantity,
         unitType: item.unitType,
-        notes: item.notes.trim() || undefined
+        notes: item.notes.trim() || undefined,
+        modifierOptionIds: item.options.map((o) => o.id)
       }));
 
       await api.addOrderItems(table.activeOrder.id, itemsPayload);
@@ -273,9 +291,13 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {filteredProducts.map((prod) => {
-                    const cartUnits = cart.find((i) => i.product.id === prod.id && i.unitType === 'UNIT');
-                    const cartBoxes = cart.find((i) => i.product.id === prod.id && i.unitType === 'BOX');
+                    const sumQty = (unitType: 'UNIT' | 'BOX') =>
+                      cart.filter((i) => i.product.id === prod.id && i.unitType === unitType).reduce((acc, i) => acc + i.quantity, 0);
+                    const cartUnits = sumQty('UNIT') > 0 ? { quantity: sumQty('UNIT') } : undefined;
+                    const cartBoxes = sumQty('BOX') > 0 ? { quantity: sumQty('BOX') } : undefined;
                     const totalInCart = (cartUnits?.quantity || 0) + (cartBoxes?.quantity || 0);
+                    const promo = priceFor(prod);
+                    const hasOptions = productModifierGroups(prod).length > 0;
 
                     return (
                       <div
@@ -300,6 +322,14 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug">
                             {prod.name}
                           </h4>
+                          {promo.promotion && (
+                            <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[10px] font-black border border-rose-500/30">
+                              <Tag className="w-2.5 h-2.5" /> {promo.promotion.name}
+                            </span>
+                          )}
+                          {hasOptions && (
+                            <span className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-0.5">Com opções / adicionais</span>
+                          )}
                           {prod.description && (
                             <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                               {prod.description}
@@ -314,7 +344,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                               {/* Botão Unidade Avulsa */}
                               <button
                                 type="button"
-                                onClick={() => addToCart(prod, 'UNIT')}
+                                onClick={() => handleAddUnit(prod)}
                                 className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-amber-400 transition flex flex-col items-center justify-center cursor-pointer group/u active:scale-95"
                                 title="Adicionar 1 Unidade"
                               >
@@ -322,7 +352,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                                   Unidade
                                 </span>
                                 <span className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400 group-hover/u:text-slate-950">
-                                  R$ {prod.price.toFixed(2)}
+                                  R$ {promo.price.toFixed(2)}
                                 </span>
                                 {cartUnits && (
                                   <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 group-hover/u:text-slate-950">
@@ -355,11 +385,14 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         ) : (
                           <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/60">
                             <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-                              R$ {prod.price.toFixed(2)}
+                              {promo.promotion && (
+                                <span className="block text-[10px] font-bold text-slate-400 line-through">R$ {prod.price.toFixed(2)}</span>
+                              )}
+                              R$ {promo.price.toFixed(2)}
                             </span>
                             <button
                               type="button"
-                              onClick={() => addToCart(prod, 'UNIT')}
+                              onClick={() => handleAddUnit(prod)}
                               className="p-1 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-950 group-hover:bg-amber-500 group-hover:text-slate-950 transition cursor-pointer"
                             >
                               <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -409,7 +442,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
               ) : (
                 cart.map((item) => (
                   <div
-                    key={`${item.product.id}-${item.unitType}`}
+                    key={item.key}
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-2 shadow-xs"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -428,15 +461,23 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                             </span>
                           )}
                         </div>
+                        {item.options.length > 0 && (
+                          <span className="block text-[10px] text-blue-700 dark:text-blue-300 font-semibold">
+                            {item.options.map((o) => o.name).join(' · ')}
+                          </span>
+                        )}
+                        {item.unitType === 'UNIT' && priceFor(item.product).promotion && (
+                          <span className="block text-[10px] text-rose-600 dark:text-rose-300 font-bold">{priceFor(item.product).promotion?.name}</span>
+                        )}
                         <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                          R$ {(item.unitPrice * item.quantity).toFixed(2)}
+                          R$ {(linePrice(item) * item.quantity).toFixed(2)}
                         </span>
                       </div>
 
                       {/* Controle de Quantidade */}
                       <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 rounded-xl p-0.5 border border-slate-200 dark:border-slate-800">
                         <button
-                          onClick={() => updateQuantity(item.product.id, item.unitType, -1)}
+                          onClick={() => updateQuantity(item.key, -1)}
                           className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition"
                         >
                           <Minus className="w-3.5 h-3.5" />
@@ -445,7 +486,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.product.id, item.unitType, 1)}
+                          onClick={() => updateQuantity(item.key, 1)}
                           className="p-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -459,7 +500,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                         type="text"
                         placeholder="Observação (ex: sem gelo, bem passada)..."
                         value={item.notes}
-                        onChange={(e) => updateNotes(item.product.id, item.unitType, e.target.value)}
+                        onChange={(e) => updateNotes(item.key, e.target.value)}
                         className="w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-amber-500"
                       />
 
@@ -469,7 +510,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
                           <button
                             key={chip}
                             type="button"
-                            onClick={() => appendQuickNote(item.product.id, item.unitType, chip)}
+                            onClick={() => appendQuickNote(item.key, chip)}
                             className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition border border-slate-200 dark:border-transparent"
                           >
                             + {chip}
@@ -505,6 +546,18 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({
           </div>
         </div>
       </div>
+
+      {pickerProduct && (
+        <ModifierPickerModal
+          product={pickerProduct}
+          basePrice={priceFor(pickerProduct).price}
+          onClose={() => setPickerProduct(null)}
+          onConfirm={(options) => {
+            addToCart(pickerProduct, 'UNIT', options);
+            setPickerProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 };
