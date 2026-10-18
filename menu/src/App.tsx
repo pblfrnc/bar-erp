@@ -3,7 +3,6 @@ import {
   Beef,
   Beer,
   Cake,
-  ChevronRight,
   Clock,
   Coffee,
   CupSoda,
@@ -402,6 +401,18 @@ function PriceTag({ product, menu, now, size = 'md' }: { product: MenuProduct; m
   );
 }
 
+function PriceColumn({ product, menu, now }: { product: MenuProduct; menu: PublishedMenu; now: Date }) {
+  const { price, promotion } = applyBestPromotion(product, menu.promotions, now);
+  return (
+    <div className="shrink-0 flex flex-col items-end text-right leading-tight">
+      <span className={`text-[17px] font-black whitespace-nowrap ${promotion ? 'text-emerald-700 dark:text-emerald-400' : 'text-stone-900 dark:text-white'}`}>
+        {brl(price)}
+      </span>
+      {promotion && <span className="text-xs text-stone-400 line-through whitespace-nowrap">{brl(product.price)}</span>}
+    </div>
+  );
+}
+
 function HighlightCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
   const { promotion } = applyBestPromotion(product, menu.promotions, now);
   return (
@@ -431,7 +442,7 @@ function HighlightCard({ product, menu, now, onOpen }: { product: MenuProduct; m
   );
 }
 
-// Comidas: card com foto grande à direita (estilo dos cardápios de delivery)
+// Comidas: card com foto à esquerda, nome e descrição no meio e o preço em destaque à direita
 function FoodCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: PublishedMenu; now: Date; onOpen: () => void }) {
   const { promotion } = applyBestPromotion(product, menu.promotions, now);
   return (
@@ -439,27 +450,27 @@ function FoodCard({ product, menu, now, onOpen }: { product: MenuProduct; menu: 
       <button
         type="button"
         onClick={onOpen}
-        className="w-full flex gap-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-3 text-left"
+        className="w-full flex items-start gap-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-3 text-left"
       >
-        <div className="min-w-0 flex-1 flex flex-col">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-bold text-[15px] leading-snug">{product.name}</h4>
-            {product.soldOut && <SoldOutBadge />}
-          </div>
+        <ProductImage src={product.image} alt={product.name} className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl object-cover bg-stone-100 dark:bg-stone-800" />
+        <div className="min-w-0 flex-1">
+          <h4 className="font-bold text-[15px] leading-snug">{product.name}</h4>
           {product.description && (
             <p className="mt-1 text-[13px] leading-snug text-stone-500 dark:text-stone-400 line-clamp-2">{product.description}</p>
           )}
-          {promotion && (
-            <span className="mt-1.5 self-start inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-              <Sparkles className="w-3 h-3" />
-              {promotion.name}
-            </span>
+          {(product.soldOut || promotion) && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {product.soldOut && <SoldOutBadge />}
+              {promotion && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <Sparkles className="w-3 h-3" />
+                  {promotion.name}
+                </span>
+              )}
+            </div>
           )}
-          <div className="mt-auto pt-2">
-            <PriceTag product={product} menu={menu} now={now} />
-          </div>
         </div>
-        <ProductImage src={product.image} alt={product.name} className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-xl object-cover bg-stone-100 dark:bg-stone-800" />
+        <PriceColumn product={product} menu={menu} now={now} />
       </button>
     </li>
   );
@@ -485,10 +496,7 @@ function DrinkRow({ product, menu, now, onOpen }: { product: MenuProduct; menu: 
             </p>
           )}
         </div>
-        <div className="shrink-0 text-right">
-          <PriceTag product={product} menu={menu} now={now} />
-        </div>
-        <ChevronRight className="w-4 h-4 shrink-0 text-stone-300 dark:text-stone-600" />
+        <PriceColumn product={product} menu={menu} now={now} />
       </button>
     </li>
   );
